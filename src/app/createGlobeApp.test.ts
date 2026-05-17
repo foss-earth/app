@@ -109,6 +109,10 @@ beforeEach(() => {
   mockState.frameCallback = null;
   document.body.replaceChildren();
   window.history.replaceState(null, "", "/");
+  vi.stubGlobal("fetch", vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ object: { sha: "8b0ab4ed380c4c57f87a1f0da8830e19e305df70" } }),
+  })));
 
   mockState.getViewState.mockReturnValue(viewState);
   mockState.runtimeGetTileMetrics.mockReturnValue({ visibleTiles: 3, activeTiles: 5 });
@@ -159,6 +163,14 @@ describe("createGlobeApp smoke behavior", () => {
       expect.objectContaining({ googleApiKey: null }),
     );
     expect(root.querySelector("#runtimeModePill")?.textContent).toBe("Tiles: Fallback");
+    expect(root.querySelector("#settingsBuildLine")?.textContent).toMatch(
+      /^Build: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+    );
+    expect(root.querySelector("#settingsSourceLine")?.textContent).toMatch(/^Source: [\w.-]+$/);
+    expect(root.querySelector("#settingsBundleLine")?.textContent).toMatch(/^Bundle: (dev|index-[\w-]+\.js)$/);
+    await vi.waitFor(() => {
+      expect(root.querySelector("#settingsDeployLine")?.textContent).toBe("Deploy: 8b0ab4ed380c");
+    });
     expect(mockState.configureOrbitTargetHeight).toHaveBeenCalledWith({
       resolveSurfaceHeightMeters: mockState.resolveAnchorHeightMeters,
       initialOffsetMeters: 1_000,
