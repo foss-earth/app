@@ -10,6 +10,7 @@ const mockState = vi.hoisted(() => ({
   runtimeDestroy: vi.fn(),
   getViewState: vi.fn(),
   setViewState: vi.fn(),
+  configureOrbitTargetHeight: vi.fn(),
   runtimeGetTileMetrics: vi.fn(),
   poiExitTracking: vi.fn(),
   poiGetOrbitTarget: vi.fn(),
@@ -25,6 +26,7 @@ const mockState = vi.hoisted(() => ({
   perfUpdate: vi.fn(),
   perfFormat: vi.fn(),
   resolveAnchorHeight: vi.fn(),
+  resolveAnchorHeightMeters: vi.fn(),
   clearAnchorHeights: vi.fn(),
 }));
 
@@ -79,6 +81,7 @@ vi.mock("../perf/metrics", () => ({
 vi.mock("../terrain/anchorHeight", () => ({
   createAnchorHeightResolver: () => ({
     resolve: mockState.resolveAnchorHeight,
+    resolveHeight: mockState.resolveAnchorHeightMeters,
     setSample: vi.fn(),
     getCachedHeight: vi.fn(() => null),
     clear: mockState.clearAnchorHeights,
@@ -114,7 +117,8 @@ beforeEach(() => {
   mockState.cullingGetStats.mockReturnValue({ total: 4, visible: 3, hidden: 1 });
   mockState.perfUpdate.mockReturnValue({});
   mockState.perfFormat.mockReturnValue("Perf: 60fps 16.7ms p95 18.2ms a42 t3/5 c3/4");
-  mockState.resolveAnchorHeight.mockReturnValue({ x: 1, y: 0, z: 0 });
+  mockState.resolveAnchorHeight.mockReturnValue({ x: 9, y: 0, z: 0 });
+  mockState.resolveAnchorHeightMeters.mockReturnValue(264);
   mockState.createBabylonRuntime.mockResolvedValue({
     engine: { getFps: () => 60 },
     scene: {
@@ -140,6 +144,7 @@ beforeEach(() => {
     },
     getViewState: mockState.getViewState,
     setViewState: mockState.setViewState,
+    configureOrbitTargetHeight: mockState.configureOrbitTargetHeight,
     getTileMetrics: mockState.runtimeGetTileMetrics,
     destroy: mockState.runtimeDestroy,
   });
@@ -154,12 +159,17 @@ describe("createGlobeApp smoke behavior", () => {
       expect.objectContaining({ googleApiKey: null }),
     );
     expect(root.querySelector("#runtimeModePill")?.textContent).toBe("Tiles: Fallback");
+    expect(mockState.configureOrbitTargetHeight).toHaveBeenCalledWith({
+      resolveSurfaceHeightMeters: mockState.resolveAnchorHeightMeters,
+      initialOffsetMeters: 1_000,
+    });
 
     mockState.frameCallback?.();
 
     expect(root.querySelector("#hudStatus")?.textContent).toContain("44.9778°N");
     expect(root.querySelector("#perfMetricsPill")?.textContent).toBe("Perf: 60fps 16.7ms p95 18.2ms a42 t3/5 c3/4");
-    expect(mockState.compassUpdate).toHaveBeenCalledWith({ x: 1, y: 0, z: 0 }, 600);
+    expect(mockState.resolveAnchorHeight).toHaveBeenCalledWith({ x: 1, y: 0, z: 0 });
+    expect(mockState.compassUpdate).toHaveBeenCalledWith({ x: 9, y: 0, z: 0 }, 600);
   });
 
   it("passes URL API keys through runtime startup", async () => {
