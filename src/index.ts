@@ -8,10 +8,13 @@ export { createGlobeApp } from "./app/createGlobeApp";
 export { createBabylonLayer, createMeshCullable, asBabylonContext } from "./layers/types";
 export type { BabylonLayerContext, BabylonLayerState, PoiDescriptor } from "./layers/types";
 export { smoothSurfaceHeightMeters, smoothSurfaceEcef } from "./terrain/smoothElevation";
+export type { PoiSpriteSizeParams } from "./hud/poiSpriteSizeTuner";
+export { DEFAULT_POI_SPRITE_SIZE_PARAMS } from "./hud/poiSpriteSizeTuner";
 
 export interface GlobeOptions {
   container?: string | HTMLElement;
   apiKey?: string | null;
+  onPoiSpriteSizeChange?: (params: PoiSpriteSizeParams) => void;
 }
 
 export async function createGlobe(options: GlobeOptions = {}): Promise<GlobeAppHandle> {
@@ -21,5 +24,5 @@ export async function createGlobe(options: GlobeOptions = {}): Promise<GlobeAppH
     throw new Error(`Expected to find a globe container for ${String(target)}.`);
   }
 
-  return createGlobeApp(rootElement, { googleApiKey: options.apiKey });
+  return createGlobeApp(rootElement, { googleApiKey: options.apiKey, onPoiSpriteSizeChange: options.onPoiSpriteSizeChange });
 }
