@@ -7,6 +7,7 @@ export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, Globe
 export { createGlobeApp } from "./app/createGlobeApp";
 export { createBabylonLayer, createMeshCullable, asBabylonContext } from "./layers/types";
 export type { BabylonLayerContext, BabylonLayerState, PoiDescriptor } from "./layers/types";
+export { smoothSurfaceHeightMeters, smoothSurfaceEcef } from "./terrain/smoothElevation";
 
 export interface GlobeOptions {
   container?: string | HTMLElement;

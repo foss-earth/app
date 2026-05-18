@@ -10,6 +10,7 @@ const mockState = vi.hoisted(() => ({
   runtimeDestroy: vi.fn(),
   getViewState: vi.fn(),
   setViewState: vi.fn(),
+  setOrbitMode: vi.fn(),
   configureOrbitTargetHeight: vi.fn(),
   runtimeGetTileMetrics: vi.fn(),
   poiExitTracking: vi.fn(),
@@ -85,6 +86,7 @@ vi.mock("../terrain/anchorHeight", () => ({
     setSample: vi.fn(),
     getCachedHeight: vi.fn(() => null),
     clear: mockState.clearAnchorHeights,
+    setHeightOffset: vi.fn(),
   }),
 }));
 
@@ -108,6 +110,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockState.frameCallback = null;
   document.body.replaceChildren();
+  window.localStorage.clear();
   window.history.replaceState(null, "", "/");
   vi.stubGlobal("fetch", vi.fn(async () => ({
     ok: true,
@@ -119,12 +122,26 @@ beforeEach(() => {
   mockState.poiGetOrbitTarget.mockReturnValue(null);
   mockState.cullingUpdate.mockReturnValue({ total: 4, visible: 3, hidden: 1 });
   mockState.cullingGetStats.mockReturnValue({ total: 4, visible: 3, hidden: 1 });
-  mockState.perfUpdate.mockReturnValue({});
-  mockState.perfFormat.mockReturnValue("Perf: 60fps 16.7ms p95 18.2ms a42 t3/5 c3/4");
+  mockState.perfUpdate.mockReturnValue({
+    fps: 60,
+    frameMs: 16.7,
+    p95FrameMs: 18.2,
+    activeMeshes: 42,
+    drawCalls: null,
+    memoryMb: 43,
+    tiles: { visibleTiles: 3, activeTiles: 5 },
+    culling: { total: 4, visible: 3, hidden: 1 },
+  });
+  mockState.perfFormat.mockReturnValue("unused");
   mockState.resolveAnchorHeight.mockReturnValue({ x: 9, y: 0, z: 0 });
   mockState.resolveAnchorHeightMeters.mockReturnValue(264);
   mockState.createBabylonRuntime.mockResolvedValue({
-    engine: { getFps: () => 60 },
+    engine: {
+      getFps: () => 60,
+      getRenderingCanvas: () => null,
+      getRenderWidth: () => 800,
+      getRenderHeight: () => 600,
+    },
     scene: {
       onBeforeRenderObservable: {
         add: vi.fn((callback: () => void) => {
@@ -148,6 +165,7 @@ beforeEach(() => {
     },
     getViewState: mockState.getViewState,
     setViewState: mockState.setViewState,
+    setOrbitMode: mockState.setOrbitMode,
     configureOrbitTargetHeight: mockState.configureOrbitTargetHeight,
     getTileMetrics: mockState.runtimeGetTileMetrics,
     destroy: mockState.runtimeDestroy,
@@ -162,7 +180,12 @@ describe("createGlobeApp smoke behavior", () => {
       expect.any(HTMLCanvasElement),
       expect.objectContaining({ googleApiKey: null }),
     );
-    expect(root.querySelector("#runtimeModePill")?.textContent).toBe("Tiles: Fallback");
+    expect(root.querySelector("#runtimeModePill")?.textContent).toBe("Fallback Globe");
+    expect(Array.from(root.querySelector(".hud-bar")?.children ?? []).slice(0, 3).map((el) => el.id)).toEqual([
+      "northButton",
+      "helpButton",
+      "settingsButton",
+    ]);
     expect(root.querySelector("#settingsBuildLine")?.textContent).toMatch(
       /^Build: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
     );
@@ -178,10 +201,57 @@ describe("createGlobeApp smoke behavior", () => {
 
     mockState.frameCallback?.();
 
-    expect(root.querySelector("#hudStatus")?.textContent).toContain("44.9778°N");
-    expect(root.querySelector("#perfMetricsPill")?.textContent).toBe("Perf: 60fps 16.7ms p95 18.2ms a42 t3/5 c3/4");
+    expect(root.querySelector("#hudStatus")?.textContent).toBe("44.9778°N 93.2650°W h017° p71° z600m");
+    expect(Array.from(root.querySelectorAll("#perfMetricsPill .perf-chip")).map((el) => el.textContent)).toEqual([
+      "60fps",
+      "16.7ms",
+      "p95 18.2ms",
+      "c3/4",
+      "43MB",
+    ]);
+    expect(root.querySelector('#perfMetricsPill [data-perf-metric="activeMeshes"]')).toBeNull();
+    expect(root.querySelector('#perfMetricsPill [data-perf-metric="tiles"]')).toBeNull();
+    expect(root.querySelector<HTMLElement>('#perfMetricsPill [data-perf-metric="memory"]')?.title).toBe(
+      "Approximate JavaScript heap memory currently used by the page.",
+    );
     expect(mockState.resolveAnchorHeight).toHaveBeenCalledWith({ x: 1, y: 0, z: 0 });
     expect(mockState.compassUpdate).toHaveBeenCalledWith({ x: 9, y: 0, z: 0 }, 600);
+  });
+
+  it("toggles hidden performance metrics from settings", async () => {
+    const { root } = await createAppUnderTest();
+    const activeMeshesInput = root.querySelector<HTMLInputElement>('[data-perf-metric="activeMeshes"]');
+    const tilesInput = root.querySelector<HTMLInputElement>('[data-perf-metric="tiles"]');
+
+    expect(activeMeshesInput?.checked).toBe(false);
+    expect(tilesInput?.checked).toBe(false);
+
+    mockState.frameCallback?.();
+    expect(root.querySelector('#perfMetricsPill [data-perf-metric="activeMeshes"]')).toBeNull();
+    expect(root.querySelector('#perfMetricsPill [data-perf-metric="tiles"]')).toBeNull();
+
+    if (activeMeshesInput) activeMeshesInput.checked = true;
+    activeMeshesInput?.dispatchEvent(new Event("change", { bubbles: true }));
+    if (tilesInput) tilesInput.checked = true;
+    tilesInput?.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(Array.from(root.querySelectorAll("#perfMetricsPill .perf-chip")).map((el) => el.textContent)).toContain("42⬟");
+    expect(Array.from(root.querySelectorAll("#perfMetricsPill .perf-chip")).map((el) => el.textContent)).toContain("3/5t");
+    expect(root.querySelector<HTMLElement>('#perfMetricsPill [data-perf-metric="activeMeshes"]')?.title).toBe(
+      "Babylon meshes currently active in the scene.",
+    );
+  });
+
+  it("opens the map source menu from the source chip", async () => {
+    const { root } = await createAppUnderTest();
+    const sourceChip = root.querySelector<HTMLButtonElement>("#runtimeModePill");
+    const menu = root.querySelector<HTMLElement>("#mapSourceMenu");
+
+    expect(menu?.hidden).toBe(true);
+    sourceChip?.click();
+
+    expect(menu?.hidden).toBe(false);
+    expect(sourceChip?.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("passes URL API keys through runtime startup", async () => {
@@ -192,6 +262,17 @@ describe("createGlobeApp smoke behavior", () => {
     expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
       expect.any(HTMLCanvasElement),
       expect.objectContaining({ googleApiKey: "test-key" }),
+    );
+  });
+
+  it("lets the map source preference force fallback mode", async () => {
+    window.history.replaceState(null, "", "/?key=test-key&mapSource=fallback");
+
+    await createAppUnderTest();
+
+    expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
+      expect.any(HTMLCanvasElement),
+      expect.objectContaining({ googleApiKey: null }),
     );
   });
 
