@@ -2,6 +2,8 @@ import "./styles/globe.css";
 
 import { createGlobeApp } from "./app/createGlobeApp";
 import type { GlobeAppHandle } from "./app/createGlobeApp";
+import type { PoiSpriteSizeParams } from "./hud/poiSpriteSizeTuner";
+import type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
 
 export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, GlobeViewState } from "./engine/types";
 export { createGlobeApp } from "./app/createGlobeApp";
@@ -10,11 +12,14 @@ export type { BabylonLayerContext, BabylonLayerState, PoiDescriptor } from "./la
 export { smoothSurfaceHeightMeters, smoothSurfaceEcef } from "./terrain/smoothElevation";
 export type { PoiSpriteSizeParams } from "./hud/poiSpriteSizeTuner";
 export { DEFAULT_POI_SPRITE_SIZE_PARAMS } from "./hud/poiSpriteSizeTuner";
+export type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
+export { DEFAULT_ORBIT_COMPASS_SCALE_PARAMS } from "./visualization/orbitCompass";
 
 export interface GlobeOptions {
   container?: string | HTMLElement;
   apiKey?: string | null;
   onPoiSpriteSizeChange?: (params: PoiSpriteSizeParams) => void;
+  onCompassScaleChange?: (params: OrbitCompassScaleParams) => void;
 }
 
 export async function createGlobe(options: GlobeOptions = {}): Promise<GlobeAppHandle> {
@@ -24,5 +29,9 @@ export async function createGlobe(options: GlobeOptions = {}): Promise<GlobeAppH
     throw new Error(`Expected to find a globe container for ${String(target)}.`);
   }
 
-  return createGlobeApp(rootElement, { googleApiKey: options.apiKey, onPoiSpriteSizeChange: options.onPoiSpriteSizeChange });
+  return createGlobeApp(rootElement, {
+    googleApiKey: options.apiKey,
+    onPoiSpriteSizeChange: options.onPoiSpriteSizeChange,
+    onCompassScaleChange: options.onCompassScaleChange,
+  });
 }

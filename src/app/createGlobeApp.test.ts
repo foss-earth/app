@@ -24,6 +24,7 @@ const mockState = vi.hoisted(() => ({
   cullingUpdate: vi.fn(),
   cullingGetStats: vi.fn(),
   cullingDestroy: vi.fn(),
+  compassSetScaleParams: vi.fn(),
   perfUpdate: vi.fn(),
   perfFormat: vi.fn(),
   resolveAnchorHeight: vi.fn(),
@@ -55,8 +56,15 @@ vi.mock("../layers/layerRegistry", () => ({
 }));
 
 vi.mock("../visualization/orbitCompass", () => ({
+  DEFAULT_ORBIT_COMPASS_SCALE_PARAMS: {
+    radiusScale: 0.035,
+    minRadius: 750,
+    maxRadius: 240_000,
+    labelSizeScale: 0.16,
+  },
   createOrbitCompass: () => ({
     update: mockState.compassUpdate,
+    setScaleParams: mockState.compassSetScaleParams,
     isMesh: vi.fn(() => false),
     destroy: mockState.compassDestroy,
   }),
@@ -252,6 +260,36 @@ describe("createGlobeApp smoke behavior", () => {
 
     expect(menu?.hidden).toBe(false);
     expect(sourceChip?.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("shows and applies the compass scale tuner from settings", async () => {
+    const { root } = await createAppUnderTest();
+    const toggle = root.querySelector<HTMLInputElement>("#compassScaleTunerToggle");
+    const tuner = root.querySelector<HTMLElement>(".compass-scale-tuner");
+
+    expect(toggle?.checked).toBe(false);
+    expect(tuner?.hidden).toBe(true);
+
+    if (toggle) toggle.checked = true;
+    toggle?.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(tuner?.hidden).toBe(false);
+
+    const radiusScaleInput = root.querySelector<HTMLInputElement>('.compass-scale-tuner input[data-field="radiusScale"]');
+    const applyButton = root.querySelector<HTMLButtonElement>(".compass-scale-tuner .poi-sprite-tuner-apply");
+
+    if (radiusScaleInput) radiusScaleInput.value = "0.05";
+    radiusScaleInput?.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(applyButton?.hidden).toBe(false);
+
+    applyButton?.click();
+
+    expect(mockState.compassSetScaleParams).toHaveBeenCalledWith({
+      radiusScale: 0.05,
+      minRadius: 750,
+      maxRadius: 240_000,
+      labelSizeScale: 0.16,
+    });
   });
 
   it("passes URL API keys through runtime startup", async () => {
