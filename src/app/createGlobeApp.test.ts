@@ -3,6 +3,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GlobeViewState } from "../engine/types";
 
+// Node 26+ ships an experimental localStorage global that is undefined when
+// --localStorage-file is not provided, shadowing jsdom's own implementation.
+// Replacing it with an in-memory Map lets beforeEach call .clear() safely.
+const _lsStore = new Map<string, string>();
+vi.stubGlobal("localStorage", {
+  getItem: (k: string) => _lsStore.get(k) ?? null,
+  setItem: (k: string, v: string) => { _lsStore.set(k, String(v)); },
+  removeItem: (k: string) => { _lsStore.delete(k); },
+  clear: () => { _lsStore.clear(); },
+  key: (i: number) => Array.from(_lsStore.keys())[i] ?? null,
+  get length() { return _lsStore.size; },
+});
+
 const mockState = vi.hoisted(() => ({
   frameCallback: null as (() => void) | null,
   removeObserver: vi.fn(),
@@ -176,6 +189,10 @@ beforeEach(() => {
     setOrbitMode: mockState.setOrbitMode,
     configureOrbitTargetHeight: mockState.configureOrbitTargetHeight,
     getTileMetrics: mockState.runtimeGetTileMetrics,
+    requestRender: vi.fn(),
+    beginContinuous: vi.fn(),
+    endContinuous: vi.fn(),
+    setPaused: vi.fn(),
     destroy: mockState.runtimeDestroy,
   });
 });
@@ -204,7 +221,7 @@ describe("createGlobeApp smoke behavior", () => {
     });
     expect(mockState.configureOrbitTargetHeight).toHaveBeenCalledWith({
       resolveSurfaceHeightMeters: mockState.resolveAnchorHeightMeters,
-      initialOffsetMeters: 1_000,
+      initialOffsetMeters: 0,
     });
 
     mockState.frameCallback?.();

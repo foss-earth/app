@@ -5,7 +5,7 @@ import type { GlobeAppHandle } from "./app/createGlobeApp";
 import type { PoiSpriteSizeParams } from "./hud/poiSpriteSizeTuner";
 import type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
 
-export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, GlobeViewState, GlobeTheme } from "./engine/types";
+export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, GlobeViewState, GlobeTheme, GlobeInputModePreference, GlobeInputSensitivitySettings } from "./engine/types";
 export { createGlobeApp } from "./app/createGlobeApp";
 export { createBabylonLayer, createMeshCullable, asBabylonContext } from "./layers/types";
 export type { BabylonLayerContext, BabylonLayerState, PoiDescriptor } from "./layers/types";
