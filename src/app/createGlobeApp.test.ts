@@ -172,11 +172,19 @@ beforeEach(() => {
         remove: mockState.removeObserver,
       },
     },
-    renderer: { mode: "webgl" },
+    renderer: { mode: "webgl", requested: "auto" },
     status: {
-      mode: "fallback",
-      message: "Fallback mode active.",
+      mode: "raster-basemap",
+      message: "USGS Imagery raster basemap active.",
       googleApiKeyProvided: false,
+      rasterBaseMap: {
+        id: "usgs-imagery",
+        label: "USGS Imagery",
+        provider: "USGS The National Map",
+        protocol: "arcgis-tile",
+        urlTemplate: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+        attribution: "USGS The National Map",
+      },
       lastError: null,
     },
     geospatialCamera: {
@@ -193,19 +201,23 @@ beforeEach(() => {
     beginContinuous: vi.fn(),
     endContinuous: vi.fn(),
     setPaused: vi.fn(),
+    isRendering: vi.fn(() => false),
+    onActiveRenderChange: vi.fn(() => vi.fn()),
+    isStreamingTiles: vi.fn(() => false),
+    onTilesStreamingChange: vi.fn(() => vi.fn()),
     destroy: mockState.runtimeDestroy,
   });
 });
 
 describe("createGlobeApp smoke behavior", () => {
-  it("boots the fallback shell and updates HUD/perf state on the frame callback", async () => {
+  it("boots the raster basemap shell and updates HUD/perf state on the frame callback", async () => {
     const { root } = await createAppUnderTest();
 
     expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
       expect.any(HTMLCanvasElement),
       expect.objectContaining({ googleApiKey: null }),
     );
-    expect(root.querySelector("#runtimeModePill")?.textContent).toBe("Fallback Globe");
+    expect(root.querySelector("#runtimeModePill")?.textContent).toBe("USGS Imagery");
     expect(Array.from(root.querySelector(".hud-bar")?.children ?? []).slice(0, 3).map((el) => el.id)).toEqual([
       "northButton",
       "helpButton",
@@ -320,14 +332,17 @@ describe("createGlobeApp smoke behavior", () => {
     );
   });
 
-  it("lets the map source preference force fallback mode", async () => {
-    window.history.replaceState(null, "", "/?key=test-key&mapSource=fallback");
+  it("lets the map source preference force a raster basemap", async () => {
+    window.history.replaceState(null, "", "/?key=test-key&mapSource=usgs-topo");
 
     await createAppUnderTest();
 
     expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
       expect.any(HTMLCanvasElement),
-      expect.objectContaining({ googleApiKey: null }),
+      expect.objectContaining({
+        googleApiKey: null,
+        rasterBaseMap: expect.objectContaining({ id: "usgs-topo" }),
+      }),
     );
   });
 
