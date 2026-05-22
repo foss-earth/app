@@ -20,6 +20,49 @@ export type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
 export { DEFAULT_ORBIT_COMPASS_SCALE_PARAMS } from "./visualization/orbitCompass";
 export { getTheme, setTheme, toggleTheme, onThemeChange } from "./theme/theme";
 
+// ─── Sprite POI primitives ────────────────────────────────────────────────────
+export {
+  type RgbColor,
+  type MarkerStyle,
+  DEFAULT_DOT_TEXTURE_SIZE,
+  DEFAULT_SPRITE_CAPACITY,
+  EARTH_RADIUS_METERS,
+  rgbToCss,
+  markerStyleKey,
+} from "./sprites/types";
+export {
+  drawCircleAtlasCell,
+  makeCircularMarkerAtlas,
+} from "./sprites/atlas";
+export {
+  type CreatePointSpriteManagerOptions,
+  type CreatePointSpriteOptions,
+  createPointSpriteManager,
+  createPointSprite,
+  setSpriteOpacity,
+  disposeSpriteManagers,
+} from "./sprites/spriteManager";
+export { currentSpriteSize } from "./sprites/spriteSize";
+export {
+  DEFAULT_POI_HEIGHT_REFINEMENT_MAX_ZOOM_M,
+  DEFAULT_POI_HEIGHT_REFINEMENT_PROBE_UP_M,
+  DEFAULT_POI_HEIGHT_REFINEMENT_PROBE_DOWN_M,
+  smoothPointPosition,
+  isEligiblePoiHeightMesh,
+  samplePoiMeshPosition,
+  poiRefinementLod,
+  poiRefinementTileRadius,
+  lonLatToTile,
+  wrapTileX,
+  makeTileKey,
+  buildPoiTileIndex,
+  distanceScoreMetersSq,
+} from "./sprites/positioning";
+export {
+  type PickPointMetadataOptions,
+  pickPointMetadata,
+} from "./sprites/picking";
+
 export interface GlobeOptions {
   container?: string | HTMLElement;
   apiKey?: string | null;
