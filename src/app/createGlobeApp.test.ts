@@ -175,14 +175,14 @@ beforeEach(() => {
     renderer: { mode: "webgl", requested: "auto" },
     status: {
       mode: "raster-basemap",
-      message: "USGS Imagery raster basemap active.",
+      message: "USGS Imagery Topo raster basemap active.",
       googleApiKeyProvided: false,
       rasterBaseMap: {
-        id: "usgs-imagery",
-        label: "USGS Imagery",
+        id: "usgs-imagery-topo",
+        label: "USGS Imagery Topo",
         provider: "USGS The National Map",
         protocol: "arcgis-tile",
-        urlTemplate: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}",
+        urlTemplate: "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryTopo/MapServer/tile/{z}/{y}/{x}",
         attribution: "USGS The National Map",
       },
       lastError: null,
@@ -217,7 +217,7 @@ describe("createGlobeApp smoke behavior", () => {
       expect.any(HTMLCanvasElement),
       expect.objectContaining({ googleApiKey: null }),
     );
-    expect(root.querySelector("#runtimeModePill")?.textContent).toBe("USGS Imagery");
+    expect(root.querySelector("#runtimeModePill")?.textContent).toBe("USGS Imagery Topo");
     expect(Array.from(root.querySelector(".hud-bar")?.children ?? []).slice(0, 3).map((el) => el.id)).toEqual([
       "northButton",
       "helpButton",
@@ -241,9 +241,6 @@ describe("createGlobeApp smoke behavior", () => {
     expect(root.querySelector("#hudStatus")?.textContent).toBe("44.9778°N 93.2650°W h017° p71° z600m");
     expect(Array.from(root.querySelectorAll("#perfMetricsPill .perf-chip")).map((el) => el.textContent)).toEqual([
       "60fps",
-      "16.7ms",
-      "p95 18.2ms",
-      "c3/4",
       "43MB",
     ]);
     expect(root.querySelector('#perfMetricsPill [data-perf-metric="activeMeshes"]')).toBeNull();
