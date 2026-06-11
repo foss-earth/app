@@ -205,6 +205,8 @@ beforeEach(() => {
     onActiveRenderChange: vi.fn(() => vi.fn()),
     isStreamingTiles: vi.fn(() => false),
     onTilesStreamingChange: vi.fn(() => vi.fn()),
+    getGlobeAnchorRotation: vi.fn(() => false),
+    setGlobeAnchorRotation: vi.fn(),
     destroy: mockState.runtimeDestroy,
   });
 });
@@ -286,6 +288,18 @@ describe("createGlobeApp smoke behavior", () => {
 
     expect(menu?.hidden).toBe(false);
     expect(sourceChip?.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("toggles globe anchor rotation pan from settings", async () => {
+    const { root, app } = await createAppUnderTest();
+    const toggle = root.querySelector<HTMLInputElement>("#globeAnchorRotationToggle");
+    const setGlobeAnchorRotation = vi.mocked(app.runtime.setGlobeAnchorRotation);
+
+    expect(toggle?.checked).toBe(false);
+    if (toggle) toggle.checked = true;
+    toggle?.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(setGlobeAnchorRotation).toHaveBeenCalledWith(true);
   });
 
   it("shows and applies the compass scale tuner from settings", async () => {
