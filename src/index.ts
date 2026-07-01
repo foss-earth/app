@@ -7,6 +7,7 @@ import type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
 import type { RasterBaseMapSource } from "./engine/babylon/rasterBaseMaps";
 
 export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, GlobeViewState, GlobeTheme, GlobeInputModePreference, GlobeInputSensitivitySettings } from "./engine/types";
+export type { InputModeHudHandle } from "./hud/inputModeHud";
 export { DEFAULT_INPUT_SENSITIVITY } from "./input/inputSettings";
 export { createGlobeApp } from "./app/createGlobeApp";
 export { createBabylonLayer, createMeshCullable, asBabylonContext } from "./layers/types";

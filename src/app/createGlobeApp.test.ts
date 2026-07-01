@@ -24,6 +24,8 @@ const mockState = vi.hoisted(() => ({
   getViewState: vi.fn(),
   setViewState: vi.fn(),
   setOrbitMode: vi.fn(),
+  setInputMode: vi.fn(),
+  setInputSensitivity: vi.fn(),
   configureOrbitTargetHeight: vi.fn(),
   runtimeGetTileMetrics: vi.fn(),
   poiExitTracking: vi.fn(),
@@ -195,6 +197,8 @@ beforeEach(() => {
     getViewState: mockState.getViewState,
     setViewState: mockState.setViewState,
     setOrbitMode: mockState.setOrbitMode,
+    setInputMode: mockState.setInputMode,
+    setInputSensitivity: mockState.setInputSensitivity,
     configureOrbitTargetHeight: mockState.configureOrbitTargetHeight,
     getTileMetrics: mockState.runtimeGetTileMetrics,
     requestRender: vi.fn(),
@@ -205,7 +209,7 @@ beforeEach(() => {
     onActiveRenderChange: vi.fn(() => vi.fn()),
     isStreamingTiles: vi.fn(() => false),
     onTilesStreamingChange: vi.fn(() => vi.fn()),
-    getGlobeAnchorRotation: vi.fn(() => false),
+    getGlobeAnchorRotation: vi.fn(() => true),
     setGlobeAnchorRotation: vi.fn(),
     destroy: mockState.runtimeDestroy,
   });
@@ -295,11 +299,17 @@ describe("createGlobeApp smoke behavior", () => {
     const toggle = root.querySelector<HTMLInputElement>("#globeAnchorRotationToggle");
     const setGlobeAnchorRotation = vi.mocked(app.runtime.setGlobeAnchorRotation);
 
-    expect(toggle?.checked).toBe(false);
-    if (toggle) toggle.checked = true;
+    expect(toggle?.checked).toBe(true);
+    if (toggle) toggle.checked = false;
     toggle?.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(setGlobeAnchorRotation).toHaveBeenCalledWith(true);
+    expect(setGlobeAnchorRotation).toHaveBeenCalledWith(false);
+  });
+
+  it("mounts the input mode selector in the HUD bar", async () => {
+    const { root } = await createAppUnderTest();
+    expect(root.querySelector("#inputModeButton")).not.toBeNull();
+    expect(root.querySelector("#inputModeMenu")).not.toBeNull();
   });
 
   it("shows and applies the compass scale tuner from settings", async () => {
