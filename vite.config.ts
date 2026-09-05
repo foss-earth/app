@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
 
@@ -29,6 +29,9 @@ const sourceVersion = `${sourceCommit}${sourceDirty ? '-dirty' : ''}`
 // https://vite.dev/config/
 export default defineConfig({
   base,
+  test: {
+    setupFiles: ['./src/test/setup.ts'],
+  },
   define: {
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     __SOURCE_VERSION__: JSON.stringify(sourceVersion),

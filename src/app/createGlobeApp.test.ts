@@ -229,6 +229,11 @@ describe("createGlobeApp smoke behavior", () => {
       "helpButton",
       "settingsButton",
     ]);
+    const hudChildren = Array.from(root.querySelector(".hud-bar")?.children ?? []);
+    const inputModeControl = root.querySelector("#inputModeButton")?.closest(".input-mode-control");
+    expect(inputModeControl).not.toBeNull();
+    expect(hudChildren.indexOf(inputModeControl as Element)).toBe(hudChildren.indexOf(root.querySelector("#themeButton") as Element) + 1);
+    expect(hudChildren.indexOf(inputModeControl as Element)).toBe(hudChildren.indexOf(root.querySelector("#rendererControl") as Element) - 1);
     expect(root.querySelector("#settingsBuildLine")?.textContent).toMatch(
       /^Build: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
     );
