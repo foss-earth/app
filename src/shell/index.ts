@@ -10,4 +10,6 @@ export type {
 export { createHudBar } from "./hudBar";
 export { createInputModeHud, type InputModeHudOptions, type InputModeHudHandle } from "../hud/inputModeHud";
 
-export { attachRendererActivity, type RenderActivitySource } from "./rendererActivity";
+export { attachRendererActivity, attachTileStreamingActivity, type RenderActivitySource, type TileStreamingSource } from "./rendererActivity";
+
+export { attachMapDownloadSpeed, setMapSourceLabel, type MapDownloadSource } from "./mapDownloadHud";

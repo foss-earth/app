@@ -207,6 +207,8 @@ beforeEach(() => {
     setPaused: vi.fn(),
     isRendering: vi.fn(() => false),
     onActiveRenderChange: vi.fn(() => vi.fn()),
+    getMapDownloadBytesPerSecond: vi.fn(() => 0),
+    onMapDownloadRateChange: vi.fn(() => vi.fn()),
     isStreamingTiles: vi.fn(() => false),
     onTilesStreamingChange: vi.fn(() => vi.fn()),
     getGlobeAnchorRotation: vi.fn(() => true),
@@ -223,7 +225,7 @@ describe("createGlobeApp smoke behavior", () => {
       expect.any(HTMLCanvasElement),
       expect.objectContaining({ googleApiKey: null }),
     );
-    expect(root.querySelector("#runtimeModePill")?.textContent).toBe("USGS Imagery Topo");
+    expect(root.querySelector("#runtimeModePill .map-source-label")?.textContent).toBe("USGS Imagery Topo");
     expect(Array.from(root.querySelector(".hud-bar")?.children ?? []).slice(0, 3).map((el) => el.id)).toEqual([
       "northButton",
       "helpButton",
@@ -261,6 +263,23 @@ describe("createGlobeApp smoke behavior", () => {
     );
     expect(mockState.resolveAnchorHeight).toHaveBeenCalledWith({ x: 1, y: 0, z: 0 });
     expect(mockState.compassUpdate).toHaveBeenCalledWith({ x: 9, y: 0, z: 0 }, 600);
+  });
+
+  it("keeps the FPS chip mounted across frame updates so its animation can advance", async () => {
+    const { root } = await createAppUnderTest();
+    mockState.frameCallback?.();
+    const group = root.querySelector("#perfMetricsPill")!;
+    const fps = group.querySelector('[data-perf-metric="fps"]');
+    expect(fps).not.toBeNull();
+    const observer = new MutationObserver(() => {});
+    observer.observe(group, { childList: true });
+    const snapshot = mockState.perfUpdate.mock.results.at(-1)?.value;
+    mockState.perfUpdate.mockReturnValueOnce({ ...snapshot, fps: 45 });
+    mockState.frameCallback?.();
+    expect(group.querySelector('[data-perf-metric="fps"]')).toBe(fps);
+    expect(fps?.textContent).toBe("45fps");
+    expect(observer.takeRecords()).toHaveLength(0);
+    observer.disconnect();
   });
 
   it("toggles hidden performance metrics from settings", async () => {
