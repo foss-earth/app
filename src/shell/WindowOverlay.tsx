@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   LocationPanel,
   canFitSecondarySlot,
@@ -7,15 +7,9 @@ import {
   useWindowWorkspace,
   type GeodeticLocation,
   type LocationSearchResult,
+  type LocationSearchProvider,
   type WindowTabDefinition,
 } from "../windowing";
-import type { GlobeViewState } from "../engine/types";
-
-type TabId = "location";
-
-const TAB_DEFINITIONS: readonly WindowTabDefinition<TabId>[] = [
-  { id: "location", label: "Location" },
-];
 
 const DEFAULT_LOCATION: GeodeticLocation = {
   latDeg: 44.977753,
@@ -66,19 +60,34 @@ async function searchLocations(query: string, signal: AbortSignal): Promise<read
   });
 }
 
-function currentLocation(getViewState: () => GlobeViewState | null): GeodeticLocation {
+function currentLocation(getViewState: () => GeodeticLocation | null): GeodeticLocation {
   const view = getViewState();
   return view ? { latDeg: view.latDeg, lonDeg: view.lonDeg } : DEFAULT_LOCATION;
 }
 
-export interface WindowOverlayProps {
-  getViewState: () => GlobeViewState | null;
+export interface WindowOverlayProps<TabId extends string = never> {
+  getViewState: () => GeodeticLocation | null;
   setViewState: (location: GeodeticLocation) => void;
+  /** Hosts supply tab contents; the shared overlay owns both window slots. */
+  additionalTabs?: readonly WindowTabDefinition<TabId>[];
+  renderAdditionalTab?: (tabId: TabId) => ReactNode;
+  locationSearchProvider?: LocationSearchProvider;
 }
 
-export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps) {
+export function WindowOverlay<TabId extends string = never>({
+  getViewState,
+  setViewState,
+  additionalTabs = [],
+  renderAdditionalTab,
+  locationSearchProvider = searchLocations,
+}: WindowOverlayProps<TabId>) {
+  type OverlayTabId = "location" | TabId;
+  const tabDefinitions: readonly WindowTabDefinition<OverlayTabId>[] = [
+    { id: "location", label: "Location" },
+    ...additionalTabs.filter((tab) => tab.id !== "location"),
+  ];
   const overlayRef = useRef<HTMLDivElement | null>(null);
-  const workspace = useWindowWorkspace<TabId>();
+  const workspace = useWindowWorkspace<OverlayTabId>();
   const [primaryAddOpen, setPrimaryAddOpen] = useState(false);
   const [secondaryAddOpen, setSecondaryAddOpen] = useState(false);
   const [availableWidth, setAvailableWidth] = useState(0);
@@ -99,57 +108,59 @@ export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps
 
   const primaryAvailable = canFitSecondarySlot({
     availableWidth,
-    primaryMinWidth: 320,
-    secondaryMinWidth: 320,
+    primaryMinWidth: Math.max(320, workspace.state.primary.width ?? 320),
+    secondaryMinWidth: Math.max(320, workspace.state.secondary.width ?? 320),
     centerGap: 220,
     edgeGap: 12,
   });
 
   useEffect(() => {
     if (availableWidth <= 0 || primaryAvailable || workspace.state.primary.tabs.length === 0) return;
-    workspace.setState(moveTabsBetweenWorkspaceSlots(workspace.state, "primary", "secondary"));
+    workspace.setState((current) => moveTabsBetweenWorkspaceSlots(current, "primary", "secondary"));
   }, [availableWidth, primaryAvailable, workspace]);
 
-  const renderTabContent = (tabId: TabId) => {
-    if (tabId !== "location") return null;
+  const renderTabContent = (tabId: OverlayTabId) => {
+    if (tabId !== "location") return renderAdditionalTab?.(tabId as TabId) ?? null;
     return (
       <LocationPanel
         initialLocation={currentLocation(getViewState)}
         onApply={setViewState}
-        searchProvider={searchLocations}
+        searchProvider={locationSearchProvider}
       />
     );
   };
 
   return (
     <div ref={overlayRef} className="foss-earth-window-overlay">
-      <WorkspaceDockSlot<TabId>
+      <WorkspaceDockSlot<OverlayTabId>
         side="left"
         slotId="primary"
         visible={primaryAvailable}
         workspaceState={workspace.state}
         onWorkspaceStateChange={workspace.setState}
-        tabDefinitions={TAB_DEFINITIONS}
-        getTabLabel={(tabId) => TAB_DEFINITIONS.find((tab) => tab.id === tabId)?.label ?? tabId}
+        tabDefinitions={tabDefinitions}
+        getTabLabel={(tabId) => tabDefinitions.find((tab) => tab.id === tabId)?.label ?? tabId}
         renderTabContent={renderTabContent}
-        width={320}
+        restoreOnTabSelect
+        width={workspace.state.primary.width ?? 320}
         maxWidth={420}
         addMenuOpen={primaryAddOpen}
-        onAddMenuOpenChange={setPrimaryAddOpen}
+        onAddMenuOpenChange={(open) => { setPrimaryAddOpen(open); if (open) setSecondaryAddOpen(false); }}
         strings={{ openPanelTabAriaLabel: "Open left panel", openPanelTabTitle: "Open left panel" }}
       />
-      <WorkspaceDockSlot<TabId>
+      <WorkspaceDockSlot<OverlayTabId>
         side="right"
         slotId="secondary"
         workspaceState={workspace.state}
         onWorkspaceStateChange={workspace.setState}
-        tabDefinitions={TAB_DEFINITIONS}
-        getTabLabel={(tabId) => TAB_DEFINITIONS.find((tab) => tab.id === tabId)?.label ?? tabId}
+        tabDefinitions={tabDefinitions}
+        getTabLabel={(tabId) => tabDefinitions.find((tab) => tab.id === tabId)?.label ?? tabId}
         renderTabContent={renderTabContent}
-        width={320}
+        restoreOnTabSelect
+        width={workspace.state.secondary.width ?? 320}
         maxWidth={420}
         addMenuOpen={secondaryAddOpen}
-        onAddMenuOpenChange={setSecondaryAddOpen}
+        onAddMenuOpenChange={(open) => { setSecondaryAddOpen(open); if (open) setPrimaryAddOpen(false); }}
         visible
         strings={{ openPanelTabAriaLabel: "Open right panel", openPanelTabTitle: "Open right panel" }}
       />

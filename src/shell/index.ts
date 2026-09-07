@@ -8,6 +8,7 @@ export type {
   HudBarSlotItem,
 } from "./hudBar";
 export { createHudBar } from "./hudBar";
+export { WindowOverlay, type WindowOverlayProps } from "./WindowOverlay";
 export { createInputModeHud, type InputModeHudOptions, type InputModeHudHandle } from "../hud/inputModeHud";
 
 export { attachRendererActivity, attachTileStreamingActivity, type RenderActivitySource, type TileStreamingSource } from "./rendererActivity";
