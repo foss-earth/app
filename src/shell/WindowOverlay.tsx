@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   LocationPanel,
   canFitSecondarySlot,
+  moveTabsBetweenWorkspaceSlots,
   WorkspaceDockSlot,
   useWindowWorkspace,
   type GeodeticLocation,
@@ -104,6 +105,11 @@ export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps
     edgeGap: 12,
   });
 
+  useEffect(() => {
+    if (availableWidth <= 0 || primaryAvailable || workspace.state.primary.tabs.length === 0) return;
+    workspace.setState(moveTabsBetweenWorkspaceSlots(workspace.state, "primary", "secondary"));
+  }, [availableWidth, primaryAvailable, workspace]);
+
   const renderTabContent = (tabId: TabId) => {
     if (tabId !== "location") return null;
     return (
@@ -143,7 +149,7 @@ export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps
         maxWidth={420}
         addMenuOpen={secondaryAddOpen}
         onAddMenuOpenChange={setSecondaryAddOpen}
-        visible={workspace.state.primary.tabs.length > 0 || primaryAvailable}
+        visible
         strings={{ openPanelTabAriaLabel: "Open right panel", openPanelTabTitle: "Open right panel" }}
       />
     </div>
