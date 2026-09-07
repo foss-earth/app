@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LocationPanel,
+  canFitSecondarySlot,
   WorkspaceDockSlot,
   useWindowWorkspace,
   type GeodeticLocation,
@@ -75,9 +76,33 @@ export interface WindowOverlayProps {
 }
 
 export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps) {
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const workspace = useWindowWorkspace<TabId>();
   const [primaryAddOpen, setPrimaryAddOpen] = useState(false);
   const [secondaryAddOpen, setSecondaryAddOpen] = useState(false);
+  const [availableWidth, setAvailableWidth] = useState(0);
+
+  useEffect(() => {
+    const element = overlayRef.current;
+    if (!element) return;
+    const update = () => setAvailableWidth(element.clientWidth);
+    update();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(element);
+    window.addEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  const primaryAvailable = canFitSecondarySlot({
+    availableWidth,
+    primaryMinWidth: 320,
+    secondaryMinWidth: 320,
+    centerGap: 220,
+    edgeGap: 12,
+  });
 
   const renderTabContent = (tabId: TabId) => {
     if (tabId !== "location") return null;
@@ -91,7 +116,7 @@ export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps
   };
 
   return (
-    <div className="foss-earth-window-overlay">
+    <div ref={overlayRef} className="foss-earth-window-overlay">
       <WorkspaceDockSlot<TabId>
         side="left"
         slotId="primary"
@@ -118,6 +143,7 @@ export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps
         maxWidth={420}
         addMenuOpen={secondaryAddOpen}
         onAddMenuOpenChange={setSecondaryAddOpen}
+        visible={workspace.state.primary.tabs.length > 0 || primaryAvailable}
         strings={{ openPanelTabAriaLabel: "Open right panel", openPanelTabTitle: "Open right panel" }}
       />
     </div>
