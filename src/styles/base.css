@@ -22,6 +22,17 @@
   touch-action: none;
 }
 
+.foss-earth-overlay-root,
+.foss-earth-window-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.foss-earth-window-overlay > * {
+  pointer-events: auto;
+}
+
 .camera-controls-placeholder {
   /* Replaced by .hud-bar in Phase 4 */
 }
