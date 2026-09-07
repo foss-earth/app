@@ -126,6 +126,7 @@ export function WindowOverlay({ getViewState, setViewState }: WindowOverlayProps
       <WorkspaceDockSlot<TabId>
         side="left"
         slotId="primary"
+        visible={primaryAvailable}
         workspaceState={workspace.state}
         onWorkspaceStateChange={workspace.setState}
         tabDefinitions={TAB_DEFINITIONS}
