@@ -17,7 +17,7 @@ void createGlobeApp(rootElement).then((globeApp) => {
   createRoot(overlayRoot).render(
     <WindowOverlay
       getViewState={globeApp.getViewState}
-      setViewState={({ latDeg, lonDeg }) => globeApp.setViewState({ latDeg, lonDeg })}
+      setViewState={(location) => globeApp.setViewState(location)}
     />,
   );
 }).catch((error: unknown) => {

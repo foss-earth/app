@@ -14,3 +14,5 @@ export { createInputModeHud, type InputModeHudOptions, type InputModeHudHandle }
 export { attachRendererActivity, attachTileStreamingActivity, type RenderActivitySource, type TileStreamingSource } from "./rendererActivity";
 
 export { attachMapDownloadSpeed, setMapSourceLabel, type MapDownloadSource } from "./mapDownloadHud";
+
+export { searchLocations, nearbyAirports } from "../search/locationSearch";

@@ -23,3 +23,5 @@ export {
   type MapRuntimeConfig,
   type ResolveMapRuntimeConfigOptions,
 } from "../engine/babylon/resolveMapRuntimeConfig";
+export { MAPTERHORN, createTerrainTileLoader, type TerrainSource, type TerrainGrid } from "../terrain/terrainTiles";
+export { createSurfaceQuery, type SurfaceHit, type SurfaceQuery } from "../terrain/surfaceQuery";
