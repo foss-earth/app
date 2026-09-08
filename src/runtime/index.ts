@@ -18,8 +18,12 @@ export {
   getActiveMapSourceId,
   getGoogleApiKeyFromSearchParams,
   getMapSourcePreferenceFromSearchParams,
+  getTerrainSourcePreferenceFromSearchParams,
+  getRasterQualityPreferenceFromSearchParams,
   resolveMapRuntimeConfig,
   setMapSourcePreference,
+  setTerrainSourcePreference,
+  setRasterQualityPreference,
   type MapRuntimeConfig,
   type ResolveMapRuntimeConfigOptions,
 } from "../engine/babylon/resolveMapRuntimeConfig";

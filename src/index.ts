@@ -5,6 +5,8 @@ import type { GlobeAppHandle } from "./app/createGlobeApp";
 import type { PoiSpriteSizeParams } from "./hud/poiSpriteSizeTuner";
 import type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
 import type { RasterBaseMapSource } from "./engine/babylon/rasterBaseMaps";
+import type { TerrainSource } from "./terrain/terrainTiles";
+import type { RasterQualitySetting } from "./engine/babylon/rasterQuality";
 
 export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, GlobeViewState, GlobeTheme, GlobeInputModePreference, GlobeInputSensitivitySettings } from "./engine/types";
 export type { InputModeHudHandle } from "./hud/inputModeHud";
@@ -73,6 +75,8 @@ export interface GlobeOptions {
   baseMap?: string | RasterBaseMapSource | null;
   preferGoogleTiles?: boolean;
   getSurfaceHeightMeters?: (latDeg: number, lonDeg: number) => number | null;
+  terrainSource?: string | TerrainSource | null;
+  rasterQuality?: RasterQualitySetting;
   onPoiSpriteSizeChange?: (params: PoiSpriteSizeParams) => void;
   onCompassScaleChange?: (params: OrbitCompassScaleParams) => void;
 }
@@ -89,6 +93,8 @@ export async function createGlobe(options: GlobeOptions = {}): Promise<GlobeAppH
     baseMap: options.baseMap,
     preferGoogleTiles: options.preferGoogleTiles,
     getSurfaceHeightMeters: options.getSurfaceHeightMeters,
+    terrainSource: options.terrainSource,
+    rasterQuality: options.rasterQuality,
     onPoiSpriteSizeChange: options.onPoiSpriteSizeChange,
     onCompassScaleChange: options.onCompassScaleChange,
   });
