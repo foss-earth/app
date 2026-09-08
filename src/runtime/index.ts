@@ -23,6 +23,15 @@ export {
   type MapRuntimeConfig,
   type ResolveMapRuntimeConfigOptions,
 } from "../engine/babylon/resolveMapRuntimeConfig";
-export { MAPTERHORN, createTerrainTileLoader, type TerrainSource, type TerrainGrid } from "../terrain/terrainTiles";
+export {
+  MAPTERHORN,
+  AWS_TERRARIUM,
+  TERRAIN_SOURCES,
+  createTerrainTileLoader,
+  resolveTerrainSource,
+  type TerrainSource,
+  type TerrainGrid,
+} from "../terrain/terrainTiles";
+export type { RasterQualitySetting, RasterQualityState } from "../engine/babylon/rasterQuality";
 export { createSurfaceQuery, type SurfaceHit, type SurfaceQuery } from "../terrain/surfaceQuery";
 export { createTerrainPerformanceCapture, type TerrainPerformanceCapture } from "../terrain/terrainPerformanceCapture";

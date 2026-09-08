@@ -385,7 +385,8 @@ describe("createGlobeApp smoke behavior", () => {
     expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
       expect.any(HTMLCanvasElement),
       expect.objectContaining({
-        googleApiKey: null,
+        googleApiKey: "test-key",
+        preferGoogleTiles: false,
         rasterBaseMap: expect.objectContaining({ id: "usgs-topo" }),
       }),
     );
