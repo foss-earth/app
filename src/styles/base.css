@@ -6,24 +6,6 @@
   --globe-accent: #0284c7;
   --globe-accent-bright: #38bdf8;
   --globe-accent-hover: #0369a1;
-
-  /*
-   * Height of browser chrome overlaying the bottom of the page (Firefox
-   * Android's URL bar, Chrome's dynamic toolbar). Kept up to date by
-   * trackViewportInsets(); 0px whenever nothing is covering the page.
-   */
-  --foss-inset-bottom: 0px;
-
-  /* Gap between the viewport edge and screen-anchored HUD clusters. */
-  --foss-hud-gap: 16px;
-
-  /*
-   * Toolbar inset and notch safe area never stack — whichever is larger is the
-   * unusable strip — so max() rather than a sum.
-   */
-  --foss-hud-bottom: calc(var(--foss-hud-gap) + max(var(--foss-inset-bottom), env(safe-area-inset-bottom, 0px)));
-  --foss-hud-left: calc(var(--foss-hud-gap) + env(safe-area-inset-left, 0px));
-  --foss-hud-right: calc(var(--foss-hud-gap) + env(safe-area-inset-right, 0px));
 }
 
 .globe-shell {
