@@ -3,12 +3,16 @@ import "./windowing/styles/windowing.css";
 import { createRoot } from "react-dom/client";
 import { createGlobeApp } from "./app/createGlobeApp";
 import { WindowOverlay } from "./shell/WindowOverlay";
+import { trackViewportInsets } from "./shell/viewportInsets";
 
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
   throw new Error('Expected to find a root element with id "root".');
 }
+
+// Lift the fixed HUD clear of any browser toolbar overlaying the page bottom.
+trackViewportInsets();
 
 void createGlobeApp(rootElement).then((globeApp) => {
   const overlayRoot = document.createElement("div");

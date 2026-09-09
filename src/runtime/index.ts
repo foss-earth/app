@@ -39,3 +39,4 @@ export {
 export type { RasterQualitySetting, RasterQualityState } from "../engine/babylon/rasterQuality";
 export { createSurfaceQuery, type SurfaceHit, type SurfaceQuery } from "../terrain/surfaceQuery";
 export { createTerrainPerformanceCapture, type TerrainPerformanceCapture } from "../terrain/terrainPerformanceCapture";
+export type { TerrainPreparationOptions, TerrainPreparationProgress, TerrainPreparationResult } from "../terrain/terrainReadiness";
