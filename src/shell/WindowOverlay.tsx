@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   LocationPanel,
   canFitSecondarySlot,
@@ -87,7 +87,7 @@ export function WindowOverlay<TabId extends string = never>({
     workspace.setState((current) => moveTabsBetweenWorkspaceSlots(current, "primary", "secondary"));
   }, [availableWidth, primaryAvailable, workspace]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!overlayApiRef) return;
     overlayApiRef.current = {
       openOrSelectTab(tabId) {
