@@ -4,6 +4,7 @@ export {
   type BabylonRuntimeOptions,
   type BabylonRuntimeStatus,
   type BabylonTileMetrics,
+  type GoogleTerrainDetailState,
   type RendererMode,
   type RuntimeMode,
 } from "../engine/babylon/createBabylonRuntime";
