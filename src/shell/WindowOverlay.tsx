@@ -3,6 +3,7 @@ import {
   LocationPanel,
   canFitSecondarySlot,
   moveTabsBetweenWorkspaceSlots,
+  openOrSelectTabInWorkspace,
   WorkspaceDockSlot,
   useWindowWorkspace,
   type GeodeticLocation,
@@ -22,6 +23,10 @@ function currentLocation(getViewState: () => GeodeticLocation | null): GeodeticL
   return view ? { latDeg: view.latDeg, lonDeg: view.lonDeg, ...(view.zoomMeters === undefined ? {} : { zoomMeters: view.zoomMeters }), ...(view.altMeters === undefined ? {} : { altMeters: view.altMeters }) } : DEFAULT_LOCATION;
 }
 
+export interface WindowOverlayHandle<TabId extends string = never> {
+  openOrSelectTab(tabId: "location" | TabId): void;
+}
+
 export interface WindowOverlayProps<TabId extends string = never> {
   getViewState: () => GeodeticLocation | null;
   setViewState: (location: GeodeticLocation) => void;
@@ -30,6 +35,7 @@ export interface WindowOverlayProps<TabId extends string = never> {
   renderAdditionalTab?: (tabId: TabId) => ReactNode;
   locationSearchProvider?: LocationSearchProvider;
   enableAirportPresets?: boolean;
+  overlayApiRef?: { current: WindowOverlayHandle<TabId> | null };
 }
 
 export function WindowOverlay<TabId extends string = never>({
@@ -39,6 +45,7 @@ export function WindowOverlay<TabId extends string = never>({
   renderAdditionalTab,
   locationSearchProvider = searchLocations,
   enableAirportPresets = false,
+  overlayApiRef,
 }: WindowOverlayProps<TabId>) {
   type OverlayTabId = "location" | TabId;
   const tabDefinitions: readonly WindowTabDefinition<OverlayTabId>[] = [
@@ -72,11 +79,31 @@ export function WindowOverlay<TabId extends string = never>({
     centerGap: 220,
     edgeGap: 12,
   });
+  const openTabContextRef = useRef({ primaryAvailable, tabDefinitions });
+  openTabContextRef.current = { primaryAvailable, tabDefinitions };
 
   useEffect(() => {
     if (availableWidth <= 0 || primaryAvailable || workspace.state.primary.tabs.length === 0) return;
     workspace.setState((current) => moveTabsBetweenWorkspaceSlots(current, "primary", "secondary"));
   }, [availableWidth, primaryAvailable, workspace]);
+
+  useEffect(() => {
+    if (!overlayApiRef) return;
+    overlayApiRef.current = {
+      openOrSelectTab(tabId) {
+        const { primaryAvailable: canUseLeft, tabDefinitions: definitions } = openTabContextRef.current;
+        workspace.setState((current) => openOrSelectTabInWorkspace(
+          current,
+          tabId,
+          canUseLeft ? "primary" : "secondary",
+          definitions,
+        ));
+      },
+    };
+    return () => {
+      overlayApiRef.current = null;
+    };
+  }, [overlayApiRef, workspace]);
 
   const renderTabContent = (tabId: OverlayTabId) => {
     if (tabId !== "location") return renderAdditionalTab?.(tabId as TabId) ?? null;

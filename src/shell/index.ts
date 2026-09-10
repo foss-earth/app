@@ -8,7 +8,7 @@ export type {
   HudBarSlotItem,
 } from "./hudBar";
 export { createHudBar } from "./hudBar";
-export { WindowOverlay, type WindowOverlayProps } from "./WindowOverlay";
+export { WindowOverlay, type WindowOverlayHandle, type WindowOverlayProps } from "./WindowOverlay";
 export { trackViewportInsets, VIEWPORT_INSET_BOTTOM_PROPERTY, type ViewportInsetsHandle } from "./viewportInsets";
 export { createInputModeHud, type InputModeHudOptions, type InputModeHudHandle } from "../hud/inputModeHud";
 
