@@ -1,12 +1,9 @@
-/** What an app needs to say what went wrong on a device with no console (docs/diagnostics.md). */
+/**
+ * What an app needs to say what went wrong on a device with no console (docs/diagnostics.md).
+ * A page that shows no globe imports it, so it does not load the engine: the diagnostics that
+ * draw in the scene are `foss-earth/diagnosticDrawing`.
+ */
 export { captureErrors, tapConsole, type CapturedError } from "./errorCapture";
-export {
-  createMeshInspector, type MeshInspector, type MeshInspectorHandle, type MeshInspectorNode, type MeshInspectorOptions, type MeshInspectorSnapshot,
-} from "./createMeshInspector";
-export {
-  createVectorDebugDrawing, type ArcDebugDrawingSettings, type DebugVector, type VectorDebugDrawingOptions,
-  type VectorDebugDrawingSettings,
-} from "./createVectorDebugDrawing";
 export { buildReport, reportPage, type ReportParts, type ReportSetting } from "./report";
 export { readBrowserReportDetails } from "./browserDetails";
 export {
