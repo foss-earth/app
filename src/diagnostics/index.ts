@@ -3,7 +3,7 @@
  * A page that shows no globe imports it, so it does not load the engine: the diagnostics that
  * draw in the scene are `foss-earth/diagnosticDrawing`.
  */
-export { captureErrors, tapConsole, type CapturedError } from "./errorCapture";
+export { captureErrors, describeError, tapConsole, type CapturedError } from "./errorCapture";
 export { buildReport, reportPage, type ReportParts, type ReportSetting } from "./report";
 export { readBrowserReportDetails } from "./browserDetails";
 export {
