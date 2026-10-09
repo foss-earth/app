@@ -67,7 +67,8 @@ export function browserAppFilesEnvironment(): AppFilesEnvironment {
     observeLoaded(listener) {
       if (typeof PerformanceObserver === "undefined") return () => {};
       // The folder this module was built into holds the app's files; scene images and map tiles are elsewhere.
-      const folder = new URL(".", import.meta.url).href;
+      // Resolved where the module runs, not at build time, which has no such file to point at.
+      const folder = new URL(/* @vite-ignore */ ".", import.meta.url).href;
       const observer = new PerformanceObserver(list => {
         const urls = list.getEntries().map(entry => entry.name).filter(url => url.startsWith(folder));
         if (urls.length) listener(urls);
