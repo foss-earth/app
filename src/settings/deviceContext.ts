@@ -1,13 +1,6 @@
-import type { DeviceContext } from "./types";
-
-/** What the browser says about this device before a renderer starts. */
-export function readDeviceContext(): Partial<DeviceContext> {
-  if (typeof navigator === "undefined") return {};
-  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
-  return {
-    devicePixelRatio: typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
-    hardwareConcurrency: navigator.hardwareConcurrency || null,
-    deviceMemoryGiB: typeof memory === "number" && memory > 0 ? memory : null,
-    touch: (navigator.maxTouchPoints ?? 0) > 0,
-  };
+import { readDeviceContext as readBrowserDeviceContext } from "@foss-earth/ui/browser";
+/** Legacy host convenience; UI owns the injected browser implementation. */
+export function readDeviceContext() {
+  return readBrowserDeviceContext({ navigator: typeof navigator === "undefined" ? null : navigator,
+    window: typeof window === "undefined" ? null : window });
 }

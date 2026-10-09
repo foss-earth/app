@@ -13,7 +13,9 @@ describe("FOSS Earth's catalogue", () => {
       expect(spec.label.length, spec.id).toBeGreaterThan(0);
       expect(spec.description.length, spec.id).toBeGreaterThan(0);
       expect(spec.defaultReason.length, spec.id).toBeGreaterThan(0);
-      expect(spec.source, spec.id).toMatch(/^src\/.+\.tsx?$/);
+      // Shared owner parameters identify a public package route; host-owned
+      // parameters keep their source file. Neither may name a private import.
+      expect(spec.source, spec.id).toMatch(/^(?:src\/.+\.tsx?|@foss-earth\/[a-z0-9-]+(?:\/[a-z0-9-]+)?)$/);
       expect(spec.home.tab.length, spec.id).toBeGreaterThan(0);
       if (spec.kind === "number" || spec.kind === "range") expect(spec.bounds, spec.id).toBeTypeOf("function");
       if (spec.kind === "choice") expect(spec.choices?.length ?? 0, spec.id).toBeGreaterThan(0);

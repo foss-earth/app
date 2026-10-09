@@ -1,35 +1,43 @@
-import { createMapSourceHud } from "../shell/mapSourceHud";
-import { connectMapDetailLog } from "../shell/mapDetailLog";
-import { attachRendererActivity } from "../shell/rendererActivity";
+import { renderPerformanceChips, browserHudBarLayoutPorts, createToolbarInterfaceSection, createPositionInterfaceSection } from "@foss-earth/toolbar/browser";
+import { PANORAMA_GAMEPAD_ACTIONS, createPanoramaProfileContribution } from "@foss-earth/360";
+import { createEarthDevHost, type EarthDevContribution, type EarthDevTab } from "./devHost";
+import { createMapSourceHud } from "@foss-earth/engine/panels";
+import { connectMapDetailLog } from "@foss-earth/engine/panels";
+import { attachRendererActivity } from "@foss-earth/toolbar/browser";
 import { createBrowserInputSource } from "@felipegalind0/gamepad-tools/browser";
-import { BindingRuntime, createProfileStore } from "@felipegalind0/gamepad-tools/core";
+import { BindingRuntime, createProfileStore, DEFAULT_BINDING_TRANSFORM } from "@felipegalind0/gamepad-tools/core";
 import { mountBindingEditor, type BindingEditorHandle } from "@felipegalind0/gamepad-tools/ui";
 import "@felipegalind0/gamepad-tools/styles.css";
 import { Matrix, Vector3 } from "@babylonjs/core";
-import { createBabylonRuntime, type BabylonRuntime } from "../engine/babylon/createBabylonRuntime";
-import { createGameLog, type GameLogLine, type GameLogTone } from "../log/createGameLog";
-import { applyRendererChoice } from "../engine/babylon/rendererPreference";
-import { RASTER_BASE_MAP_SOURCES, type RasterBaseMapSource } from "../engine/babylon/rasterBaseMaps";
+import type { BabylonRuntime } from "@foss-earth/engine/babylon";
+import { createEarthBrowserRuntime } from "./browserRuntime";
+import { createEarthBrowserPolicy } from "./browserPolicy";
+import { createEarthFeatureFramePreparation } from "./framePreparation";
+import type { GlobeFramePreparation } from "@foss-earth/engine/babylon";
+import { createEarthUiHost } from "./uiHost";
+import { createGameLog, type GameLogLine, type GameLogTone } from "@foss-earth/ui/browser";
+import { applyRendererChoice } from "@foss-earth/renderer/babylon";
+import { RASTER_BASE_MAP_SOURCES, type RasterBaseMapSource } from "@foss-earth/engine";
 import {
   resolveMapRuntimeConfig,
   setMapSourcePreference,
   setTerrainSourcePreference,
-} from "../engine/babylon/resolveMapRuntimeConfig";
-import { TERRAIN_SOURCES, type TerrainSource } from "../terrain/terrainTiles";
+} from "@foss-earth/engine/settings";
+import { TERRAIN_SOURCES, type TerrainSource } from "@foss-earth/engine";
 import { getAppSettings } from "../settings/appSettings";
 import { INPUT_SENSITIVITY_IDS, PERFORMANCE_HUD_METRICS, TOOLBAR_EDIT_PRIORITIES_ID, TOOLBAR_PRIORITIES, toolbarPriorityParameterId } from "../settings/catalogue";
-import { createParameterControl, type ParameterControlHandle } from "../shell/settings/controls";
-import { createParameterSection, type ParameterSectionHandle } from "../shell/settings/parameterSection";
-import { createThemeControl } from "../shell/settings/themeControl";
-import { createPresetsSection } from "../shell/settings/presetsSection";
-import { createSavedSettingsSection } from "../shell/settings/savedSettings";
-import { createAppFilesSection, describeAppFiles } from "../shell/appFilesSection";
-import { createDiagnosticsSection } from "../shell/diagnosticsSection";
-import { createBugReportPanel } from "../shell/bugReportPanel";
-import { stepKind } from "../diagnostics/sessionTrail";
+import { createParameterControl, type ParameterControlHandle } from "@foss-earth/ui/browser";
+import { createParameterSection, type ParameterSectionHandle } from "@foss-earth/ui/browser";
+import { createThemeControl } from "@foss-earth/ui/browser";
+import { createPresetsSection } from "@foss-earth/ui/browser";
+import { createSavedSettingsSection } from "@foss-earth/ui/browser";
+import { createAppFilesSection, describeAppFiles } from "@foss-earth/ui/browser";
+import { createDiagnosticsSection } from "@foss-earth/ui/browser";
+import { createBugReportPanel } from "@foss-earth/ui/browser";
+import { stepKind } from "@foss-earth/ui/diagnostics";
 import { reportSecrets, startAppDiagnostics, type AppDiagnostics } from "./appDiagnostics";
 import { issueReporterFromBuild } from "./issueReporting";
-import type { IssueReporterConfig } from "../diagnostics/issueReport";
+import type { IssueReporterConfig } from "@foss-earth/ui/diagnostics";
 import { keepAppFiles } from "./appFiles";
 import { getAppIdentity } from "./appIdentity";
 import { createAboutPanel } from "../shell/aboutPanel";
@@ -38,56 +46,59 @@ import type {
   GlobeHandle,
   GlobeLayerContext,
   GlobeViewState,
-} from "../engine/types";
-import { getTheme, setTheme, onThemeChange, toggleTheme } from "../theme/theme";
-import { createPoiTracking } from "../layers/poiTracking";
-import { createLayerRegistry } from "../layers/layerRegistry";
-import { MAX_PITCH_DEG } from "../camera/cameraState";
-import { ecefToGeodetic, RAD_TO_DEG } from "../camera/cameraMath";
-import { createStatusHud, type CameraAltitude, type StatusHudHandle } from "../hud/statusHud";
-import { surfaceHeightDatum } from "../terrain/geoid";
-import { PERFORMANCE_METRIC_DEFINITIONS, renderPerformanceChips, type PerformanceMetricId } from "../hud/performanceChips";
-import { createNorthButton, type NorthButtonHandle } from "../hud/northButton";
-import { createHelpModal, type HelpModalHandle } from "../hud/helpModal";
-import { HUD_BUTTON_IDS, hudButtonParameterId, type HudButtonId } from "../hud/hudButtonVisibility";
-import type { PanelSection } from "../shell/SectionsPanel";
+} from "@foss-earth/engine";
+import { browserGameLogPorts, createBrowserClipboard, browserReportDownloads, GAME_LOG_SIZE_EVENT, createExternalLinkIcon } from "@foss-earth/ui/browser";
+import { createPoiTracking } from "@foss-earth/engine/layers";
+import { createLayerRegistry } from "@foss-earth/engine/layers";
+import { MAX_PITCH_DEG } from "@foss-earth/engine";
+import { ecefToGeodetic, RAD_TO_DEG } from "@foss-earth/engine";
+import { createStatusHud, type CameraAltitude, type StatusHudHandle } from "@foss-earth/toolbar/browser";
+import { surfaceHeightDatum } from "@foss-earth/engine";
+import { PERFORMANCE_METRIC_DEFINITIONS, type PerformanceMetricId } from "@foss-earth/toolbar";
+import { createNorthButton, type NorthButtonHandle } from "@foss-earth/toolbar/browser";
+import { createHelpModal, type HelpModalHandle } from "@foss-earth/toolbar/browser";
+import { HUD_BUTTON_IDS, hudButtonParameterId, type HudButtonId } from "@foss-earth/toolbar";
+import type { PanelSection } from "@foss-earth/ui/react";
 import type { WindowOverlayHandle } from "../shell/WindowOverlay";
-import { createMapSourcePanel } from "../shell/mapSourcePanel";
-import { createMapDetailController, type MapDetailController } from "../shell/mapDetailController";
-import { connectMapDetailRuntime } from "../shell/connectMapDetailRuntime";
-import { createRendererPanel, getRendererLabel } from "../shell/rendererPanel";
-import { createSkyPanel } from "../shell/skyPanel";
-import { createDateTimePanel } from "../shell/dateTimePanel";
-import { createFrameBudgetPanel } from "../shell/frameBudgetPanel";
-import { bindFrameProfileSettings } from "../perf/frameProfileSession";
-import { FRAME_PROFILING_IDS, frameProfilingParameters } from "../settings/catalogue/profiling";
-import { createOrbitCompass, type OrbitCompassHandle } from "../visualization/orbitCompass";
-import { createHemisphereCulling } from "../perf/culling";
-import { createPerformanceMetrics, type PerformanceSnapshot } from "../perf/metrics";
-import { createAnchorHeightResolver } from "../terrain/anchorHeight";
-import { createPoiSpriteSizeTuner } from "../hud/poiSpriteSizeTuner";
-import { createCompassScaleTuner } from "../hud/compassScaleTuner";
-import { createInputModeHud, type InputModeHudHandle } from "../hud/inputModeHud";
-import { loadInputSensitivityPreference } from "../input/inputSettings";
+import { createMapSourcePanel } from "@foss-earth/engine/panels";
+import { createMapDetailController, type MapDetailController } from "@foss-earth/engine/settings";
+import { connectMapDetailRuntime } from "@foss-earth/engine/settings";
+import { createRendererPanel, getRendererLabel } from "@foss-earth/renderer/panel";
+import { createSkyPanel } from "@foss-earth/sky/panels";
+import { createDateTimePanel } from "@foss-earth/sky/panels";
+import { createFrameBudgetPanel } from "@foss-earth/renderer/panel";
+import { FRAME_PROFILING_IDS, frameProfilingParameters } from "@foss-earth/renderer/settings";
+import { createOrbitCompass, type OrbitCompassHandle } from "@foss-earth/engine/compass";
+import { createHemisphereCulling } from "@foss-earth/engine/visualization";
+import { createPerformanceMetrics, type PerformanceSnapshot } from "@foss-earth/renderer/diagnostics";
+import { createAnchorHeightResolver } from "@foss-earth/engine/babylon";
+import { createPoiSpriteSizeTuner } from "@foss-earth/engine/visualization-tuners";
+import { createCompassScaleTuner } from "@foss-earth/engine/visualization-tuners";
+import { createInputModeHud, type InputModeHudHandle } from "@foss-earth/engine/panels";
+import { loadInputSensitivityPreference } from "@foss-earth/engine/settings";
 import {
   createGlobeGamepadAdapter,
   createStandardGlobeProfile,
   STANDARD_GLOBE_PROFILE_NAME,
   withStickDeadzone,
-} from "../input/globeNavigation";
-import { createHudBar } from "../shell/hudBar";
-import { fitHudBar, type HudBarFitItem } from "../shell/hudBarFit";
-import { attachFullscreenButton } from "../shell/fullscreen";
-import { createSceneHotspots, createSceneHud, createScenesPanel } from "../shell/scenesPanel";
-import { createPanoramaTabs, type PanoramaTabs } from "../shell/panoramaTabs";
-import { connectSceneLog } from "../shell/sceneLog";
-import { createSceneController, type SceneController, type SceneExample } from "../scenes/sceneController";
+} from "@foss-earth/engine/gamepad";
+import { createHudBar } from "@foss-earth/toolbar/browser";
+import { fitHudBar, type HudBarFitItem } from "@foss-earth/toolbar/browser";
+import { attachFullscreenButton, browserFullscreenPort } from "@foss-earth/toolbar/browser";
+import { createBrowserPositionSeaLevelPort } from "./positionSeaLevel";
+import { createSceneHud, attachMapDownloadSpeed, setMapSourceLabel, attachTileStreamingActivity } from "@foss-earth/toolbar/browser";
+import type { ViewerTabs as PanoramaTabs } from "@foss-earth/360/panels";
+import { connectSceneLog } from "@foss-earth/scenes/browser";
+import type { SceneController, SceneExample } from "@foss-earth/scenes/browser";
 import { SCENE_EXAMPLES } from "../scenes/examples";
-import { sceneMediaStore, type MediaStore } from "../scenes/mediaStore";
-import { effectiveOrbRadius, type PanoramaRenderer } from "../engine/babylon/panorama/panoramaRenderer";
-import * as panoramaMath from "../scenes/panoramaMath";
-import type { PoiSpriteSizeParams } from "../hud/poiSpriteSizeTuner";
-import type { OrbitCompassScaleParams } from "../visualization/orbitCompass";
+import type { MediaStore } from "@foss-earth/images";
+import { createEarthSceneHost } from "./sceneHost";
+import { attemptEarthCleanup } from "./nativeResources";
+import { bindEarthTheme } from "../theme/theme";
+import { effectiveOrbRadius, type PanoramaRenderer } from "@foss-earth/360/babylon";
+import * as panoramaMath from "@foss-earth/360";
+import type { PoiSpriteSizeParams } from "@foss-earth/engine/visualization-tuners";
+import type { OrbitCompassScaleParams } from "@foss-earth/engine/compass";
 
 declare global {
   interface Window {
@@ -140,6 +151,9 @@ export interface GlobeAppHandle extends GlobeHandle {
   panoramaTabs: PanoramaTabs;
   /** The mounted scene, if any, and loading another. */
   scenes: SceneController;
+  readonly devTab: EarthDevTab | null;
+  whenDevSettled(): Promise<void>;
+  onTabVisibility(tabId: string, visible: boolean): void;
 }
 
 export interface GlobeAppOptions {
@@ -164,12 +178,14 @@ export interface GlobeAppOptions {
   scenes?: readonly SceneExample[];
   /** The id of one of `scenes` to open at start, when the address names none with `?scene=`. */
   initialScene?: string;
+  /** Host-owned observations mounted only through the optional shared Dev tab. */
+  devContributions?: readonly EarthDevContribution[];
   /**
    * The host's tab overlay, filled once it mounts. The toolbar buttons toggle
    * its tabs: \u2699 Settings, input method Controls, the position Location,
    * and the renderer and map chips their own tabs.
    */
-  overlayApiRef?: { current: WindowOverlayHandle | null };
+  overlayApiRef?: { current: WindowOverlayHandle<"dev"> | null };
 }
 
 /** Pixel offset from the projected sphere centre to the top-right exit button. */
@@ -223,6 +239,14 @@ export async function createGlobeApp(
   rootElement: HTMLElement,
   options: GlobeAppOptions = {},
 ): Promise<GlobeAppHandle> {
+  const cleanup: (() => void)[] = [() => rootElement.replaceChildren()];
+  let disposed = false;
+  const disposeApp = () => {
+    if (disposed) return;
+    disposed = true;
+    attemptEarthCleanup([...cleanup].reverse(), "Earth application cleanup failed.");
+  };
+  try {
   rootElement.innerHTML = `
     <div class="globe-shell">
       <canvas id="globeCanvas" class="globe-canvas" aria-label="3D globe canvas"></canvas>
@@ -278,6 +302,8 @@ export async function createGlobeApp(
     throw new Error("Expected to find the HUD bar root.");
   }
   const hudBar = createHudBar(hudBarRoot, {
+    document,
+    observeHeight(element, changed) { const observer = new ResizeObserver(changed); observer.observe(element); return () => observer.disconnect(); },
     ariaLabel: "Map indicators",
     items: [
       {
@@ -318,6 +344,7 @@ export async function createGlobeApp(
   });
 
   const canvas = rootElement.querySelector<HTMLCanvasElement>("#globeCanvas");
+  cleanup.push(() => hudBar.destroy());
   if (!canvas) {
     throw new Error('Expected to find a canvas element with id "globeCanvas".');
   }
@@ -328,16 +355,34 @@ export async function createGlobeApp(
   // One registry for the page: the map source, renderer and every other
   // parameter below are read from it and follow it.
   const settings = getAppSettings();
+  if (!settings.has(FRAME_PROFILING_IDS.enabled)) settings.register(frameProfilingParameters({ tab: "renderer", section: "performance" }));
+  const ui = createEarthUiHost(settings, document);
+  cleanup.push(() => ui.dispose());
+  const theme = bindEarthTheme(settings, document);
+  cleanup.push(() => theme.dispose());
+  const { getTheme, setTheme, onThemeChange, toggleTheme } = theme;
+  const copy = createBrowserClipboard(document, navigator);
+  const logElement = document.createElement("div");
+  logElement.id = "app-log";
+  document.body.append(logElement);
+  cleanup.push(() => logElement.remove());
+  const log = createGameLog(settings, browserGameLogPorts(logElement, window, {
+    onSize: detail => window.dispatchEvent(new CustomEvent(GAME_LOG_SIZE_EVENT, { detail })),
+    isCentered: () => document.documentElement.dataset.dockLayout !== "single",
+  }));
 
   // Every line of the log is a step of the visit's trail, which Settings → Diagnostics copies as a report.
+  cleanup.push(() => log.destroy());
   const diagnostics = startAppDiagnostics({
-    log: createGameLog(),
+    log,
     settings,
     identity: getAppIdentity(),
   });
   const gameLog = diagnostics.log;
+  cleanup.push(() => diagnostics.destroy());
   // Asked while the renderer starts: a browser may have opened its own copy of an older page, which then reloads before it has shown anything.
   const publishedVersion = watchPublishedVersion({ settings, log: gameLog });
+  cleanup.push(() => publishedVersion.dispose());
   diagnostics.addState(() => `Published: ${describePublishedVersion(publishedVersion.state(), publishedVersion.now())}`);
   let lastLoggedStatus = "";
   const statusLines = new Map<string, GameLogLine>();
@@ -375,7 +420,11 @@ export async function createGlobeApp(
     settings,
   });
 
-  const runtime = await createBabylonRuntime(canvas, {
+  let prepareSceneFrame: ((frame: GlobeFramePreparation) => void) | null = null;
+  const browserPolicy = createEarthBrowserPolicy(settings);
+  const browser = await createEarthBrowserRuntime(canvas, {
+    ...browserPolicy,
+    framePreparation: { prepare: frame => prepareSceneFrame?.(frame) },
     googleApiKey: mapConfig.googleApiKey,
     preferGoogleTiles: mapConfig.preferGoogleTiles,
     rasterBaseMap: mapConfig.rasterBaseMap,
@@ -385,6 +434,12 @@ export async function createGlobeApp(
     onStatusChange: applyRuntimeStatus,
     settings,
   });
+  const runtime = browser.runtime;
+  cleanup.push(() => runtime.destroy());
+  const afterFrameUi = runtime.scene.onAfterRenderObservable.add(ui.emit);
+  cleanup.push(() => { runtime.scene.onAfterRenderObservable.remove(afterFrameUi); });
+  const offResourceUi = browser.broker.pools.subscribeAvailable(ui.emit);
+  cleanup.push(offResourceUi);
   diagnostics.attachRuntime(runtime);
   const compassHeightOffset = (): number => {
     const value = settings.get("visualization.compass.heightOffset");
@@ -397,7 +452,9 @@ export async function createGlobeApp(
   const poiTracking = createPoiTracking(runtime.scene, () => runtime.geospatialCamera, {
     dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
   });
+  cleanup.push(() => poiTracking.destroy());
   const culling = createHemisphereCulling(() => runtime.geospatialCamera?.globalPosition ?? null);
+  cleanup.push(() => culling.destroy());
   const resolveSurfaceHeightMeters = (latDeg: number, lonDeg: number): number | null => (
     options.getSurfaceHeightMeters?.(latDeg, lonDeg) ?? runtime.surface?.sample(latDeg, lonDeg)?.heightMeters ?? null
   );
@@ -407,6 +464,7 @@ export async function createGlobeApp(
     providerMissRetryMs: settings.get<number>("camera.surfaceRetry"),
   });
   const anchorHeights = createAnchorHeightResolver({
+    nowMs: browser.clock.nowMs,
     provider: resolveSurfaceHeightMeters,
     cacheProviderSamples: false,
     heightOffsetMeters: compassHeightOffset(),
@@ -417,6 +475,7 @@ export async function createGlobeApp(
     initialOffsetMeters: compassHeightOffset(),
   });
   const registry = createLayerRegistry(layerContext, poiTracking, culling, anchorHeights);
+  cleanup.push(() => registry.destroy());
   // Layer add/remove mutates scene contents (meshes, sprites); wrap so the
   // change becomes visible on the next animation frame in render-on-demand mode.
   const addLayer: typeof registry.addLayer = (layer) => {
@@ -427,8 +486,10 @@ export async function createGlobeApp(
     registry.removeLayer(layerId);
     runtime.requestRender();
   };
-  const orbitCompass: OrbitCompassHandle = createOrbitCompass(runtime.scene);
+  const orbitCompass: OrbitCompassHandle = createOrbitCompass(runtime.scene, { device: browser.native.canvasDevice, requestRender: () => runtime.requestRender() });
+  cleanup.push(() => orbitCompass.destroy());
   const performanceMetrics = createPerformanceMetrics({
+    now: () => performance.now(), memoryBytes: () => { const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory; return memory?.usedJSHeapSize ?? null; },
     engine: runtime.engine,
     scene: runtime.scene,
     getTileMetrics: () => runtime.getTileMetrics(),
@@ -443,14 +504,19 @@ export async function createGlobeApp(
     rendererModePill.classList.toggle("hud-chip--good", runtime.renderer.mode === "webgpu");
     rendererModePill.classList.toggle("hud-chip--bad", runtime.renderer.mode !== "webgpu");
   }
-  const toggleTab = (tabId: Parameters<WindowOverlayHandle["toggleTab"]>[0]): void => {
+  const toggleTab = (tabId: Parameters<WindowOverlayHandle<"dev">["toggleTab"]>[0]): void => {
     options.overlayApiRef?.current?.toggleTab(tabId);
   };
   // One detail controller: the HUD rail and the Map tab's Detail group both
   // observe it, and it is the only writer of the renderer's detail target.
-  const mapDetail: MapDetailController = options.mapDetail ?? createMapDetailController();
+  const mapDetail: MapDetailController = options.mapDetail ?? createMapDetailController({ settings, deviceHints: () => { const hints = settings.getDeviceContext(); return { hardwareConcurrency: hints.hardwareConcurrency ?? undefined, deviceMemory: hints.deviceMemoryGiB ?? undefined }; } });
+  cleanup.push(() => { if (!options.mapDetail) mapDetail.dispose(); });
   const disconnectMapDetail = connectMapDetailRuntime(mapDetail, runtime);
+  cleanup.push(disconnectMapDetail);
   const mapPanel = createMapSourcePanel({
+    document, InputElement: HTMLInputElement, ui: ui.publicUi, refresh: ui.refresh, panelStorage: ui.storage,
+    cache: { inspect: browser.cache.inspect, clear: browser.cache.clear, nowMs: () => performance.now(), refreshIntervalMs: () => settings.get<number>("map.cache.inspectInterval"), rowLimit: () => settings.get<number>("map.cache.rowsShown") },
+    detailPanel: { createTrack: ui.createTrack, idSuffix: () => crypto.randomUUID() },
     detail: mapDetail,
     rasterSources: RASTER_BASE_MAP_SOURCES,
     terrainSources: TERRAIN_SOURCES,
@@ -461,19 +527,22 @@ export async function createGlobeApp(
   });
 
   // The map source sits at the bar's right end: the basemap's name and credit
+  cleanup.push(() => mapPanel.destroy());
   // link, the download speed, and a detail rail for Google 3D Tiles.
   const mapSourceSlot = rootElement.querySelector<HTMLElement>("#mapSourceSlot");
   const mapSourceHud = mapSourceSlot
     ? createMapSourceHud(mapSourceSlot, {
+        document, ui: { createExternalLinkIcon, attachMapDownloadSpeed, setMapSourceLabel, attachTileStreamingActivity },
         activity: runtime,
         onProviderClick: () => toggleTab("map"),
-        detail: { controller: mapDetail },
+        detail: { controller: mapDetail, document },
       })
     : null;
   onMapStatus = (status) => {
     mapPanel.update(status);
     mapSourceHud?.update(status);
   };
+  cleanup.push(() => { onMapStatus = null; mapSourceHud?.destroy(); });
   applyRuntimeStatus(runtime.status);
 
   // ── HUD setup ────────────────────────────────────────────────────
@@ -486,12 +555,16 @@ export async function createGlobeApp(
   const bugReportBtnEl = rootElement.querySelector<HTMLButtonElement>("#bugReportButton");
   const themeBtnEl = rootElement.querySelector<HTMLButtonElement>("#themeButton");
   const fullscreenBtnEl = rootElement.querySelector<HTMLButtonElement>("#fullscreenButton");
-  const detachFullscreen = fullscreenBtnEl ? attachFullscreenButton(fullscreenBtnEl) : null;
+  const detachFullscreen = fullscreenBtnEl ? attachFullscreenButton(fullscreenBtnEl, browserFullscreenPort) : null;
+  cleanup.push(() => detachFullscreen?.());
   const themeBtnIconEl = themeBtnEl?.querySelector<HTMLElement>(".theme-button-icon") ?? null;
   const poiExitBtnEl = rootElement.querySelector<HTMLButtonElement>("#poiExitBtn");
   const extraPanelsGridEl = rootElement.querySelector<HTMLElement>("#extraPanelsGrid");
 
-  const statusHud: StatusHudHandle | null = hudStatusEl ? createStatusHud(hudStatusEl, settings) : null;
+  const positionSeaLevel = createBrowserPositionSeaLevelPort();
+  cleanup.push(() => positionSeaLevel.dispose());
+  const statusHud: StatusHudHandle | null = hudStatusEl ? createStatusHud(hudStatusEl, settings, { document, seaLevel: positionSeaLevel }) : null;
+  cleanup.push(() => statusHud?.destroy());
   // The readout's altitude is the camera's own, not the height of what it looks at.
   const cameraAltitude = (): CameraAltitude | null => {
     const eye = runtime.geospatialCamera?.position;
@@ -504,7 +577,9 @@ export async function createGlobeApp(
     };
   };
   const northButton: NorthButtonHandle | null = northBtnSvgEl ? createNorthButton(northBtnSvgEl) : null;
+  cleanup.push(() => northButton?.destroy());
   const helpModal: HelpModalHandle | null = helpModalEl ? createHelpModal(helpModalEl) : null;
+  cleanup.push(() => helpModal?.destroy());
 
   let visiblePerformanceMetrics = readVisiblePerformanceMetrics();
   let lastPerfSnapshot: PerformanceSnapshot | null = null;
@@ -514,16 +589,19 @@ export async function createGlobeApp(
     ? createPoiSpriteSizeTuner(extraPanelsGridEl, (params) => {
         options.onPoiSpriteSizeChange?.(params);
         runtime.requestRender();
-      })
+      }, { document, settings })
     : null;
+  cleanup.push(() => spriteTuner?.destroy());
   const compassScaleTuner = extraPanelsGridEl
     ? createCompassScaleTuner(extraPanelsGridEl, (params) => {
         orbitCompass.setScaleParams(params);
         options.onCompassScaleChange?.(params);
         runtime.requestRender();
-      })
+      }, { document, settings })
     : null;
+  cleanup.push(() => compassScaleTuner?.destroy());
   const showTuners = (): void => {
+    if (disposed) return;
     if (settings.get("interface.poiSpriteTuner") === true) spriteTuner?.show(); else spriteTuner?.hide();
     if (settings.get("interface.compassScaleTuner") === true) compassScaleTuner?.show(); else compassScaleTuner?.hide();
   };
@@ -531,6 +609,8 @@ export async function createGlobeApp(
 
   const inputModeHud: InputModeHudHandle | null = rendererModePill
     ? createInputModeHud(rootElement, rendererModePill, {
+        document, settings, log: console,
+        deviceHints: { platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints, coarsePointer: matchMedia("(pointer: coarse)").matches, finePointer: matchMedia("(pointer: fine)").matches },
         onModeChange: (mode) => runtime.setInputMode?.(mode),
         onSensitivityChange: (sensitivity) => runtime.setInputSensitivity?.(sensitivity),
         onToggle: () => toggleTab("controls"),
@@ -538,11 +618,15 @@ export async function createGlobeApp(
     : null;
 
   const onRendererPillClick = (): void => toggleTab("renderer");
+  cleanup.push(() => inputModeHud?.destroy());
   const onStatusClick = (): void => toggleTab("location");
   const onBugReportClick = (): void => toggleTab("bug-report");
   rendererModePill?.addEventListener("click", onRendererPillClick);
   hudStatusEl?.addEventListener("click", onStatusClick);
   bugReportBtnEl?.addEventListener("click", onBugReportClick);
+  cleanup.push(() => rendererModePill?.removeEventListener("click", onRendererPillClick),
+    () => hudStatusEl?.removeEventListener("click", onStatusClick),
+    () => bugReportBtnEl?.removeEventListener("click", onBugReportClick));
 
   // The app follows its parameters wherever they are changed: their sections,
   // Show all parameters, an import or another tab.
@@ -588,7 +672,7 @@ export async function createGlobeApp(
       .sort((a, b) => a.priority - b.priority);
     for (const item of core.slice(0, 2)) item.reserveSpace = true;
     return items;
-  }) : null;
+  }, browserHudBarLayoutPorts(window)) : null;
   const applyCompassHeight = (): void => {
     const meters = compassHeightOffset();
     anchorHeights.setHeightOffset(meters);
@@ -597,52 +681,67 @@ export async function createGlobeApp(
       initialOffsetMeters: meters,
     });
   };
-  const stopWatchingSettings = [
+  cleanup.push(() => hudFit?.destroy());
+  const stopWatchingSettings: (() => void)[] = [];
+  cleanup.push(() => attemptEarthCleanup(stopWatchingSettings, "Earth settings subscriptions cleanup failed."));
+  // Register each successful subscription before constructing the next one.
+  const retainSettingsRelease = (release: () => void): void => { stopWatchingSettings.push(release); };
     // What automatic adjustment did, and why, goes in the log as it happens.
-    connectMapDetailLog(runtime, gameLog),
-    settings.subscribe(changed => {
+  retainSettingsRelease(connectMapDetailLog(runtime, gameLog));
+  retainSettingsRelease(settings.subscribe(changed => {
       if (![...changed].some(id => fittingIds.has(id))) return;
       // On pins the chip, Auto fits it by priority, and Off removes it.
       applyHudButtonVisibility();
       visiblePerformanceMetrics = readVisiblePerformanceMetrics();
       if (lastPerfSnapshot && perfMetricsPill) renderPerformanceChips(perfMetricsPill, lastPerfSnapshot, visiblePerformanceMetrics);
       hudFit?.update();
-    }),
-    settings.watch("interface.poiSpriteTuner", showTuners),
-    settings.watch("interface.compassScaleTuner", showTuners),
-    settings.watch("visualization.compass.heightOffset", applyCompassHeight),
-    ...["camera.surfaceFollowSpeed", "camera.surfaceRetry"].map(id => settings.watch(id, () => anchorHeights.setTuning(anchorTuning()))),
-    settings.watch("input.globeAnchorRotation", value => runtime.setGlobeAnchorRotation?.(value === true)),
-    ...INPUT_SENSITIVITY_IDS.map(id => settings.watch(id, () => runtime.setInputSensitivity?.(loadInputSensitivityPreference()))),
-  ];
+  }));
+  retainSettingsRelease(settings.watch("interface.poiSpriteTuner", showTuners));
+  retainSettingsRelease(settings.watch("interface.compassScaleTuner", showTuners));
+  retainSettingsRelease(settings.watch("visualization.compass.heightOffset", applyCompassHeight));
+  for (const id of ["camera.surfaceFollowSpeed", "camera.surfaceRetry"]) {
+    retainSettingsRelease(settings.watch(id, () => anchorHeights.setTuning(anchorTuning())));
+  }
+  retainSettingsRelease(settings.watch("input.globeAnchorRotation", value => runtime.setGlobeAnchorRotation?.(value === true)));
+  for (const id of INPUT_SENSITIVITY_IDS) {
+    retainSettingsRelease(settings.watch(id, () => runtime.setInputSensitivity?.(loadInputSensitivityPreference(settings))));
+  }
 
   const resetNorth = (): void => {
     poiTracking.exitTracking();
     runtime.setViewState({ headingDeg: 0, pitchDeg: MAX_PITCH_DEG });
   };
   northBtnEl?.addEventListener("click", resetNorth);
+  cleanup.push(() => northBtnEl?.removeEventListener("click", resetNorth));
 
   const gamepadSource = createBrowserInputSource({ target: window });
+  cleanup.push(() => gamepadSource.dispose());
   // A navigation lease, such as an entered panorama, selects its own controller context.
   const gamepadAdapter = createGlobeGamepadAdapter(runtime, {
     onResetNorth: resetNorth,
+    featureActions: PANORAMA_GAMEPAD_ACTIONS,
     getContext: () => runtime.getNavigationState()?.inputContext ?? "globe",
   });
   // The lease owns the camera: a tracked point must not move it meanwhile.
   const offNavigationChange = runtime.onNavigationChange(state => poiTracking.setSuspended(state !== null));
+  cleanup.push(offNavigationChange);
   const selectedGamepadSlot = (): number => gamepadSource.getSelectedDevice()?.slot ?? 0;
   const stickDeadzone = (): number => settings.get<number>("input.gamepad.deadzone");
+  const panoramaProfile = createPanoramaProfileContribution(DEFAULT_BINDING_TRANSFORM);
   const gamepadRuntime = new BindingRuntime({
     adapter: gamepadAdapter,
-    profile: createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone()),
+    profile: createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), panoramaProfile),
   });
   // Every stick bound to a navigation rate, the standard one or the user's own, takes the deadzone.
+  cleanup.push(() => gamepadRuntime.dispose());
   stopWatchingSettings.push(settings.watch("input.gamepad.deadzone", () => {
     gamepadRuntime.setProfile(withStickDeadzone(gamepadRuntime.getProfile(), stickDeadzone()));
   }));
   const gamepadStore = createProfileStore();
   const offGamepadFrame = gamepadSource.subscribe((frame) => gamepadRuntime.dispatch(frame));
+  cleanup.push(offGamepadFrame);
   const stopGamepadSource = gamepadSource.start({ intervalMs: 33 });
+  cleanup.push(stopGamepadSource);
   // Controller bindings live in the Controls tab, mounted once and kept, so a
   // rebinding in progress survives closing the tab.
   const controllerSectionEl = rootElement.querySelector<HTMLElement>("#controlsControllerSection");
@@ -656,23 +755,27 @@ export async function createGlobeApp(
           {
             id: "standard",
             label: STANDARD_GLOBE_PROFILE_NAME,
-            create: () => createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone()),
+            create: () => createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), panoramaProfile),
           },
         ],
       })
     : null;
   const openControllerBindings = (): void => options.overlayApiRef?.current?.openOrSelectTab("controls");
+  cleanup.push(() => gamepadEditor?.destroy());
 
   const inputMethodSectionEl = rootElement.querySelector<HTMLElement>("#controlsInputMethodSection");
   const unmountInlineInputMode = inputMethodSectionEl ? inputModeHud?.mountInline(inputMethodSectionEl) : undefined;
+  cleanup.push(() => unmountInlineInputMode?.());
 
   // ── Settings and Controls tabs ───────────────────────────────
   // Each section draws its parameters' controls and, under Show all
   // parameters, every parameter homed in it.
   const parameterSections: ParameterSectionHandle[] = [];
   const parameterControls: ParameterControlHandle[] = [];
-  const sectionOf = (tab: string, section: string, extra: Omit<Parameters<typeof createParameterSection>[1], "tab" | "section"> = {}): HTMLElement => {
-    const handle = createParameterSection(settings, { tab, section, ...extra });
+  cleanup.push(() => attemptEarthCleanup(parameterSections.map(section => () => section.destroy()), "Earth parameter sections cleanup failed."),
+    () => attemptEarthCleanup(parameterControls.map(control => () => control.destroy()), "Earth parameter controls cleanup failed."));
+  const sectionOf = (tab: string, section: string, extra: Omit<Parameters<typeof createParameterSection>[1], "tab" | "section" | "document" | "refresh" | "panelStorage"> = {}): HTMLElement => {
+    const handle = ui.parameterSection({ tab, section, ...extra });
     parameterSections.push(handle);
     return handle.element;
   };
@@ -690,7 +793,7 @@ export async function createGlobeApp(
     title.textContent = heading;
     element.append(title);
     for (const id of ids) {
-      const control = createParameterControl(settings, id);
+      const control = createParameterControl(settings, id, document);
       parameterControls.push(control);
       element.append(control.element);
     }
@@ -700,8 +803,10 @@ export async function createGlobeApp(
   performanceMain.className = "settings-section-content";
   // The frame budget lives here, the one home of its profiling parameters.
   if (!settings.has(FRAME_PROFILING_IDS.enabled)) settings.register(frameProfilingParameters({ tab: "renderer", section: "performance" }));
-  const unbindFrameProfile = bindFrameProfileSettings(settings, runtime.frameProfile);
+
   const frameBudget = createFrameBudgetPanel({
+    ui: { document, createParameterControl: ui.control }, refreshPort: ui.refresh,
+    actions: { copy, saveJson(name, text) { const url = URL.createObjectURL(new Blob([text], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url); }, onError: error => console.error(error) },
     session: runtime.frameProfile,
     settings,
     unmeasured: "work nobody has timed yet, the browser's own, and waiting for the display",
@@ -709,6 +814,7 @@ export async function createGlobeApp(
     traceFileName: "foss-earth-frame-trace",
   });
   const frameBudgetGroup = document.createElement("div");
+  cleanup.push(() => frameBudget.destroy());
   frameBudgetGroup.className = "settings-metric-menu";
   const frameBudgetTitle = document.createElement("div");
   frameBudgetTitle.className = "settings-section-title";
@@ -718,25 +824,38 @@ export async function createGlobeApp(
     group("Extra panels", ["interface.poiSpriteTuner", "interface.compassScaleTuner"]),
     frameBudgetGroup,
   );
-  const presets = createPresetsSection(settings);
-  const savedSettings = createSavedSettingsSection(settings);
+  const presets = createPresetsSection(settings, document);
+  cleanup.push(() => presets.destroy());
+  const savedSettings = createSavedSettingsSection(settings, document);
+  cleanup.push(() => savedSettings.destroy());
   // The app's own files, kept by its service worker as Settings → App files asks.
   const appFiles = keepAppFiles(settings);
-  const appFilesSection = createAppFilesSection(appFiles, publishedVersion);
+  cleanup.push(() => appFiles.dispose());
+  const appFilesSection = createAppFilesSection(appFiles, publishedVersion, ui.refresh, document);
+  cleanup.push(() => appFilesSection.destroy());
   diagnostics.addState(async () => `App files: ${describeAppFiles(await appFiles.status())}`);
   const diagnosticsSource = {
     report: () => diagnostics.report({ allSettings: true }),
     previous: () => diagnostics.previous(),
     reportSecrets: () => reportSecrets(settings),
+    copy,
   };
-  const diagnosticsSection = createDiagnosticsSection(diagnosticsSource);
-  const bugReportPanel = createBugReportPanel(diagnosticsSource, { issueReporter: options.issueReporter ?? issueReporterFromBuild() });
+  const diagnosticsSection = createDiagnosticsSection(diagnosticsSource, { document });
+  cleanup.push(() => diagnosticsSection.destroy());
+  const bugReportPanel = createBugReportPanel(diagnosticsSource, { document, now: () => new Date(), downloads: browserReportDownloads(URL), issueReporter: options.issueReporter ?? issueReporterFromBuild() });
+  cleanup.push(() => bugReportPanel.destroy());
   const inputMethodElement = inputMethodSectionEl
     ? sectionOf("controls", "input-method", { main: inputMethodSectionEl, covers: ["input.mode", ...INPUT_SENSITIVITY_IDS] })
     : null;
   // Its own tab, under +, where someone looking for which version runs looks for it.
-  const about = createAboutPanel({ publishedVersion, site: REPOSITORY_SLUG || undefined });
+  const aboutShown = new Set<() => void>();
+  const about = createAboutPanel({ publishedVersion, site: REPOSITORY_SLUG || undefined,
+    document, fetch: window.fetch.bind(window), createAbortController: () => new AbortController(),
+    externalLinkIcon: () => createExternalLinkIcon(document),
+    whenShown(_element, listener) { aboutShown.add(listener); return () => { aboutShown.delete(listener); }; },
+  });
   // The input-method button lands here, so its section starts open.
+  cleanup.push(() => about.dispose(), () => aboutShown.clear());
   const controlsSections: PanelSection[] = [
     ...(inputMethodElement ? [{ id: "input-method", title: "Input method", element: inputMethodElement, defaultOpen: true }] : []),
     { id: "camera", title: settings.getSectionTitle("controls", "camera"), element: sectionOf("controls", "camera", {
@@ -748,14 +867,15 @@ export async function createGlobeApp(
     { id: "controller", title: settings.getSectionTitle("controls", "controller"),
       element: sectionOf("controls", "controller", { main: controllerSectionEl ?? undefined }), defaultOpen: false },
   ];
-  const themeControl = createThemeControl(settings);
+  const themeControl = createThemeControl(settings, document);
+  cleanup.push(() => themeControl.destroy());
+  const toolbarSection = createToolbarInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection, main: themeControl.element, covers: ["interface.theme"] });
+  parameterSections.push(toolbarSection);
+  const positionSection = createPositionInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection });
+  parameterSections.push(positionSection);
   const interfaceSections: PanelSection[] = [
-    { id: "toolbar", title: settings.getSectionTitle("interface", "toolbar"), element: sectionOf("interface", "toolbar", {
-      main: themeControl.element,
-      covers: ["interface.theme"],
-      footer: note("Hiding a button never hides its tab: every tab stays under +."),
-    }), defaultOpen: false },
-    { id: "position", title: settings.getSectionTitle("interface", "position"), element: sectionOf("interface", "position"), defaultOpen: false },
+    { id: "toolbar", title: settings.getSectionTitle("interface", "toolbar"), element: toolbarSection.element, defaultOpen: false },
+    { id: "position", title: settings.getSectionTitle("interface", "position"), element: positionSection.element, defaultOpen: false },
     { id: "log", title: settings.getSectionTitle("interface", "log"), element: sectionOf("interface", "log"), defaultOpen: false },
     { id: "search", title: settings.getSectionTitle("interface", "search"), element: sectionOf("interface", "search"), defaultOpen: false },
   ];
@@ -767,8 +887,9 @@ export async function createGlobeApp(
   ];
   // Performance debug is about what the renderer does, so it is the Renderer tab's.
   const rendererPanel = createRendererPanel({
+    ui: ui.renderer,
     renderer: runtime.renderer,
-    onChange: force => applyRendererChoice(force, settings),
+    onChange: force => applyRendererChoice(force, settings, window.location, { getItem: key => window.localStorage.getItem(key), setItem: (key, value) => window.localStorage.setItem(key, value), removeItem: key => window.localStorage.removeItem(key) }),
     settings,
     sections: [{
       id: "performance",
@@ -781,50 +902,57 @@ export async function createGlobeApp(
   });
   // The sky is seen from the camera once its model is on; until then the Sun and its times of day are the view's place's.
   const skyPlace = () => runtime.sky.getEnvironment()?.illumination.observer ?? runtime.getViewState();
-  const skyPanel = createSkyPanel({ settings, getPlace: skyPlace, openDateTime: () => options.overlayApiRef?.current?.openOrSelectTab("time") });
-  const timePanel = createDateTimePanel({ settings, getPlace: skyPlace });
+  cleanup.push(() => rendererPanel.destroy());
+  const skyPanel = createSkyPanel({ document, ui: ui.publicUi, refresh: ui.refresh, panelStorage: ui.storage, now: Date.now, settings, getPlace: skyPlace, openDateTime: () => options.overlayApiRef?.current?.openOrSelectTab("time") });
+  cleanup.push(() => skyPanel.destroy());
+  const dev = createEarthDevHost(window.location.search, { document, runtime, broker: browser.broker, refresh: ui.refresh }, options.devContributions);
+  cleanup.push(() => dev.dispose());
+  const timePanel = createDateTimePanel({ document, ui: ui.publicUi, refresh: ui.refresh, panelStorage: ui.storage, now: Date.now, settings, getPlace: skyPlace });
+  cleanup.push(() => timePanel.destroy());
   // Scenes: one mounted at a time; `?scene=<id>` loads one the app offers, else the host's initial scene.
   const appBaseUrl = new URL(import.meta.env.BASE_URL ?? "/", window.location.href).href;
   const params = new URLSearchParams(window.location.search);
   const panoramaTest = params.get("panoramaTest") === "1";
-  const panoramaTestHooks: { renderer: PanoramaRenderer | null } = { renderer: null };
-  const scenes = createSceneController({
-    runtime,
-    settings,
-    canvas,
+  const sceneHost = createEarthSceneHost({
+    browser, settings, canvas, ui, readinessPolicy: browserPolicy.readinessPolicy,
     examples: options.scenes ?? SCENE_EXAMPLES,
     baseUrl: appBaseUrl,
-    ...(panoramaTest ? { loadOptions: { internals: { onRenderer: renderer => { panoramaTestHooks.renderer = renderer; } } } } : {}),
-  });
-  const scenesPanel = createScenesPanel({ settings, controller: scenes });
-  const offSceneLog = connectSceneLog(scenes, gameLog);
-  const offSceneTrail = scenes.subscribe(state => diagnostics.sceneChanged(state));
-  const panoramaTabs = createPanoramaTabs({
-    settings,
-    controller: scenes,
     openSettings: () => options.overlayApiRef?.current?.openOrSelectTab("panorama-settings"),
   });
-  const sceneHotspots = createSceneHotspots({ controller: scenes, container: canvas.parentElement ?? rootElement });
+  const sceneFrame = createEarthFeatureFramePreparation({ viewer: sceneHost.viewer,
+    isCurrent: sceneHost.isCurrent, requestRender: runtime.requestRender });
+  prepareSceneFrame = frame => sceneFrame.prepare(frame);
+  cleanup.push(() => { prepareSceneFrame = null; sceneHost.dispose(); });
+  const scenes = sceneHost.controller;
+  const scenesPanel = sceneHost.panel;
+  const offSceneLog = connectSceneLog(scenes, gameLog);
+  cleanup.push(offSceneLog);
+  const offSceneTrail = scenes.subscribe(state => diagnostics.sceneChanged(state));
+  cleanup.push(offSceneTrail);
+  const panoramaTabs = sceneHost.tabs;
   // While a panorama is entered, its credit takes the map's place at the bar's right end.
-  const sceneHud = mapSourceSlot ? createSceneHud({ controller: scenes, container: mapSourceSlot, mapSource: mapSourceHud?.element, mapOnly: hudStatusEl ? [hudStatusEl] : [] }) : null;
+  const sceneHud = mapSourceSlot ? createSceneHud({ controller: scenes, container: mapSourceSlot, mapSource: mapSourceHud?.element, mapOnly: hudStatusEl ? [hudStatusEl] : [], createExternalLinkIcon }) : null;
   const requestedScene = params.get("scene") ?? options.initialScene;
+  cleanup.push(() => sceneHud?.destroy());
   if (requestedScene) void scenes.load(requestedScene, { exampleId: true });
   if (panoramaTest) {
     window.__fossEarthPanoramaTest = {
       runtime,
       scenes,
-      get renderer() { return panoramaTestHooks.renderer; },
+      get renderer() { return sceneHost.renderer; },
       settings,
       math: { ...panoramaMath, effectiveOrbRadius },
-      media: sceneMediaStore,
+      media: sceneHost.media,
       diagnostics,
       publishedVersion,
     };
   }
+  cleanup.push(() => { if (window.__fossEarthPanoramaTest?.scenes === scenes) delete window.__fossEarthPanoramaTest; });
 
   void gamepadStore.listProfileIds("foss-earth").then(async (ids) => {
+    if (disposed) return;
     const stored = ids.length > 0 ? await gamepadStore.loadProfile("foss-earth", ids[0]) : null;
-    if (!stored || stored.hostNamespace !== "foss-earth") {
+    if (disposed || !stored || stored.hostNamespace !== "foss-earth") {
       return;
     }
     gamepadRuntime.setProfile(withStickDeadzone(stored, stickDeadzone()));
@@ -834,10 +962,11 @@ export async function createGlobeApp(
         sessionId: stored.selectedDeviceSessionId,
       });
     }
-  });
+  }).catch(error => { if (!disposed) console.error("Loading controller profile failed.", error); });
   helpBtnEl?.addEventListener("click", () => helpModal?.show());
   const onSettingsButtonClick = (): void => toggleTab("settings");
   settingsBtnEl?.addEventListener("click", onSettingsButtonClick);
+  cleanup.push(() => settingsBtnEl?.removeEventListener("click", onSettingsButtonClick));
 
   // ── Theme button ────────────────────────────────────────────
   // Shows sun in dark mode (click to go light), moon in light mode (click to go dark).
@@ -852,12 +981,14 @@ export async function createGlobeApp(
   syncThemeButton(getTheme());
   const onThemeButtonClick = (): void => { toggleTheme(); };
   themeBtnEl?.addEventListener("click", onThemeButtonClick);
+  cleanup.push(() => themeBtnEl?.removeEventListener("click", onThemeButtonClick));
   // Theme changes can update scene-side colors (fallback clear color, etc.);
   // pump a frame whenever the theme flips for either tab-local or cross-tab events.
   const offThemeChangeForButton = onThemeChange((next) => {
     syncThemeButton(next);
     runtime.requestRender();
   });
+  cleanup.push(offThemeChangeForButton);
   poiExitBtnEl?.addEventListener("click", (e) => {
     e.stopPropagation();
     poiTracking.exitTracking();
@@ -923,6 +1054,7 @@ export async function createGlobeApp(
     }
   });
 
+  cleanup.push(() => { if (hudObserver) runtime.scene.onBeforeRenderObservable.remove(hudObserver); hudObserver = null; });
   console.info(
     `[app] runtime initialized renderer=${runtime.renderer.mode} mode=${runtime.status.mode} googleApiKeyProvided=${runtime.status.googleApiKeyProvided}`,
   );
@@ -933,9 +1065,11 @@ export async function createGlobeApp(
   // - .is-active on the perf metrics group at the same time (drives the FPS
   //   chip's green tint)
   const offRendererActivity = rendererModePill ? attachRendererActivity(rendererModePill, runtime) : () => {};
+  cleanup.push(offRendererActivity);
   const offRenderActive = runtime.onActiveRenderChange((active) => {
     perfMetricsPill?.classList.toggle("is-active", active);
   });
+  cleanup.push(offRenderActive);
   if (runtime.isRendering()) {
     perfMetricsPill?.classList.add("is-active");
   }
@@ -957,6 +1091,12 @@ export async function createGlobeApp(
     scenesTab: scenesPanel.element,
     panoramaTabs,
     scenes,
+    get devTab() { return dev.tab; },
+    onTabVisibility(tabId, visible) {
+      if (tabId === "dev") dev.tab?.onOpenChange(visible);
+      if (tabId === "about" && visible) for (const listener of [...aboutShown]) listener();
+    },
+    whenDevSettled: () => dev.whenSettled(),
     addLayer,
     removeLayer,
     getViewState(): GlobeViewState | null {
@@ -971,76 +1111,11 @@ export async function createGlobeApp(
     requestRender(): void {
       runtime.requestRender();
     },
-    destroy() {
-      if (hudObserver) {
-        runtime.scene.onBeforeRenderObservable.remove(hudObserver);
-        hudObserver = null;
-      }
-      statusHud?.destroy();
-      hudFit?.destroy();
-      northButton?.destroy();
-      detachFullscreen?.();
-      helpModal?.destroy();
-      settingsBtnEl?.removeEventListener("click", onSettingsButtonClick);
-      bugReportBtnEl?.removeEventListener("click", onBugReportClick);
-      for (const stop of stopWatchingSettings) stop();
-      for (const section of parameterSections) section.destroy();
-      for (const control of parameterControls) control.destroy();
-      themeControl.destroy();
-      presets.destroy();
-      savedSettings.destroy();
-      appFilesSection.destroy();
-      diagnosticsSection.destroy();
-      bugReportPanel.destroy();
-      about.dispose();
-      offSceneTrail();
-      diagnostics.destroy();
-      publishedVersion.dispose();
-      appFiles.dispose();
-      unmountInlineInputMode?.();
-      spriteTuner?.destroy();
-      compassScaleTuner?.destroy();
-      inputModeHud?.destroy();
-      northBtnEl?.removeEventListener("click", resetNorth);
-      offNavigationChange();
-      sceneHud?.destroy();
-      sceneHotspots.destroy();
-      scenesPanel.destroy();
-      panoramaTabs.destroy();
-      offSceneLog();
-      scenes.destroy();
-      if (window.__fossEarthPanoramaTest?.scenes === scenes) delete window.__fossEarthPanoramaTest;
-      gamepadEditor?.destroy();
-      offGamepadFrame();
-      stopGamepadSource();
-      gamepadRuntime.dispose();
-      gamepadSource.dispose();
-      rendererModePill?.removeEventListener("click", onRendererPillClick);
-      hudStatusEl?.removeEventListener("click", onStatusClick);
-      onMapStatus = null;
-      mapSourceHud?.destroy();
-      mapPanel.destroy();
-      disconnectMapDetail();
-      if (!options.mapDetail) mapDetail.dispose();
-      rendererPanel.destroy();
-      skyPanel.destroy();
-      timePanel.destroy();
-      frameBudget.destroy();
-      unbindFrameProfile();
-      themeBtnEl?.removeEventListener("click", onThemeButtonClick);
-      offThemeChangeForButton();
-      offRendererActivity();
-      offRenderActive();
-      gameLog.destroy();
-      hudBar.destroy();
-
-      poiTracking.destroy();
-      registry.destroy();
-      culling.destroy();
-      orbitCompass.destroy();
-
-      runtime.destroy();
-      rootElement.replaceChildren();
-    },
+    destroy: disposeApp,
   };
+  } catch (error) {
+    try { disposeApp(); }
+    catch (release) { throw new AggregateError([error, release], "Earth application startup failed."); }
+    throw error;
+  }
 }

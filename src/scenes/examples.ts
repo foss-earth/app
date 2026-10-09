@@ -1,4 +1,4 @@
-import type { SceneExample } from "./sceneController";
+import type { SceneExample } from "@foss-earth/scenes/browser";
 
 /**
  * The example scenes in public/examples/panorama-scenes/, rebuilt by

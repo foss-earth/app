@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GlobeViewState } from "../engine/types";
-import { createFrameProfileSession } from "../perf/frameProfileSession";
-import { PERFORMANCE_METRIC_DEFINITIONS } from "../hud/performanceChips";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { GlobeViewState } from "@foss-earth/engine";
+import { createFrameProfileSession } from "@foss-earth/renderer/babylon";
+import { PERFORMANCE_METRIC_DEFINITIONS } from "@foss-earth/toolbar";
 
 // Node 26+ ships an experimental localStorage global that is undefined when
 // --localStorage-file is not provided, shadowing jsdom's own implementation.
@@ -21,7 +21,7 @@ vi.stubGlobal("localStorage", {
 const mockState = vi.hoisted(() => ({
   frameCallback: null as (() => void) | null,
   removeObserver: vi.fn(),
-  createBabylonRuntime: vi.fn(),
+  createEarthBrowserRuntime: vi.fn(),
   runtimeDestroy: vi.fn(),
   getViewState: vi.fn(),
   setViewState: vi.fn(),
@@ -49,71 +49,83 @@ const mockState = vi.hoisted(() => ({
   clearAnchorHeights: vi.fn(),
 }));
 
-vi.mock("../engine/babylon/createBabylonRuntime", () => ({
-  createBabylonRuntime: mockState.createBabylonRuntime,
+vi.mock("./browserRuntime", () => ({
+  createEarthBrowserRuntime: mockState.createEarthBrowserRuntime,
 }));
 
-vi.mock("../layers/poiTracking", () => ({
+// The host assembly smoke test borrows public owner behavior. Only GPU/world
+// construction is replaced: provider implementations remain qualified by owners.
+vi.mock("@foss-earth/engine/layers", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/engine/layers")>(),
   createPoiTracking: () => ({
-    setPois: vi.fn(),
-    enterTracking: vi.fn(),
-    exitTracking: mockState.poiExitTracking,
-    isTracking: vi.fn(() => false),
-    getOrbitTarget: mockState.poiGetOrbitTarget,
-    destroy: mockState.poiDestroy,
+    setPois: vi.fn(), setSuspended: vi.fn(), enterTracking: vi.fn(),
+    exitTracking: mockState.poiExitTracking, isTracking: vi.fn(() => false),
+    getOrbitTarget: mockState.poiGetOrbitTarget, destroy: mockState.poiDestroy,
   }),
-}));
-
-vi.mock("../layers/layerRegistry", () => ({
   createLayerRegistry: () => ({
-    addLayer: mockState.registryAddLayer,
-    removeLayer: mockState.registryRemoveLayer,
+    addLayer: mockState.registryAddLayer, removeLayer: mockState.registryRemoveLayer,
     destroy: mockState.registryDestroy,
   }),
 }));
 
-vi.mock("../visualization/orbitCompass", () => ({
-  DEFAULT_ORBIT_COMPASS_SCALE_PARAMS: {
-    radiusScale: 0.035,
-    minRadius: 750,
-    maxRadius: 240_000,
-    labelSizeScale: 0.16,
-  },
+vi.mock("@foss-earth/engine/compass", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/engine/compass")>(),
   createOrbitCompass: () => ({
-    update: mockState.compassUpdate,
-    setScaleParams: mockState.compassSetScaleParams,
-    isMesh: vi.fn(() => false),
-    destroy: mockState.compassDestroy,
+    update: mockState.compassUpdate, setScaleParams: mockState.compassSetScaleParams,
+    isMesh: vi.fn(() => false), destroy: mockState.compassDestroy,
   }),
 }));
 
-vi.mock("../perf/culling", () => ({
+vi.mock("@foss-earth/engine/visualization", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/engine/visualization")>(),
   createHemisphereCulling: () => ({
-    setCullables: vi.fn(),
-    update: mockState.cullingUpdate,
-    getStats: mockState.cullingGetStats,
-    destroy: mockState.cullingDestroy,
+    setCullables: vi.fn(), update: mockState.cullingUpdate,
+    getStats: mockState.cullingGetStats, destroy: mockState.cullingDestroy,
   }),
 }));
 
-vi.mock("../perf/metrics", () => ({
+vi.mock("@foss-earth/renderer/diagnostics", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/renderer/diagnostics")>(),
   createPerformanceMetrics: () => ({
-    update: mockState.perfUpdate,
-    getSnapshot: vi.fn(),
-    format: mockState.perfFormat,
+    update: mockState.perfUpdate, getSnapshot: vi.fn(), format: mockState.perfFormat,
   }),
 }));
 
-vi.mock("../terrain/anchorHeight", () => ({
+vi.mock("@foss-earth/engine/babylon", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/engine/babylon")>(),
   createAnchorHeightResolver: () => ({
-    resolve: mockState.resolveAnchorHeight,
-    resolveHeight: mockState.resolveAnchorHeightMeters,
-    setSample: vi.fn(),
-    getCachedHeight: vi.fn(() => null),
-    clear: mockState.clearAnchorHeights,
-    setHeightOffset: vi.fn(),
+    resolve: mockState.resolveAnchorHeight, resolveHeight: mockState.resolveAnchorHeightMeters,
+    setSample: vi.fn(), getCachedHeight: vi.fn(() => null), clear: mockState.clearAnchorHeights,
+    setHeightOffset: vi.fn(), setTuning: vi.fn(),
   }),
 }));
+
+vi.mock("./positionSeaLevel", () => ({
+  createBrowserPositionSeaLevelPort: () => ({
+    read: () => ({ baseMeters: 0 }), subscribe: () => () => {}, dispose: () => {},
+  }),
+}));
+
+// Scene URL choice and loading-state publication use the actual public
+// controller. The native image/mesh session has its own composition fixtures.
+vi.mock("./sceneHost", async () => {
+  const { createSceneController } = await import("@foss-earth/scenes/browser");
+  return { createEarthSceneHost(options: import("./sceneHost").EarthSceneHostOptions) {
+    const controller = createSceneController({ examples: options.examples, baseUrl: options.baseUrl,
+      canvas: options.canvas, dragThresholdPx: () => 3,
+      async load(url, callbacks) {
+        const response = await fetch(url, { signal: callbacks.signal });
+        await response.json();
+        return { ok: false as const, errors: [{ path: "$", message: "The smoke fixture has no native viewer." }] };
+      },
+    });
+    return { controller, panel: { element: document.createElement("div") },
+      tabs: { panorama: document.createElement("div"), settings: document.createElement("div") },
+      viewer: { onFrame: () => false }, renderer: null, media: null,
+      isCurrent: () => true, dispose: () => controller.destroy(),
+    };
+  } };
+});
 
 const viewState: GlobeViewState = {
   latDeg: 44.977753,
@@ -154,11 +166,15 @@ function fakeOverlay() {
   return { current: { openOrSelectTab: vi.fn(), toggleTab: vi.fn() } };
 }
 
+const activeApps = new Set<import("./createGlobeApp").GlobeAppHandle>();
+afterEach(() => { for (const app of activeApps) app.destroy(); activeApps.clear(); });
+
 async function createAppUnderTest(options: import("./createGlobeApp").GlobeAppOptions = {}) {
   const { createGlobeApp } = await import("./createGlobeApp");
   const root = document.createElement("div");
   document.body.append(root);
   const app = await createGlobeApp(root, options);
+  activeApps.add(app);
   return { app, root };
 }
 
@@ -168,6 +184,18 @@ beforeEach(() => {
   document.body.replaceChildren();
   window.localStorage.clear();
   window.history.replaceState(null, "", "/");
+  // jsdom has no layout observer. Keep this host port explicit while the
+  // shared toolbar observes the application-provided height callbacks.
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  });
+  vi.stubGlobal("matchMedia", vi.fn((media: string) => ({
+    media, matches: media === "(pointer: fine)", onchange: null,
+    addListener() {}, removeListener() {},
+    addEventListener() {}, removeEventListener() {}, dispatchEvent: () => true,
+  })));
   vi.stubGlobal("fetch", vi.fn(async () => ({
     ok: true,
     json: async () => ({ object: { sha: "8b0ab4ed380c4c57f87a1f0da8830e19e305df70" } }),
@@ -191,7 +219,7 @@ beforeEach(() => {
   mockState.perfFormat.mockReturnValue("unused");
   mockState.resolveAnchorHeight.mockReturnValue({ x: 9, y: 0, z: 0 });
   mockState.resolveAnchorHeightMeters.mockReturnValue(264);
-  mockState.createBabylonRuntime.mockResolvedValue({
+  const runtime = {
     engine: {
       getFps: () => 60,
       getRenderingCanvas: () => null,
@@ -199,6 +227,7 @@ beforeEach(() => {
       getRenderHeight: () => 600,
     },
     scene: {
+      onAfterRenderObservable: { add: vi.fn(() => ({ id: "after-render" })), remove: vi.fn() },
       onBeforeRenderObservable: {
         add: vi.fn((callback: () => void) => {
           mockState.frameCallback = callback;
@@ -266,6 +295,13 @@ beforeEach(() => {
     getGlobeAnchorRotation: vi.fn(() => true),
     setGlobeAnchorRotation: vi.fn(),
     destroy: mockState.runtimeDestroy,
+  };
+  mockState.createEarthBrowserRuntime.mockResolvedValue({
+    runtime,
+    clock: { nowMs: () => performance.now() },
+    native: { canvasDevice: {} },
+    broker: { pools: { subscribeAvailable: () => () => {} } },
+    cache: { inspect: vi.fn(async () => ({ available: false, entries: [], bytes: 0, maxBytes: 0, hits: 0, browserRequests: [] })), clear: vi.fn(async () => {}) },
   });
 });
 
@@ -298,7 +334,7 @@ describe("createGlobeApp smoke behavior", () => {
   it("boots the raster basemap shell and updates HUD/perf state on the frame callback", async () => {
     const { root, app } = await createAppUnderTest();
 
-    expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
+    expect(mockState.createEarthBrowserRuntime).toHaveBeenCalledWith(
       expect.any(HTMLCanvasElement),
       expect.objectContaining({ googleApiKey: null }),
     );
@@ -325,7 +361,8 @@ describe("createGlobeApp smoke behavior", () => {
       expect.stringMatching(/^Source: [\w.-]+$/),
       expect.stringMatching(/^Bundle: (dev|[\w.]+-[\w-]{8}\.js)$/),
     ]));
-    // Asked of GitHub when About is shown; jsdom cannot tell, so at once.
+    // The host visibility port opens About; the owner does not poll a hidden tab.
+    app.onTabVisibility("about", true);
     await vi.waitFor(() => {
       expect(aboutLines()).toContain("Site's latest deploy: 8b0ab4ed380c");
     });
@@ -827,7 +864,7 @@ describe("createGlobeApp smoke behavior", () => {
 
     await createAppUnderTest();
 
-    expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
+    expect(mockState.createEarthBrowserRuntime).toHaveBeenCalledWith(
       expect.any(HTMLCanvasElement),
       expect.objectContaining({ googleApiKey: "test-key" }),
     );
@@ -840,7 +877,7 @@ describe("createGlobeApp smoke behavior", () => {
 
     await createAppUnderTest();
 
-    expect(mockState.createBabylonRuntime).toHaveBeenCalledWith(
+    expect(mockState.createEarthBrowserRuntime).toHaveBeenCalledWith(
       expect.any(HTMLCanvasElement),
       expect.objectContaining({
         googleApiKey: "test-key",

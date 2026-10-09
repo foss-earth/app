@@ -171,7 +171,7 @@ describe("createAboutPanel", () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ object: { sha: "8b0ab4ed380c4c57f87a1f0da8830e19e305df70" } })));
     const about = createAboutPanel({ builtFrom: FLIGHT, identity: IDENTITY, site: "0SFS/0SFS.github.io", fetch: fetcher as unknown as typeof fetch });
     // jsdom cannot tell when an element is on screen, so it is asked at once.
-    expect(fetcher).toHaveBeenCalledWith("https://api.github.com/repos/0SFS/0SFS.github.io/git/ref/heads/gh-pages", { cache: "no-store" });
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledWith("https://api.github.com/repos/0SFS/0SFS.github.io/git/ref/heads/gh-pages", { cache: "no-store", signal: expect.any(AbortSignal) }));
     await vi.waitFor(() => expect(lines(about.element)).toContain("Site's latest deploy: 8b0ab4ed380c"));
   });
 

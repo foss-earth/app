@@ -1,3 +1,4 @@
+/** Earth compatibility assembly. New consumers use each owner public package and explicit host ports. */
 export type {
   HudBarButtonItem,
   HudBarHandle,
@@ -6,15 +7,15 @@ export type {
   HudBarMenuOption,
   HudBarOptions,
   HudBarSlotItem,
-} from "./hudBar";
-export { createHudBar, HUD_BAR_HEIGHT_PROPERTY } from "./hudBar";
+} from "@foss-earth/toolbar/legacy";
+export { createHudBar, HUD_BAR_HEIGHT_PROPERTY } from "@foss-earth/toolbar/legacy";
 export { createAboutPanel, type AboutPanelHandle, type AboutPanelOptions } from "./aboutPanel";
-export { createDiagnosticsSection, type DiagnosticsSectionHandle, type DiagnosticsSource } from "./diagnosticsSection";
-export { createBugReportPanel, type BugReportPanelHandle, type BugReportPanelOptions } from "./bugReportPanel";
-export { fitHudBar, type HudBarFitItem } from "./hudBarFit";
+export { createDiagnosticsSection, type DiagnosticsSectionHandle, type DiagnosticsSource } from "../app/shellCompatibility";
+export { createBugReportPanel, type BugReportPanelHandle, type BugReportPanelOptions } from "../app/shellCompatibility";
+export { fitHudBar, type HudBarFitItem } from "@foss-earth/toolbar/browser";
 export type { BuiltFrom, BuiltFromCommit, BuiltFromPart, BuiltFromSource } from "../app/builtFrom";
-export { createMapSourceHud, type MapSourceHudHandle, type MapSourceHudOptions, type MapSourceHudStatus } from "./mapSourceHud";
-export { createMapDetailSlider, describeDetailStatus, type MapDetailSliderHandle, type MapDetailSliderOptions } from "./mapDetailSlider";
+export { createMapSourceHud, type MapSourceHudHandle, type MapSourceHudOptions, type MapSourceHudStatus } from "@foss-earth/engine/panels";
+export { createMapDetailSlider, describeDetailStatus, type MapDetailSliderHandle, type MapDetailSliderOptions } from "@foss-earth/engine/panels";
 export {
   createMapDetailController,
   detailPolicyFromValues,
@@ -28,9 +29,9 @@ export {
   type MapDetailRequirement,
   type MapDetailSeedResult,
   type MapDetailStorage,
-} from "./mapDetailController";
-export { createMapDetailPanel, type MapDetailPanelHandle, type MapDetailPanelOptions } from "./mapDetailPanel";
-export type { DetailTrackMarker } from "../terrain/mapDetailPolicy";
+} from "@foss-earth/engine/settings";
+export { createMapDetailPanel, type MapDetailPanelHandle, type MapDetailPanelOptions } from "@foss-earth/engine/panels";
+export type { DetailTrackMarker } from "@foss-earth/engine";
 export {
   appendHostSections,
   createParameterSection,
@@ -40,14 +41,14 @@ export {
   type ParameterSectionOptions,
   type SectionsElementEntry,
   type SectionsElementHandle,
-} from "./settings/parameterSection";
-export { createParameterControl, describeProvenance, type ParameterControlHandle } from "./settings/controls";
-export { createHelpTooltip, closeHelpTooltipWithin, type HelpTooltipHandle, type HelpTooltipOptions } from "./helpTooltip";
-export { createParameterList, createSettingsTransfer, type ParameterListHandle, type SettingsTransferHandle } from "./settings/parameterList";
-export { createTrack, detailColour, type TrackFrame, type TrackHandle, type TrackOptions, type TrackRamp, type TrackThumb } from "./settings/track";
-export { createMapCacheSection, type MapCacheSectionHandle } from "./mapCacheSection";
-export { createSavedImagesSection, type SavedImagesSectionHandle } from "./savedImagesSection";
-export { createSavedSettingsSection, type SavedSettingsSectionHandle } from "./settings/savedSettings";
+} from "../app/shellCompatibility";
+export { createParameterControl, describeProvenance, type ParameterControlHandle } from "../app/shellCompatibility";
+export { createHelpTooltip, closeHelpTooltipWithin, type HelpTooltipHandle, type HelpTooltipOptions } from "../app/shellCompatibility";
+export { createParameterList, createSettingsTransfer, type ParameterListHandle, type SettingsTransferHandle } from "../app/shellCompatibility";
+export { createTrack, detailColour, type TrackFrame, type TrackHandle, type TrackOptions, type TrackRamp, type TrackThumb } from "../app/shellCompatibility";
+export { createMapCacheSection, type MapCacheSectionHandle } from "@foss-earth/engine/panels";
+export { createSavedImagesSection, type SavedImagesSectionHandle } from "@foss-earth/scenes/browser";
+export { createSavedSettingsSection, type SavedSettingsSectionHandle } from "../app/shellCompatibility";
 export {
   createPresetStatus,
   createPresetsSection,
@@ -55,35 +56,36 @@ export {
   type PresetStatusHandle,
   type PresetsSectionHandle,
   type SavePresetHandle,
-} from "./settings/presetsSection";
-export { connectMapDetailRuntime, type MapDetailRuntime } from "./connectMapDetailRuntime";
-export { connectMapDetailLog } from "./mapDetailLog";
+} from "../app/shellCompatibility";
+export { connectMapDetailRuntime, type MapDetailRuntime } from "@foss-earth/engine/settings";
+export { connectMapDetailLog } from "@foss-earth/engine/panels";
 export { WindowOverlay, type WindowOverlayHandle, type WindowOverlayProps } from "./WindowOverlay";
-export { SectionsPanel, type PanelSection } from "./SectionsPanel";
-export { MeshInspectorPanel, type MeshInspectorPanelProps } from "./MeshInspectorPanel";
-export { createMapSourcePanel, type MapSourcePanelHandle, type MapSourcePanelOptions, type MapSourceStatus } from "./mapSourcePanel";
-export { createRendererPanel, getRendererLabel, type RendererPanelHandle, type RendererPanelOptions } from "./rendererPanel";
-export { createSkyPanel, describeSun, type SkyPanelHandle, type SkyPanelOptions } from "./skyPanel";
-export { createDateTimePanel, fixedTimeValues, instantInUse, type DateTimePanelHandle, type DateTimePanelOptions } from "./dateTimePanel";
-export { createFrameBudgetPanel, type FrameBudgetPanelHandle, type FrameBudgetPanelOptions } from "./frameBudgetPanel";
-export { createSceneHotspots, createSceneHud, createScenesPanel, type SceneHudHandle, type ScenesPanelHandle } from "./scenesPanel";
-export { createPanoramaTabs, type PanoramaTabs, type PanoramaTabsOptions, type PanoramaTabsSnapshot } from "./panoramaTabs";
-export { connectSceneLog } from "./sceneLog";
-export { PANEL_SECTIONS_OPEN_STORAGE_KEY } from "./panelSectionsOpen";
-export { SAVED_WORKSPACE_STORAGE_KEY } from "./savedWorkspace";
-export { trackViewportInsets, VIEWPORT_INSET_BOTTOM_PROPERTY, type ViewportInsetsHandle } from "./viewportInsets";
-export { createInputModeHud, type InputModeHudOptions, type InputModeHudHandle } from "../hud/inputModeHud";
-export { createPositionReadout, type PositionReading, type PositionReadoutHandle, type PositionReadoutOptions } from "../hud/positionReadout";
-export { surfaceHeightDatum, type HeightDatum } from "../terrain/geoid";
+export { SectionsPanel, type PanelSection } from "@foss-earth/ui/react";
+export { MeshInspectorPanel, type MeshInspectorPanelProps } from "@foss-earth/ui/react";
+export { createMapSourcePanel, type MapSourcePanelHandle, type MapSourcePanelOptions, type MapSourceStatus } from "@foss-earth/engine/panels";
+export { createRendererPanel, getRendererLabel, type RendererPanelHandle, type RendererPanelOptions } from "@foss-earth/renderer/panel";
+export { createSkyPanel, describeSun, type SkyPanelHandle, type SkyPanelOptions } from "@foss-earth/sky/panels";
+export { createDateTimePanel, fixedTimeValues, instantInUse, type DateTimePanelHandle, type DateTimePanelOptions } from "@foss-earth/sky/panels";
+export { createFrameBudgetPanel, type FrameBudgetPanelHandle, type FrameBudgetPanelOptions } from "@foss-earth/renderer/panel";
+export { createSceneHotspots, createScenesPanel, type ScenePanelElement as ScenesPanelHandle } from "@foss-earth/scenes/panel";
+export { createSceneHud, type SceneHudHandle } from "@foss-earth/toolbar/browser";
+export { createViewerTabs as createPanoramaTabs, type ViewerTabs as PanoramaTabs, type ViewerPanelPorts as PanoramaTabsOptions, type ViewerTabsSnapshot as PanoramaTabsSnapshot } from "@foss-earth/360/panels";
+export { connectSceneLog } from "@foss-earth/scenes/browser";
+export { PANEL_SECTIONS_OPEN_STORAGE_KEY } from "../app/shellCompatibility";
+export { SAVED_WORKSPACE_STORAGE_KEY } from "@foss-earth/ui/windowing";
+export { trackViewportInsets, VIEWPORT_INSET_BOTTOM_PROPERTY, type ViewportInsetsHandle } from "../app/shellCompatibility";
+export { createInputModeHud, type InputModeHudOptions, type InputModeHudHandle } from "@foss-earth/engine/panels";
+export { createPositionReadout, type PositionReading, type PositionReadoutHandle, type PositionReadoutOptions } from "@foss-earth/toolbar/browser";
+export { surfaceHeightDatum, type HeightDatum } from "@foss-earth/engine";
 
-export { attachRendererActivity, attachTileStreamingActivity, type RenderActivitySource, type TileStreamingSource } from "./rendererActivity";
+export { attachRendererActivity, attachTileStreamingActivity, type RenderActivitySource, type TileStreamingSource } from "@foss-earth/toolbar/browser";
 
-export { attachMapDownloadSpeed, setMapSourceLabel, type MapDownloadSource } from "./mapDownloadHud";
+export { attachMapDownloadSpeed, setMapSourceLabel, type MapDownloadSource } from "@foss-earth/toolbar/browser";
 
-export { searchLocations, nearbyAirports } from "../search/locationSearch";
+export { searchLocations, nearbyAirports } from "../app/locationServices";
 /** @deprecated The Map tab's Loading and memory section shows the cache; see createMapCacheSection. */
-export { MapCachePanel } from "./MapCachePanel";
-export { inspectMapCache, clearMapCache, type MapCacheSnapshot, type MapCacheEntry } from "../terrain/mapCache";
+export { MapCachePanel } from "@foss-earth/engine/react";
+export { inspectMapCache, clearMapCache, type MapCacheSnapshot, type MapCacheEntry } from "../app/cacheCompatibility";
 export {
   createGameLog,
   GAME_LOG_FADE_MS,
@@ -94,7 +96,7 @@ export {
   type GameLogEntry,
   type GameLogLine,
   type GameLogTone,
-} from "../log/createGameLog";
+} from "../app/shellCompatibility";
 export {
   attachFullscreenButton,
   canRequestFullscreen,
@@ -109,4 +111,4 @@ export {
   toggleFullscreen,
   writeFullscreenEveryVisit,
   writeFullscreenPromptDismissed,
-} from "./fullscreen";
+} from "@foss-earth/toolbar/browser";

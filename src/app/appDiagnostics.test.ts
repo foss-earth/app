@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
-import { fakeBrowser } from "../diagnostics/testEnvironment";
-import { createSessionTrail } from "../diagnostics/sessionTrail";
-import type { GameLog, GameLogEntry } from "../log/createGameLog";
-import type { SceneControllerState } from "../scenes/sceneController";
+import { afterEach, describe, expect, it } from "vitest";
+import { fakeBrowser } from "./testFixtures/fakeBrowser";
+import { createSessionTrail } from "@foss-earth/ui/diagnostics";
+import type { GameLog, GameLogEntry } from "@foss-earth/ui/browser";
+import type { SceneControllerState } from "@foss-earth/scenes/browser";
 import { FOSS_EARTH_PARAMETERS } from "../settings/catalogue";
 import { createSettingsRegistry } from "../settings/registry";
 import { reportSecrets, startAppDiagnostics, TRAIL_KEPT, type DiagnosedRuntime } from "./appDiagnostics";
@@ -31,6 +31,9 @@ function fakeTarget() {
   };
 }
 
+const activeDiagnostics = new Set<ReturnType<typeof startAppDiagnostics>>();
+afterEach(() => { for (const diagnostics of activeDiagnostics) diagnostics.destroy(); activeDiagnostics.clear(); });
+
 function start(browser = fakeBrowser(), name = "a") {
   const settings = createSettingsRegistry({ storage: null });
   settings.register(FOSS_EARTH_PARAMETERS);
@@ -43,6 +46,7 @@ function start(browser = fakeBrowser(), name = "a") {
     log, settings, identity: { build: "2026-10-04T15:00:00.000Z", source: "1a2b3c4d", fossEarth: "9f8e7d6c5b4a", bundle: "twinCities-C9TYTT-e.js" },
     trailEnvironment: environment, page: page as unknown as Window, console: fakeConsole,
   });
+  activeDiagnostics.add(diagnostics);
   const texts = (): string[] => diagnostics.trail.steps().map(step => `${step.text}${step.count ? ` ×${step.count}` : ""}`);
   /** The log's lines after the first, which says which version of the app this is. */
   const said = (): GameLogEntry[] => lines.slice(1);

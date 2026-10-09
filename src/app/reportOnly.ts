@@ -4,34 +4,19 @@
  * when the app stops before Settings → Diagnostics can be reached, as when it
  * stops while starting.
  */
-import { buildReport, reportPage } from "../diagnostics/report";
-import { createSessionTrail, TRAIL_STEPS_DEFAULT } from "../diagnostics/sessionTrail";
-import type { SettingsRegistry } from "../settings/registry";
-import { createDiagnosticsSection } from "../shell/diagnosticsSection";
-import { createBugReportPanel } from "../shell/bugReportPanel";
+import { buildReport, reportPage, createSessionTrail, TRAIL_STEPS_DEFAULT, type IssueReporterConfig } from "@foss-earth/ui/diagnostics";
+export { REPORT_ONLY_PARAMETER, wantsReportOnly, addressWithoutReport } from "@foss-earth/ui/diagnostics";
+import type { SettingsRegistry } from "@foss-earth/ui/settings";
+import { createReportView, readBrowserReportDetails, browserTrailEnvironment, createBrowserClipboard, browserReportDownloads } from "@foss-earth/ui/browser";
 import { effectiveReportSettings, reportSecrets } from "./appDiagnostics";
-import { readBrowserReportDetails } from "../diagnostics/browserDetails";
 import { issueReporterFromBuild } from "./issueReporting";
-import type { IssueReporterConfig } from "../diagnostics/issueReport";
 import type { AppIdentity } from "./appIdentity";
 import { describePublishedVersion, readPublishedVersion } from "./publishedVersion";
-
-/** The address parameter. */
-export const REPORT_ONLY_PARAMETER = "report";
-
-export const wantsReportOnly = (search: string): boolean => new URLSearchParams(search).has(REPORT_ONLY_PARAMETER);
-
-/** The same address without the parameter: the app itself. */
-export function addressWithoutReport(href: string): string {
-  const url = new URL(href);
-  url.searchParams.delete(REPORT_ONLY_PARAMETER);
-  return url.href;
-}
 
 export function showReportOnly(rootElement: HTMLElement, options: { settings: SettingsRegistry; identity: AppIdentity; issueReporter?: IssueReporterConfig }): void {
   const { settings, identity } = options;
   // Read, not written: the page may be opened again, and the app's next visit is still told of the one that stopped.
-  const trail = createSessionTrail({ app: () => "", kept: () => false, limit: () => TRAIL_STEPS_DEFAULT, readOnly: true });
+  const trail = createSessionTrail({ app: () => "", kept: () => false, limit: () => TRAIL_STEPS_DEFAULT, readOnly: true, environment: browserTrailEnvironment() });
   trail.step(`Opened ${reportPage(location.href)} for the report only: the map was not started`);
   const previous = trail.previous();
   // Asked and never acted on: this page is here to be read, so it does not reload itself.
@@ -40,6 +25,7 @@ export function showReportOnly(rootElement: HTMLElement, options: { settings: Se
     const context = settings.getDeviceContext();
     return buildReport({
       at: new Date(),
+      appName: document.title || "FOSS Earth",
       page: reportPage(location.href),
       build: identity.build, source: identity.source, fossEarth: identity.fossEarth, bundle: identity.bundle,
       userAgent: navigator.userAgent,
@@ -56,23 +42,12 @@ export function showReportOnly(rootElement: HTMLElement, options: { settings: Se
     });
   };
 
-  const page = document.createElement("main");
-  page.className = "foss-earth-report-only";
-  const title = document.createElement("h1");
-  title.textContent = "Report";
-  const why = document.createElement("p");
-  why.textContent = "The address asks for the report only (?report), so the map was not started. The report says how the last visit to this page ended and what it had done.";
-  const back = document.createElement("a");
-  back.href = addressWithoutReport(location.href);
-  back.textContent = "Open the app";
-  const source = { report, previous: () => previous, reportSecrets: () => reportSecrets(settings) };
-  const section = createDiagnosticsSection(source);
-  const bugReport = createBugReportPanel(source, { issueReporter: options.issueReporter ?? issueReporterFromBuild() });
-  const bugTitle = document.createElement("h2");
-  bugTitle.textContent = "Bug report";
-  page.append(title, why, section.element, back, bugTitle, bugReport.element);
-  rootElement.replaceChildren(page);
-  // Shown at once: on this page the report is what the person came for.
-  section.element.querySelector("button")?.click();
-  bugReport.show();
+  const source = { report, previous: () => previous, reportSecrets: () => reportSecrets(settings), copy: createBrowserClipboard(document, navigator) };
+  const view = createReportView(source, { href: location.href, document, now: () => new Date(),
+    downloads: browserReportDownloads(URL), issueReporter: options.issueReporter ?? issueReporterFromBuild() });
+  const note = document.createElement("p");
+  note.textContent = "The map was not started.";
+  view.element.querySelector("h1")?.after(note);
+  rootElement.replaceChildren(view.element);
+  view.show();
 }

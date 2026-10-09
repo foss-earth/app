@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { TRAIL_KEY_PREFIX } from "../diagnostics/sessionTrail";
+import { TRAIL_KEY_PREFIX } from "@foss-earth/ui/diagnostics";
 import { FOSS_EARTH_PARAMETERS } from "../settings/catalogue";
 import { createSettingsRegistry } from "../settings/registry";
 import { addressWithoutReport, showReportOnly, wantsReportOnly } from "./reportOnly";

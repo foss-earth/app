@@ -11,8 +11,8 @@
  * touched it, once for each published version; after that, and where
  * Reload an older page by itself is off, the log says so with a button.
  */
-import type { GameLog, GameLogEntry, GameLogLine } from "../log/createGameLog";
-import type { SettingsRegistry } from "../settings/registry";
+import type { GameLog, GameLogEntry, GameLogLine } from "@foss-earth/ui/browser";
+import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import { buildMinute } from "./appIdentity";
 import { BUILD_STAMP_META, buildStampOf, compareBuildStamps } from "./buildStamp";
 

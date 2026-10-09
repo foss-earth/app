@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GameLogEntry } from "../log/createGameLog";
+import type { GameLogEntry } from "@foss-earth/ui/browser";
 import { FOSS_EARTH_PARAMETERS } from "../settings/catalogue";
 import { createSettingsRegistry } from "../settings/registry";
 import { BUILD_STAMP_META } from "./buildStamp";

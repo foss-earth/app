@@ -1,37 +1,37 @@
-import { DEFAULT_RASTER_BASE_MAP_ID, isKnownRasterBaseMapId } from "../../engine/babylon/rasterBaseMaps";
-import type { UrlAliasResult } from "../registry";
-import type { LegacyMigration, ParameterSpec, ParameterValue } from "../types";
-import { CONTROLS_PARAMETERS, CONTROLS_TAB } from "./controls";
+import { EARTH_BROWSER_POLICY_PARAMETERS } from "../../app/browserPolicy";
+import { DEFAULT_RASTER_BASE_MAP_ID, isKnownRasterBaseMapId } from "@foss-earth/engine";
+import type { UrlAliasResult, LegacyMigration, ParameterSpec, SettingsStorage } from "@foss-earth/ui/settings";
+import { THEME_LEGACY_MIGRATION } from "@foss-earth/ui/settings";
+import { HUD_BUTTON_VISIBILITY_MIGRATION, PERFORMANCE_HUD_VISIBILITY_MIGRATION } from "@foss-earth/toolbar";
+import {
+  CONTROLS_PARAMETERS, CONTROLS_TAB, MAP_AUTO_PARAMETERS, MAP_LOADING_PARAMETERS,
+  MAP_SELECTION_PARAMETERS, MAP_TERRAIN_SELECTION_PARAMETERS, MAP_DETAIL_PARAMETERS,
+  MAP_SOURCE_PARAMETERS, MAP_TAB, GLOBE_RUNTIME_PARAMETERS, ENGINE_POINT_RESOURCE_PARAMETERS,
+  MAP_CACHE_PRESENTATION_PARAMETERS, TERRAIN_IMAGE_DECODE_PARAMETERS, createEngineMigrations,
+} from "@foss-earth/engine/settings";
 import { INTERFACE_PARAMETERS, INTERFACE_TAB, PERFORMANCE_HUD_METRICS, SETTINGS_TAB, TOOLBAR_BUTTONS } from "./interface";
-import { MAP_AUTO_PARAMETERS } from "./auto";
-import { MAP_LOADING_PARAMETERS, MAP_SELECTION_PARAMETERS, MAP_TERRAIN_SELECTION_PARAMETERS } from "./loading";
-import { MAP_DETAIL_PARAMETERS, MAP_SOURCE_PARAMETERS, MAP_TAB } from "./map";
-import { RENDERER_EXPERIMENT_IDS, RENDERER_EXPERIMENT_PARAMETERS, RENDERER_PARAMETERS, RENDERER_TAB } from "./renderer";
-import { PANORAMA_SETTINGS_TAB, PANORAMA_TAB, SCENE_PARAMETERS, SCENE_SECTION_TITLES, SCENES_TAB } from "./scenes";
-import { SKY_PARAMETERS, SKY_SECTION_TITLES, SKY_TAB, TIME_TAB } from "./sky";
-
+import { RENDERER_EXPERIMENT_IDS, RENDERER_OWNED_EXPERIMENT_PARAMETERS, RENDERER_PARAMETERS, RENDERER_TAB } from "@foss-earth/renderer/settings";
+import { PANORAMA_SETTINGS_TAB, PANORAMA_TAB, VIEWER_PARAMETERS, VIEWER_SECTION_TITLES, SCENES_TAB } from "@foss-earth/360/settings";
+import { SCENE_DOCUMENT_PARAMETERS, SCENE_SECTION_TITLES } from "@foss-earth/scenes";
+import { createImageResourceParameters, IMAGE_RESOURCE_SECTION_TITLES } from "@foss-earth/images/settings";
+import { TILED_CUBEMAP_PARAMETERS, keptGpuDefault } from "@foss-earth/tiled-cubemap/settings";
+import { PREVIEW_SHEETS_PARAMETERS } from "@foss-earth/preview-sheets/settings";
+import { SKY_PARAMETERS, SKY_SECTION_TITLES, SKY_TAB, TIME_TAB } from "@foss-earth/sky/settings";
 export { CONTROLS_TAB, INTERFACE_TAB, MAP_TAB, PANORAMA_SETTINGS_TAB, PANORAMA_TAB, RENDERER_TAB, SCENES_TAB, SETTINGS_TAB, SKY_TAB, TIME_TAB, PERFORMANCE_HUD_METRICS, TOOLBAR_BUTTONS };
-export { SKY_MODELS, VIEWPOINT_SURFACE_LIGHTING_CHOICE, type SkyModel } from "./sky";
+export { SKY_MODELS, VIEWPOINT_SURFACE_LIGHTING_CHOICE, type SkyModel } from "@foss-earth/sky/settings";
 export { POSITION_ALTITUDE_ID, POSITION_ALTITUDE_UNIT_ID, POSITION_COORDINATE_LABELS_ID, POSITION_SEA_LEVEL_GRID_ID, TOOLBAR_EDIT_PRIORITIES_ID, TOOLBAR_PRIORITIES, toolbarPriorityParameterId } from "./interface";
 export type { AltitudeReference, AltitudeUnit, CoordinateLabels, ToolbarItemId, ToolbarVisibility } from "./interface";
-export { INPUT_RATE_IDS, INPUT_SENSITIVITY_IDS } from "./controls";
+export { INPUT_RATE_IDS, INPUT_SENSITIVITY_IDS, atlasLimitMiB } from "@foss-earth/engine/settings";
 export { RENDERER_EXPERIMENT_IDS };
-export { atlasLimitMiB } from "./loading";
-
-/** Every parameter FOSS Earth owns. Hosts register theirs alongside. */
+/** Each owner contributes to the host's one registry, once. */
 export const FOSS_EARTH_PARAMETERS: readonly ParameterSpec[] = [
-  ...MAP_SOURCE_PARAMETERS,
-  ...MAP_DETAIL_PARAMETERS,
-  ...MAP_AUTO_PARAMETERS,
-  ...MAP_LOADING_PARAMETERS,
-  ...MAP_SELECTION_PARAMETERS,
-  ...MAP_TERRAIN_SELECTION_PARAMETERS,
-  ...RENDERER_PARAMETERS,
-  ...RENDERER_EXPERIMENT_PARAMETERS,
-  ...SKY_PARAMETERS,
-  ...CONTROLS_PARAMETERS,
-  ...INTERFACE_PARAMETERS,
-  ...SCENE_PARAMETERS,
+  ...MAP_SOURCE_PARAMETERS, ...MAP_DETAIL_PARAMETERS, ...MAP_AUTO_PARAMETERS,
+  ...MAP_LOADING_PARAMETERS, ...MAP_SELECTION_PARAMETERS, ...MAP_TERRAIN_SELECTION_PARAMETERS,
+  ...GLOBE_RUNTIME_PARAMETERS, ...EARTH_BROWSER_POLICY_PARAMETERS, ...ENGINE_POINT_RESOURCE_PARAMETERS, ...MAP_CACHE_PRESENTATION_PARAMETERS,
+  ...TERRAIN_IMAGE_DECODE_PARAMETERS, ...RENDERER_PARAMETERS, ...RENDERER_OWNED_EXPERIMENT_PARAMETERS,
+  ...SKY_PARAMETERS, ...CONTROLS_PARAMETERS, ...INTERFACE_PARAMETERS,
+  ...SCENE_DOCUMENT_PARAMETERS, ...VIEWER_PARAMETERS,
+  ...createImageResourceParameters({ keptGpuDefault }), ...TILED_CUBEMAP_PARAMETERS, ...PREVIEW_SHEETS_PARAMETERS,
 ];
 
 export const FOSS_EARTH_SECTION_TITLES: ReadonlyArray<readonly [string, string, string]> = [
@@ -59,158 +59,20 @@ export const FOSS_EARTH_SECTION_TITLES: ReadonlyArray<readonly [string, string, 
   [SETTINGS_TAB, "app-files", "App files"],
   [SETTINGS_TAB, "diagnostics", "Diagnostics"],
   ...SCENE_SECTION_TITLES,
+  ...VIEWER_SECTION_TITLES,
+  ...IMAGE_RESOURCE_SECTION_TITLES,
+  [SCENES_TAB, "tiles", "Tiled images"],
   ...SKY_SECTION_TITLES,
 ];
 
-function parseJson(raw: string): unknown {
-  return JSON.parse(raw) as unknown;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function finite(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-/** The legacy map detail record: one policy per source; the catalogue keeps one per kind. */
-function migrateMapDetail(raw: string): Record<string, ParameterValue> | null {
-  const parsed = parseJson(raw);
-  if (!isObject(parsed) || parsed.version !== 1 || !isObject(parsed.policies)) return null;
-  const values: Record<string, ParameterValue> = {};
-  const google = parsed.policies.google;
-  if (isObject(google) && finite(google.finestErrorPx) && finite(google.coarsestErrorPx)) {
-    values["map.detail.google.range"] = { min: google.finestErrorPx, max: google.coarsestErrorPx };
-    const fallback = google.defaultValue;
-    if (finite(fallback)) values["map.detail.google.default"] = fallback;
-    else if (isObject(fallback) && (fallback.policy === "device-hints" || fallback.policy === "renderer-default")) {
-      values["map.detail.google.default"] = fallback.policy;
-    }
-  }
-  // The default basemap's policy if it was saved, otherwise the first 2D one.
-  const rasterKeys = Object.keys(parsed.policies).filter(key => key.startsWith("raster:"));
-  const rasterKey = rasterKeys.includes(`raster:${DEFAULT_RASTER_BASE_MAP_ID}`) ? `raster:${DEFAULT_RASTER_BASE_MAP_ID}` : rasterKeys[0];
-  const raster = rasterKey ? parsed.policies[rasterKey] : null;
-  if (isObject(raster) && finite(raster.coarseOffset) && finite(raster.fineOffset)) {
-    values["map.detail.imagery.range"] = { min: raster.coarseOffset, max: raster.fineOffset };
-    values["map.detail.imagery.default"] = finite(raster.defaultValue) ? raster.defaultValue : "normal";
-  }
-  return values;
-}
-
-function migrateSensitivity(raw: string, version: string | null): Record<string, ParameterValue> | null {
-  const parsed = parseJson(raw);
-  if (!isObject(parsed)) return null;
-  const values: Record<string, ParameterValue> = {};
-  for (const device of ["mouse", "trackpad", "touch"] as const) {
-    const movements = parsed[device];
-    if (!isObject(movements)) continue;
-    for (const movement of ["pan", "orbit", "zoom"] as const) {
-      const value = movements[movement];
-      if (!finite(value)) continue;
-      // An older record's zoom and touch rates were tuned for other controllers; they reset.
-      if (version !== "1" && version !== "6" && (movement === "zoom" || device === "touch")) continue;
-      values[`input.sensitivity.${device}.${movement}`] = Math.max(0.1, Math.min(10, value));
-    }
-  }
-  return values;
-}
-
-function readStorage(key: string): string | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function booleanString(id: string) {
-  return (raw: string): Record<string, ParameterValue> | null => (raw === "true" || raw === "false" ? { [id]: raw === "true" } : null);
-}
-
+/** The host supplies storage; shared migrations contain the legacy interpretations. */
+const legacyStorage: Pick<SettingsStorage, "getItem"> = { getItem(key) {
+  try { return typeof localStorage === "undefined" ? null : localStorage.getItem(key); }
+  catch { return null; }
+} };
 export const FOSS_EARTH_MIGRATIONS: readonly LegacyMigration[] = [
-  { key: "foss-earth.map-detail.v1", migrate: migrateMapDetail },
-  { key: "foss-earth.theme", migrate: raw => (raw === "light" || raw === "dark" ? { "interface.theme": raw } : null) },
-  {
-    key: "foss-earth.hudButtons",
-    migrate: raw => {
-      const parsed = parseJson(raw);
-      if (!isObject(parsed)) return null;
-      return Object.fromEntries(TOOLBAR_BUTTONS.flatMap(([button]) => {
-        const value = parsed[button];
-        // The old object included every default-true button, so only false
-        // expressed a change. Named choices already express the user's intent.
-        if (value === false) return [[`interface.toolbar.${button}`, "off"]];
-        return value === "on" || value === "auto" || value === "off" ? [[`interface.toolbar.${button}`, value]] : [];
-      }));
-    },
-  },
-  {
-    key: "foss-earth.performanceMetricVisibility",
-    migrate: raw => {
-      const parsed = parseJson(raw);
-      if (!Array.isArray(parsed)) return null;
-      // Only what the user changed from the old defaults: FPS and memory.
-      // Today's memory default is off, but an old explicit off still stays off.
-      return Object.fromEntries(PERFORMANCE_HUD_METRICS
-        .filter(([metric]) => parsed.includes(metric) !== (metric === "fps" || metric === "memory"))
-        .map(([metric]) => [`interface.performanceHud.${metric}`, parsed.includes(metric) ? "on" : "off"]));
-    },
-  },
-  { key: "foss-earth.poiSpriteTunerVisible", migrate: booleanString("interface.poiSpriteTuner") },
-  { key: "foss-earth.compassScaleTunerVisible", migrate: booleanString("interface.compassScaleTuner") },
-  {
-    key: "foss-earth.compassHeightOffsetMeters",
-    migrate: raw => {
-      const value = Number(raw);
-      return Number.isFinite(value) ? { "visualization.compass.heightOffset": Math.max(-1000, Math.min(1000, value)) } : null;
-    },
-  },
-  { key: "foss-earth.globeAnchorRotation", migrate: booleanString("input.globeAnchorRotation") },
-  { key: "foss-earth.inputMode", migrate: raw => (["mouse", "trackpad", "touch"].includes(raw) ? { "input.mode": raw } : null) },
-  { key: "moir-park.map-input-mode", migrate: raw => (["mouse", "trackpad", "touch"].includes(raw) ? { "input.mode": raw } : null) },
-  {
-    key: "foss-earth.inputSensitivity",
-    migrate: raw => migrateSensitivity(raw, readStorage("foss-earth.inputSensitivityVersion") ?? readStorage("moir-park.map-input-sensitivity-version")),
-  },
-  { key: "moir-park.map-input-sensitivity", migrate: raw => migrateSensitivity(raw, readStorage("moir-park.map-input-sensitivity-version")) },
-  {
-    key: "osfs.orbit-invert",
-    migrate: raw => {
-      const parsed = parseJson(raw);
-      if (!isObject(parsed)) return null;
-      return {
-        "input.orbit.invertYaw": parsed.invertYaw === true,
-        "input.orbit.invertPitch": parsed.invertPitch === true,
-        "input.orbit.recenterMode": parsed.recenterMode === "recenter" ? "recenter" : "hold",
-      };
-    },
-  },
-  {
-    key: "foss-earth.compass-scale-defaults",
-    migrate: raw => {
-      const parsed = parseJson(raw);
-      if (!isObject(parsed)) return null;
-      const values: Record<string, ParameterValue> = {};
-      for (const field of ["radiusScale", "minRadius", "maxRadius", "labelSizeScale"]) {
-        if (finite(parsed[field])) values[`visualization.compass.${field}`] = parsed[field];
-      }
-      return values;
-    },
-  },
-  {
-    key: "foss-earth.poi-sprite-size-defaults",
-    migrate: raw => {
-      const parsed = parseJson(raw);
-      if (!isObject(parsed)) return null;
-      const values: Record<string, ParameterValue> = {};
-      for (const field of ["maxSize", "minSize", "minRefZoom", "maxRefZoom"]) {
-        if (finite(parsed[field])) values[`visualization.poiSprite.${field}`] = parsed[field];
-      }
-      return values;
-    },
-  },
+  ...createEngineMigrations(legacyStorage), THEME_LEGACY_MIGRATION,
+  HUD_BUTTON_VISIBILITY_MIGRATION, PERFORMANCE_HUD_VISIBILITY_MIGRATION,
 ];
 
 function mapSourceAlias(value: string): string | null {

@@ -1,29 +1,30 @@
+import type {} from "./vite-env";
 import "./styles/globe.css";
 
 import { createGlobeApp } from "./app/createGlobeApp";
 import type { GlobeAppHandle } from "./app/createGlobeApp";
-import type { PoiSpriteSizeParams } from "./hud/poiSpriteSizeTuner";
-import type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
-import type { RasterBaseMapSource } from "./engine/babylon/rasterBaseMaps";
-import type { TerrainSource } from "./terrain/terrainTiles";
+import type { PoiSpriteSizeParams } from "@foss-earth/engine";
+import type { OrbitCompassScaleParams } from "@foss-earth/engine/compass";
+import type { RasterBaseMapSource } from "@foss-earth/engine";
+import type { TerrainSource } from "@foss-earth/engine";
 
-export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, GlobeViewState, GlobeTheme, GlobeInputModePreference, GlobeInputSensitivitySettings } from "./engine/types";
-export type { InputModeHudHandle } from "./hud/inputModeHud";
-export { DEFAULT_INPUT_SENSITIVITY } from "./input/inputSettings";
+export type { GlobeHandle, GlobeLayer, GlobeLayerContext, GlobeLayerState, GlobeViewState, GlobeTheme, GlobeInputModePreference, GlobeInputSensitivitySettings } from "@foss-earth/engine";
+export type { InputModeHudHandle } from "@foss-earth/engine/panels";
+export { DEFAULT_INPUT_SENSITIVITY } from "@foss-earth/engine";
 export { createGlobeApp } from "./app/createGlobeApp";
 export type { GlobeAppHandle, GlobeAppOptions } from "./app/createGlobeApp";
 export { mountGlobeApp } from "./app/mountGlobeApp";
-export { createBabylonLayer, createMeshCullable, asBabylonContext } from "./layers/types";
-export { DEFAULT_RASTER_BASE_MAP_ID, RASTER_BASE_MAP_SOURCES, resolveRasterBaseMapSource } from "./engine/babylon/rasterBaseMaps";
-export type { RasterBaseMapProtocol, RasterBaseMapSource } from "./engine/babylon/rasterBaseMaps";
-export { MAPTERHORN, AWS_TERRARIUM, TERRAIN_SOURCES, resolveTerrainSource } from "./terrain/terrainTiles";
-export type { TerrainSource } from "./terrain/terrainTiles";
-export type { BabylonLayerContext, BabylonLayerState, PoiDescriptor } from "./layers/types";
-export { smoothSurfaceHeightMeters, smoothSurfaceEcef } from "./terrain/smoothElevation";
-export type { PoiSpriteSizeParams } from "./hud/poiSpriteSizeTuner";
-export { DEFAULT_POI_SPRITE_SIZE_PARAMS } from "./hud/poiSpriteSizeTuner";
-export type { OrbitCompassScaleParams } from "./visualization/orbitCompass";
-export { DEFAULT_ORBIT_COMPASS_SCALE_PARAMS } from "./visualization/orbitCompass";
+export { createBabylonLayer, createMeshCullable, asBabylonContext } from "@foss-earth/engine/layers";
+export { DEFAULT_RASTER_BASE_MAP_ID, RASTER_BASE_MAP_SOURCES, resolveRasterBaseMapSource } from "@foss-earth/engine";
+export type { RasterBaseMapProtocol, RasterBaseMapSource } from "@foss-earth/engine";
+export { MAPTERHORN, AWS_TERRARIUM, TERRAIN_SOURCES, resolveTerrainSource } from "@foss-earth/engine";
+export type { TerrainSource } from "@foss-earth/engine";
+export type { BabylonLayerContext, BabylonLayerState, PoiDescriptor } from "@foss-earth/engine/layers";
+export { smoothSurfaceHeightMeters, smoothSurfaceEcef } from "@foss-earth/engine";
+export type { PoiSpriteSizeParams } from "@foss-earth/engine";
+export { DEFAULT_POI_SPRITE_SIZE_PARAMS } from "@foss-earth/engine";
+export type { OrbitCompassScaleParams } from "@foss-earth/engine/compass";
+export { DEFAULT_ORBIT_COMPASS_SCALE_PARAMS } from "@foss-earth/engine/compass";
 export { getTheme, setTheme, toggleTheme, onThemeChange } from "./theme/theme";
 
 // ─── Sprite POI primitives ────────────────────────────────────────────────────
@@ -35,11 +36,11 @@ export {
   EARTH_RADIUS_METERS,
   rgbToCss,
   markerStyleKey,
-} from "./sprites/types";
+} from "@foss-earth/engine/sprites";
 export {
   drawCircleAtlasCell,
   makeCircularMarkerAtlas,
-} from "./sprites/atlas";
+} from "@foss-earth/engine/sprites";
 export {
   type CreatePointSpriteManagerOptions,
   type CreatePointSpriteOptions,
@@ -47,8 +48,8 @@ export {
   createPointSprite,
   setSpriteOpacity,
   disposeSpriteManagers,
-} from "./sprites/spriteManager";
-export { currentSpriteSize } from "./sprites/spriteSize";
+} from "@foss-earth/engine/sprites";
+export { currentSpriteSize } from "@foss-earth/engine/sprites";
 export {
   DEFAULT_POI_HEIGHT_REFINEMENT_MAX_ZOOM_M,
   DEFAULT_POI_HEIGHT_REFINEMENT_PROBE_UP_M,
@@ -63,11 +64,11 @@ export {
   makeTileKey,
   buildPoiTileIndex,
   distanceScoreMetersSq,
-} from "./sprites/positioning";
+} from "@foss-earth/engine/sprites";
 export {
   type PickPointMetadataOptions,
   pickPointMetadata,
-} from "./sprites/picking";
+} from "@foss-earth/engine/sprites";
 
 export interface GlobeOptions {
   container?: string | HTMLElement;

@@ -1,67 +1,14 @@
-/**
- * `foss-earth/scenes`: the scene format, its validation, and loading a scene
- * onto a running globe. The JSON Schema is `foss-earth/scenes/schema.json`.
- * Format: docs/scenes/format.md.
- */
-export { SCENE_FORMAT, SCENE_FORMAT_VERSION } from "./format";
-export type {
-  AttributionRecord,
-  CaptureRecord,
-  CubeRepresentationRecord,
-  EquirectRepresentationRecord,
-  GroupRecord,
-  HeightRecord,
-  ImagePoseRecord,
-  LinkRecord,
-  MarkerRecord,
-  OverviewRecord,
-  PanoramaAssetRecord,
-  PanoramaEntityRecord,
-  RepresentationRecord,
-  ResolvedAsset,
-  ResolvedPanorama,
-  ResolvedRepresentation,
-  ResolvedSheetPlace,
-  ResolvedTiledCube,
-  SceneDiagnostic,
-  SceneDocument,
-  SceneExtensions,
-  SceneValidation,
-  SheetPlaceRecord,
-  SheetRecord,
-  TiledCubeRepresentationRecord,
-  UnsupportedEntity,
-  ValidatedScene,
-  ViewRecord,
-} from "./format";
-export { validateScene, type SceneLimits, type ValidateSceneOptions } from "./validateScene";
-export { checkSceneFiles, type SceneFileReport } from "./checkSceneFiles";
-export {
-  loadScene,
-  type EnterOptions,
-  type ImmersionDetailStatus,
-  type SceneFailure,
-  type SceneProgress,
-  type LoadSceneOptions,
-  type LoadSceneResult,
-  type SceneActionResult,
-  type SceneEntryStatus,
-  type SceneHandle,
-  type SceneImageStatus,
-  type SceneInput,
-  type ScenePhase,
-  type SceneRuntime,
-  type SceneStatus,
-} from "./loadScene";
-export {
-  createBrowserSceneHistory,
-  createMemorySceneHistory,
-  SCENE_HISTORY_KEY,
-  type SceneHistoryAdapter,
-  type SceneHistoryEntry,
-} from "./sceneHistory";
-export { createSceneController, type SceneController, type SceneControllerOptions, type SceneControllerState, type SceneExample } from "./sceneController";
-/** The scene images kept between visits (docs/scenes/format.md, "Saved images"): what a host may show or clear. */
-export { clearSceneMedia, inspectSceneMedia, type MediaGroupRecord, type MediaStoreSnapshot } from "./mediaStore";
-export type { LookState } from "./panoramaInput";
-export { PANORAMA_SETTINGS_TAB, PANORAMA_TAB, SCENE_PARAMETERS, SCENES_TAB } from "../settings/catalogue/scenes";
+/** Deprecated Earth scene assembly; use public owner packages with supplied host ports. */
+export * from "./format";
+export { validateScene, checkSceneFiles, type SceneLimits, type ValidateSceneOptions, type SceneFileReport } from "../app/sceneCompatibility";
+export * from "@foss-earth/scenes/browser";
+export { SCENES_TAB, SCENE_DOCUMENT_PARAMETERS } from "@foss-earth/scenes";
+export { PANORAMA_TAB, PANORAMA_SETTINGS_TAB } from "@foss-earth/360/settings";
+export type { LookState, ViewerImageDetail as ImmersionDetailStatus, ViewerStatus } from "@foss-earth/360";
+export { clearSceneMedia, inspectSceneMedia } from "../app/cacheCompatibility";
+export type { MediaGroupRecord, MediaStoreSnapshot } from "@foss-earth/images";
+import type { SceneHandle } from "@foss-earth/scenes/browser";
+export type EnterOptions = NonNullable<Parameters<SceneHandle["enter"]>[1]>;
+/** Former SceneRuntime callers now supply the world's explicit navigation ports. */
+export type { SceneWorldPorts as SceneRuntime } from "@foss-earth/scenes/browser";
+export { SCENE_PARAMETERS } from "../settings/catalogue/scenes";

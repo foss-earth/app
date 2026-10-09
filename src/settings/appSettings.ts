@@ -1,10 +1,8 @@
 import { FOSS_EARTH_MIGRATIONS, FOSS_EARTH_PARAMETERS, FOSS_EARTH_SECTION_TITLES, FOSS_EARTH_URL_NAMES, fossEarthUrlAliases, RENDERER_EXPERIMENT_IDS } from "./catalogue";
-import { readDeviceContext } from "./deviceContext";
-import { linkParameterGroup } from "./parameterGroup";
 import { BUILT_IN_PRESETS } from "./presets";
-import { createSettingsRegistry, SETTINGS_STORAGE_KEY, URL_PARAMETER_PREFIX, type SettingsRegistry } from "./registry";
-import type { ParameterState } from "./types";
-import { stringifyValue } from "./values";
+import { createBrowserSettingsRegistry, readDeviceContext } from "@foss-earth/ui/browser";
+import { linkParameterGroup, SETTINGS_STORAGE_KEY, URL_PARAMETER_PREFIX, type SettingsRegistry } from "@foss-earth/ui/settings";
+import { bindEarthSettingsUrl } from "../app/settingsUrlBinding";
 
 /** Where FOSS Earth's sources are browsable; hosts add their own prefix with `setSourceBase`. */
 export const FOSS_EARTH_SOURCE_BASE = "https://github.com/foss-earth/foss-earth.github.io/blob/main/";
@@ -14,76 +12,6 @@ const LINKED_PARAMETER_IDS = ["map.source.basemap", "map.source.elevation"];
 
 let app: SettingsRegistry | null = null;
 let stops: (() => void)[] = [];
-/** The text written to the query for each linked parameter this session. */
-const written = new Map<string, string>();
-
-/** Every query name a parameter is read from, the one written back first. */
-function queryNames(id: string): string[] {
-  return [...(FOSS_EARTH_URL_NAMES[id] ?? []), `${URL_PARAMETER_PREFIX}${id}`];
-}
-
-/** Edits the page's query in place, keeping the path, the hash and the history entry's state. */
-function editQuery(edit: (params: URLSearchParams) => void): void {
-  const url = new URL(window.location.href);
-  const before = url.searchParams.toString();
-  const params = new URLSearchParams(url.search);
-  edit(params);
-  const after = params.toString();
-  if (after === before) return;
-  url.search = after;
-  window.history.replaceState(window.history.state, "", url);
-}
-
-/**
- * A secret given in the query, such as `?key=`, is saved on this device and
- * taken off the address bar, so links, bookmarks and history do not carry it.
- */
-function saveSecretsFromQuery(registry: SettingsRegistry): void {
-  const names: string[] = [];
-  for (const spec of registry.list()) {
-    if (!spec.sensitive) continue;
-    const given = registry.inspect(spec.id).layers.url;
-    if (given) registry.set(spec.id, given.value);
-    names.push(...queryNames(spec.id));
-  }
-  editQuery(params => { for (const name of names) params.delete(name); });
-}
-
-function unchosen(state: ParameterState): boolean {
-  return state.provenance === "default" || state.provenance === "host-default" || state.provenance === "host";
-}
-
-/** Gives the query every value written this session, under the name FOSS Earth has always read. */
-function writeLinked(): void {
-  editQuery(params => {
-    for (const [id, text] of written) {
-      const [name, ...older] = queryNames(id);
-      for (const other of older) params.delete(other);
-      params.set(name, text);
-    }
-  });
-}
-
-/**
- * Writes the value in use into the query whenever it changes and whichever
- * control changed it, choosing a default included. When only a default moved,
- * as a host's does at startup, the query follows only if it already names the
- * parameter. A host-forced value leaves the query alone.
- */
-function followInQuery(registry: SettingsRegistry, id: string): () => void {
-  let last = registry.inspect(id);
-  return registry.watch(id, value => {
-    const state = registry.inspect(id);
-    const defaultsOnly = unchosen(last) && unchosen(state);
-    last = state;
-    if (state.provenance === "host") return;
-    const query = new URLSearchParams(window.location.search);
-    if (defaultsOnly && !queryNames(id).some(name => query.has(name))) return;
-    written.set(id, stringifyValue(value));
-    writeLinked();
-  });
-}
-
 /**
  * The registry for this page's origin, with FOSS Earth's catalogue registered.
  * Hosts register their own parameters into the same registry, so the whole
@@ -93,10 +21,13 @@ function followInQuery(registry: SettingsRegistry, id: string): () => void {
  */
 export function getAppSettings(): SettingsRegistry {
   if (app) return app;
-  const registry = createSettingsRegistry({
+  const registry = createBrowserSettingsRegistry({
     searchParams: typeof window === "undefined" ? null : new URLSearchParams(window.location.search),
     urlAliases: fossEarthUrlAliases,
-    deviceContext: readDeviceContext(),
+    deviceContext: readDeviceContext({
+      navigator: typeof navigator === "undefined" ? null : navigator,
+      window: typeof window === "undefined" ? null : window,
+    }),
     sourceBase: FOSS_EARTH_SOURCE_BASE,
   });
   registry.register(FOSS_EARTH_PARAMETERS);
@@ -104,29 +35,49 @@ export function getAppSettings(): SettingsRegistry {
   registry.migrateLegacy(FOSS_EARTH_MIGRATIONS);
   registry.registerPresets(BUILT_IN_PRESETS);
   const { all: allExperiments, ...experiments } = RENDERER_EXPERIMENT_IDS;
-  stops = [linkParameterGroup(registry, allExperiments, Object.values(experiments))];
-  if (typeof window !== "undefined") {
-    saveSecretsFromQuery(registry);
-    stops.push(...LINKED_PARAMETER_IDS.map(id => followInQuery(registry, id)));
-    // Back and Forward, as scenes use them, bring back an entry's older query;
-    // settings are not history, so the query is given the values in use again.
-    window.addEventListener("popstate", writeLinked);
-    stops.push(() => window.removeEventListener("popstate", writeLinked));
-    // Another tab saved: follow it, as the theme always has.
-    const onStorage = (event: StorageEvent): void => {
-      if (event.key === SETTINGS_STORAGE_KEY) registry.reload();
-    };
-    window.addEventListener("storage", onStorage);
-    stops.push(() => window.removeEventListener("storage", onStorage));
+  const nextStops: (() => void)[] = [];
+  try {
+    nextStops.push(linkParameterGroup(registry, allExperiments, Object.values(experiments)));
+    if (typeof window !== "undefined") {
+      nextStops.push(bindEarthSettingsUrl({
+        registry,
+        names: FOSS_EARTH_URL_NAMES,
+        prefix: URL_PARAMETER_PREFIX,
+        storageKey: SETTINGS_STORAGE_KEY,
+        linkedIds: LINKED_PARAMETER_IDS,
+        host: {
+          readUrl: () => new URL(window.location.href),
+          replaceUrl: url => window.history.replaceState(window.history.state, "", url),
+          onPopState(listener) {
+            window.addEventListener("popstate", listener);
+            return () => window.removeEventListener("popstate", listener);
+          },
+          onStorage(listener) {
+            const onStorage = (event: StorageEvent): void => listener(event.key);
+            window.addEventListener("storage", onStorage);
+            return () => window.removeEventListener("storage", onStorage);
+          },
+        },
+      }));
+    }
+  } catch (error) {
+    const failures: unknown[] = [error];
+    for (const stop of nextStops) { try { stop(); } catch (cleanup) { failures.push(cleanup); } }
+    if (failures.length > 1) throw new AggregateError(failures, "Earth settings setup and cleanup failed.");
+    throw error;
   }
+  stops = nextStops;
   app = registry;
   return registry;
 }
 
 /** Forgets the app registry, so the next `getAppSettings` reads storage again. For tests. */
 export function resetAppSettings(): void {
-  for (const stop of stops) stop();
+  const cleanup = stops;
   stops = [];
-  written.clear();
   app = null;
+  const failures: unknown[] = [];
+  for (const stop of cleanup) { try { stop(); } catch (error) { failures.push(error); } }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1) throw new AggregateError(failures, "Earth settings cleanup failed.");
 }

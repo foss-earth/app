@@ -1,110 +1,20 @@
-export {
-  createBabylonRuntime,
-  type BabylonRuntime,
-  type BabylonRuntimeOptions,
-  type BabylonRuntimeStatus,
-  type BabylonTileMetrics,
-  type FocusPoint,
-  type GoogleTerrainDetailAnchor,
-  type GoogleTerrainDetailState,
-  type RendererMode,
-  type RuntimeMode,
-  type GroundLightSource,
-  type SkyCost,
-  type SkyEnvironment,
-  type SkyGroundLight,
-  NAVIGATION_PRESENTATION_LAYER,
-} from "../engine/babylon/createBabylonRuntime";
-export { createLightPoints, type LightPoint, type LightPointsHandle, type LightPointsOptions } from "../engine/babylon/createLightPoints";
-export {
-  whenMeshesReady,
-  type ReadinessTimers,
-  type WhenMeshesReadyOptions,
-} from "../engine/babylon/sceneUpdates";
+/** Deprecated Earth assembly facade; provider modules own every implementation. */
+export { createBabylonRuntime, type BabylonRuntimeOptions } from "../app/runtimeCompatibility";
+export * from "@foss-earth/engine";
+export * from "@foss-earth/engine/babylon";
+export * from "@foss-earth/engine/settings";
+export * from "@foss-earth/engine/imagery";
+export * from "@foss-earth/renderer/babylon";
+export * from "@foss-earth/sky/babylon";
+// The old facade has one name for these structural lighting contracts.
+// Explicit owner exports resolve the Engine/Sky star-export ambiguity.
 export type {
-  EcefVector,
-  NavigationAcquisition,
-  NavigationEndReason,
-  NavigationLease,
-  NavigationPresentation,
-  NavigationRequest,
-  NavigationSnapshot,
-  NavigationState,
-} from "../engine/babylon/navigationLease";
-export {
-  DEFAULT_RASTER_BASE_MAP_ID,
-  RASTER_BASE_MAP_SOURCES,
-  resolveRasterBaseMapSource,
-  type RasterBaseMapProtocol,
-  type RasterBaseMapSource,
-} from "../engine/babylon/rasterBaseMaps";
-export {
-  getActiveMapSourceId,
-  getGoogleApiKeyFromSearchParams,
-  getMapSourcePreferenceFromSearchParams,
-  getTerrainSourcePreferenceFromSearchParams,
-  getRasterImageryPreferenceFromSearchParams,
-  DEFAULT_RASTER_IMAGERY,
-  resolveMapRuntimeConfig,
-  setMapSourcePreference,
-  setTerrainSourcePreference,
-  type MapRuntimeConfig,
-  type RasterImageryMode,
-  type ResolveMapRuntimeConfigOptions,
-} from "../engine/babylon/resolveMapRuntimeConfig";
-export { applyRendererChoice, RENDERER_PREFERENCE_STORAGE_KEY } from "../engine/babylon/rendererPreference";
-export { withSourceKey } from "../engine/babylon/rasterBaseMaps";
-export {
-  MAPTERHORN,
-  AWS_TERRARIUM,
-  TERRAIN_SOURCES,
-  createTerrainTileLoader,
-  resolveTerrainSource,
-  type TerrainSource,
-  type TerrainGrid,
-} from "../terrain/terrainTiles";
-export type { RasterDetailFeedback } from "../engine/babylon/createRasterTilesRuntime";
-export type {
-  ImageryAtlasConstraint,
-  ImageryBindingConstraint,
-  ImageryBudgetConstraint,
-  ImageryConstraint,
-  ImageryConstraintCause,
-  ImageryNodeConstraint,
-  ImageryReloadConstraint,
-  ImageryRendererConstraint,
-  ImagerySourceConstraint,
-  ImageryTableConstraint,
-} from "../terrain/imagery/imageryConstraints";
-export {
-  chooseDeviceHintErrorTarget,
-  clampDetailValue,
-  DEFAULT_GOOGLE_DETAIL_POLICY,
-  DEFAULT_RASTER_DETAIL_POLICY,
-  describeDetailValue,
-  detailKindOfKey,
-  detailPosition,
-  detailRange,
-  detailValueAtPosition,
-  formatDetailValue,
-  GOOGLE_DETAIL_KEY,
-  GOOGLE_ERROR_TARGET_BOUNDS,
-  isValidDetailPolicy,
-  RASTER_DETAIL_ENVELOPE,
-  rasterDetailKey,
-  rasterImagePixelTarget,
-  readDeviceHints,
-  resolveGoogleRecommendation,
-  type DetailKind,
-  type DetailLimit,
-  type DetailPolicy,
-  type DetailState,
-  type DeviceHints,
-  type GoogleDetailPolicy,
-  type GoogleRecommendationPolicy,
-  type GoogleRecommendedDefault,
-  type RasterDetailPolicy,
-} from "../terrain/mapDetailPolicy";
-export { createSurfaceQuery, type SurfaceHit, type SurfaceQuery } from "../terrain/surfaceQuery";
-export { createTerrainPerformanceCapture, type TerrainPerformanceCapture } from "../terrain/terrainPerformanceCapture";
-export type { TerrainPreparationOptions, TerrainPreparationProgress, TerrainPreparationResult } from "../terrain/terrainReadiness";
+  TerrainLighting,
+  TerrainNightLighting,
+  TerrainNightLightMap,
+  TerrainLocalLight,
+} from "@foss-earth/sky/babylon";
+
+// The compatibility facade uses the geographic-frame vector and Earth runtime mode.
+export type { RuntimeMode, Vec3 } from "@foss-earth/engine";
+export type { Vec3 as ImageryVec3 } from "@foss-earth/engine/imagery";

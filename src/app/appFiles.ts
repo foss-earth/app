@@ -4,7 +4,7 @@
  * build's appFiles plugin (vite/appFiles.ts) wrote, or unregisters it and
  * deletes what it kept.
  */
-import type { SettingsRegistry } from "../settings/registry";
+import type { SettingsRegistry } from "@foss-earth/ui/settings";
 
 /** Set by the appFiles Vite plugin: the worker's file at the build's root, or "" where there is none to keep files. */
 declare const __FOSS_EARTH_APP_FILES__: string | undefined;

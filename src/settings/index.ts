@@ -14,9 +14,10 @@ export {
   type SettingsRegistryOptions,
   type SettingsStorage,
   type UrlAliasResult,
-} from "./registry";
+} from "@foss-earth/ui/settings";
 export { FOSS_EARTH_PARAMETERS, VIEWPOINT_SURFACE_LIGHTING_CHOICE } from "./catalogue";
-export { TOOLBAR_EDIT_PRIORITIES_ID, TOOLBAR_PRIORITIES, toolbarPriorityParameterId, type ToolbarItemId } from "./catalogue/interface";
+export { TOOLBAR_EDIT_PRIORITIES_ID, toolbarPriorityParameterId } from "@foss-earth/toolbar";
+export { TOOLBAR_PRIORITIES, type ToolbarItemId } from "./catalogue/interface";
 export { BUILT_IN_PRESETS } from "./presets";
 export { readDeviceContext } from "./deviceContext";
 export {
@@ -29,7 +30,7 @@ export {
   stringifyValue,
   unitSuffix,
   validateValue,
-} from "./values";
+} from "@foss-earth/ui/settings";
 export type {
   AutoSpec,
   BuiltInParameterUnit,
@@ -55,4 +56,4 @@ export type {
   SettingsExport,
   SettingsFilter,
   SettingsPreset,
-} from "./types";
+} from "@foss-earth/ui/settings";

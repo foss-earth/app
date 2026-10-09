@@ -1,4 +1,4 @@
-import { validateIssueReporterConfig, type IssueReporterConfig } from "../diagnostics/issueReport";
+import { validateIssueReporterConfig, type IssueReporterConfig } from "@foss-earth/ui/diagnostics";
 
 /** The consuming app's GitHub repository, already stamped into each static build. */
 export function issueReporterFromBuild(): IssueReporterConfig | undefined {
