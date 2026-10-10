@@ -168,11 +168,11 @@
     {
       "name": "@foss-earth/about",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-about-844d5a895df1535b8862879c08b9f81ffece33d6.tgz",
-      "relativeArchive": "deps/foss-earth-about-844d5a895df1535b8862879c08b9f81ffece33d6.tgz",
+      "archive": "deps/foss-earth-about-d4643e2d465a76d2752947090f9ba3231d062f38.tgz",
+      "relativeArchive": "deps/foss-earth-about-d4643e2d465a76d2752947090f9ba3231d062f38.tgz",
       "sha256": "e7317c846495767967b7d7346cde34fa87df605ab229a576b9cd7b6f2e33cc7e",
       "bytes": 152840,
-      "revision": "844d5a895df1535b8862879c08b9f81ffece33d6",
+      "revision": "d4643e2d465a76d2752947090f9ba3231d062f38",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -190,12 +190,12 @@
         "./graph-template.html": "./templates/repository-graph.html"
       },
       "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/about-full-refs.json",
-        "sha256": "258f6e419c61d7755f2eddc3ecd1aaeabb6140f8237475643f7c6871040c8a16",
+        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/about-r4-full-refs.json",
+        "sha256": "84188b115ddceef90fafe0102910c0b08ad1e62f2cfb1325ab4db717c6fea514",
         "refs": [
           {
             "name": "refs/heads/main",
-            "oid": "844d5a895df1535b8862879c08b9f81ffece33d6"
+            "oid": "d4643e2d465a76d2752947090f9ba3231d062f38"
           }
         ]
       },
@@ -382,11 +382,11 @@
     {
       "name": "@foss-earth/dev",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-dev-732b154ac1bca5f4ec984f7c75cdffe451390c8d.tgz",
-      "relativeArchive": "deps/foss-earth-dev-732b154ac1bca5f4ec984f7c75cdffe451390c8d.tgz",
-      "sha256": "ab8a15767f16c1e2f63e6b9a8fede18dca26fa7f4584bd6bf9fc5132b267128b",
-      "bytes": 113725,
-      "revision": "732b154ac1bca5f4ec984f7c75cdffe451390c8d",
+      "archive": "deps/foss-earth-dev-80bc61d66ef829402250ee9365babd421cb20c83.tgz",
+      "relativeArchive": "deps/foss-earth-dev-80bc61d66ef829402250ee9365babd421cb20c83.tgz",
+      "sha256": "84951973280afc055c910b3dbd7350c7dda5af8fcbc9d8b5fc807925aa1c6016",
+      "bytes": 113807,
+      "revision": "80bc61d66ef829402250ee9365babd421cb20c83",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -399,12 +399,12 @@
         "./panel.css": "./styles/panel.css"
       },
       "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/dev-full-refs.json",
-        "sha256": "7ccac654c4d394637c5b1790fe585a55a8e2663415bdacee34f9e7c5be20bdb5",
+        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/dev-r4-full-refs.json",
+        "sha256": "06254b8988a271f24400013cd6344b543d3419d80810ee30d1b7c24b6f0a8298",
         "refs": [
           {
             "name": "refs/heads/main",
-            "oid": "732b154ac1bca5f4ec984f7c75cdffe451390c8d"
+            "oid": "80bc61d66ef829402250ee9365babd421cb20c83"
           }
         ]
       },
@@ -421,7 +421,7 @@
         "package.json": "2d9ac944ce0f79ccd44a29e9340d42eb2adc91643f13228d5556689137c3fba0",
         "SOURCE_LINEAGE.json": "d9fdddadf4c4000b56829d8e7c1ee307082a74ae680867b5d71fe35973b7b8bc",
         "SOURCE_PROVENANCE.json": "6474b6c07a08ac6c51d4f89ecbbed7d70678adc194d777ca8bbf8adb68f23ee3",
-        "SOURCE_RECEIPT.json": "f17888ce0c0c470a61779a0a18d037fefec83f0152742674e546dd5c74a05e3e",
+        "SOURCE_RECEIPT.json": "4e400b0aea88685f6cba3e381bfa878eebc53c25d705b820decbab8021d2d46f",
         "tsconfig.json": "004b4a9b4c500c3e49b34dcf8b2f5ff03711b76a0aa685abb605bc8a6a72ebd6",
         "dist/activation.d.ts.map": "a9140021fc38c7b2af1de5a7a50d903d5355ce33b6f593e702fef7c7c0555d46",
         "dist/activation.js.map": "07d32bc54ddd8b6af3b8dd2438496711c72a6ca200ff0b6819368ff1acb2452b",
@@ -2175,11 +2175,11 @@
     {
       "name": "@foss-earth/sky",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-sky-6cea462da012fc246f7441da2fedfddfaa40c0ad.tgz",
-      "relativeArchive": "deps/foss-earth-sky-6cea462da012fc246f7441da2fedfddfaa40c0ad.tgz",
-      "sha256": "8e160f2d3a94c17ca54c1eef8edd854bb697a0bdc6e823f99ad90c8a20f496c8",
-      "bytes": 455622,
-      "revision": "6cea462da012fc246f7441da2fedfddfaa40c0ad",
+      "archive": "deps/foss-earth-sky-65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5.tgz",
+      "relativeArchive": "deps/foss-earth-sky-65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5.tgz",
+      "sha256": "a7e01c7cdc08aba81d70ad833d4f3a81b6b0acb45b50ade675ffb9e9a2036363",
+      "bytes": 455730,
+      "revision": "65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2204,12 +2204,12 @@
         }
       },
       "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/sky-full-refs.json",
-        "sha256": "67da2dc2356741ecdd93213934def08e349455094553a4b3480878bec0861b56",
+        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/sky-r4-full-refs.json",
+        "sha256": "4840010b7583c641230afa337ab8e23b6b9081188560b4f7d6a2c8719c896a7c",
         "refs": [
           {
             "name": "refs/heads/main",
-            "oid": "6cea462da012fc246f7441da2fedfddfaa40c0ad"
+            "oid": "65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5"
           }
         ]
       },
@@ -2251,7 +2251,7 @@
         "package.json": "f26ee118ca283ddebbe8e2f79b77d4c895149dd69760ce7d64854a1210cf9637",
         "provenance.json": "b08d5755335a5063239918f474efbb89f547893a12dd0e9c3279cf91e6b2cb36",
         "SOURCE_LINEAGE.json": "7adbd8ce568be8c06c66d90150245f98234d50572ad0fa8aac1b37ce63e376ef",
-        "SOURCE_RECEIPT.json": "7cefe7033d6357bd4086e4e381415ef3d1a070a0cb79f0e102c58c0d4b3d580a",
+        "SOURCE_RECEIPT.json": "2dd2c3323e4df089e16e3b66c3072d81afe15d9dfeef8424f1fe15b3655f0a23",
         "SOURCE_SELECTION.json": "7a19cb54ae7203530ea4774996678d65ff42612dcc1bbcafbbbf864b8602d829",
         "fixtures/consumer/tsconfig.json": "104d599974228a5dc9d89ccdbe14e0393b18399d0942ddbb8f821f4c16d81b1c",
         "scripts/validation/tsconfig.json": "7df785c8636ce97d3dd593244421b458cf73c6f6aab2d6c77014bb714d82e1df",
@@ -2411,11 +2411,11 @@
     {
       "name": "@foss-earth/toolbar",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-toolbar-40270a15e67fbe3ef16ea812f6dce8d1ef8f83f4.tgz",
-      "relativeArchive": "deps/foss-earth-toolbar-40270a15e67fbe3ef16ea812f6dce8d1ef8f83f4.tgz",
-      "sha256": "f5dd2b6277bb98b0ecd0cc19d6c507796ba01e0534c4ab47678216c45a7287b4",
-      "bytes": 147235,
-      "revision": "40270a15e67fbe3ef16ea812f6dce8d1ef8f83f4",
+      "archive": "deps/foss-earth-toolbar-a1b34e52fdab9068fbeab1301ffc0165d445dcae.tgz",
+      "relativeArchive": "deps/foss-earth-toolbar-a1b34e52fdab9068fbeab1301ffc0165d445dcae.tgz",
+      "sha256": "ec900c7c866d8da3e09e3bb62f70cb2bb3bd137c649af55c5579dba6d3a5e118",
+      "bytes": 147277,
+      "revision": "a1b34e52fdab9068fbeab1301ffc0165d445dcae",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2432,12 +2432,12 @@
         "./styles.css": "./dist/styles/toolbar.css"
       },
       "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/toolbar-full-refs.json",
-        "sha256": "631cad1dd9a339ab93e012562ad95da446e70afac793eef5b7e03a8b9a743d2b",
+        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/toolbar-r4-full-refs.json",
+        "sha256": "44195d8859602010ed11cde5ad064cc55f1c938816c9bd77f260c53969bbbe5b",
         "refs": [
           {
             "name": "refs/heads/main",
-            "oid": "40270a15e67fbe3ef16ea812f6dce8d1ef8f83f4"
+            "oid": "a1b34e52fdab9068fbeab1301ffc0165d445dcae"
           }
         ]
       },
@@ -2477,7 +2477,7 @@
         "fixtures/renderer-activity-extraction.json": "42bcfd3228eeb07d7c82a3185d1dea0e8407900c0edd82f4e8193f419287854f",
         "fixtures/selected-original-paths.json": "586118af93d44fad007067930c71c47e8ea871271f6d85b4790c10b95e13c62b",
         "SOURCE_LINEAGE.json": "c077a83c2bb9936d56966270b68c607ead9c8adf5b9515fc0ad50ce42b33b9cd",
-        "SOURCE_RECEIPT.json": "597cc6dded7622e4195cbbec773386b7e336826493ae241776aeae184e79517a",
+        "SOURCE_RECEIPT.json": "a30a7e8682712b8e5c0ec3547a4325449fdd6aa94c84f24478e336d38292bf0d",
         "fixtures/consumer/tsconfig.json": "d3dca0e2f4a3036d6b1c9d8b0cec371392453f05b3999c0e932d8b6ac85b2440",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
         "CONTRIBUTING.md": "d1c8e8ff3427a5402751a2cff187940d10227aaf65bb40ee150deae3446ac78f",
@@ -2515,11 +2515,11 @@
     {
       "name": "@foss-earth/ui",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-ui-10e57d00b29a22cd8b649db66196b2e66ec7ff17.tgz",
-      "relativeArchive": "deps/foss-earth-ui-10e57d00b29a22cd8b649db66196b2e66ec7ff17.tgz",
-      "sha256": "ed867af73d9ca6dfee15f45d0885dc51b277836f9ddb1407bb7c3b498e0c9f61",
-      "bytes": 273454,
-      "revision": "10e57d00b29a22cd8b649db66196b2e66ec7ff17",
+      "archive": "deps/foss-earth-ui-8a34c3732fdaf3049035c7411a893380ccd1e4b7.tgz",
+      "relativeArchive": "deps/foss-earth-ui-8a34c3732fdaf3049035c7411a893380ccd1e4b7.tgz",
+      "sha256": "78ead4a0f76d9c97cbd07573670382f34ed4be4be729e2fc52d479c196b12518",
+      "bytes": 273534,
+      "revision": "8a34c3732fdaf3049035c7411a893380ccd1e4b7",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2557,12 +2557,12 @@
         "./mesh-inspector.css": "./dist/styles/meshInspector.css"
       },
       "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/ui-r2-full-refs.json",
-        "sha256": "e1a8100c87155d151286549fa867ef1054abbc448b4d59bca5831a48e117b636",
+        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/ui-r4-full-refs.json",
+        "sha256": "667504cd78a079888248f57605960d46ae60f1e2e47eec48d0842f5769c18bd7",
         "refs": [
           {
             "name": "refs/heads/main",
-            "oid": "10e57d00b29a22cd8b649db66196b2e66ec7ff17"
+            "oid": "8a34c3732fdaf3049035c7411a893380ccd1e4b7"
           }
         ]
       },
@@ -2662,7 +2662,7 @@
         "provenance.json": "b18d767941ac30a78b19b87b2308a97ace863ffb91f84d54c84cc3e46a110a98",
         "fixtures/settings-v1.json": "9957c3052ca4a8389d798f2dadd6d625ca5c420d17e62efd8891398cd98ad491",
         "SOURCE_LINEAGE.json": "9938b39df1e941060ab4e5646c53262e2e181827276f6570ad9196e1f91a9a08",
-        "SOURCE_RECEIPT.json": "01dd63f24967bc6ea05e5c154a96a743714ed0f84f75b879eb46e2ccbc0426f3",
+        "SOURCE_RECEIPT.json": "7b1e335fd350a4a42b62a4214939dab8717781bd7d7e81063f2db050559e1787",
         "fixtures/source-review.json": "adbe78057b2ab387040b04c95876e1f10f3287c105f4af7b7d3125916bb98ea5",
         "fixtures/consumer/tsconfig.json": "8607635d7d88815085aac0f8e5fa33eaa18c512989c64e124cac64b7c20fc851",
         "fixtures/workspace.json": "20785c9fdfe56944b0fe95348a0a87bb25cff2082c84c85827d51100d8eef8da",
@@ -2764,11 +2764,11 @@
     {
       "name": "@foss-earth/weather",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-weather-41d37114a1a8d794c6f0665ac44bfd9e9576ce72.tgz",
-      "relativeArchive": "deps/foss-earth-weather-41d37114a1a8d794c6f0665ac44bfd9e9576ce72.tgz",
-      "sha256": "1247d8acc0d3c3221bd6ad6985d06a26d1aec5b2b5f3b7b0b1ed9599aa885fa4",
-      "bytes": 107797,
-      "revision": "41d37114a1a8d794c6f0665ac44bfd9e9576ce72",
+      "archive": "deps/foss-earth-weather-aab33d5152271949ec323735742ffd34b19c78d1.tgz",
+      "relativeArchive": "deps/foss-earth-weather-aab33d5152271949ec323735742ffd34b19c78d1.tgz",
+      "sha256": "282f3ffdb83e67f3292ac8a7ff694b62cde882f757c90396cf1591c29ffaae17",
+      "bytes": 107867,
+      "revision": "aab33d5152271949ec323735742ffd34b19c78d1",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2781,12 +2781,12 @@
         "./styles.css": "./dist/styles/weather.css"
       },
       "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/weather-full-refs.json",
-        "sha256": "f0140ea4208f2408da2e73aa83f13dfb0fa59bf7ffce54b677cad4d4f476023c",
+        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/weather-r4-full-refs.json",
+        "sha256": "86694a34a8048a6506d2ee22042e2055923e643750128d562914808be36a202b",
         "refs": [
           {
             "name": "refs/heads/main",
-            "oid": "41d37114a1a8d794c6f0665ac44bfd9e9576ce72"
+            "oid": "aab33d5152271949ec323735742ffd34b19c78d1"
           }
         ]
       },
@@ -2804,7 +2804,7 @@
         "package.json": "0fbdbbe51b4ec92329bc721b7f333b9cd72d4a66343350b4102b75cf2248f915",
         "provenance.json": "c5bf414913213a244378e983cfd0443f75580a8a7d097bacab828e757b4a85c0",
         "SOURCE_LINEAGE.json": "1692162673d9c892281e14621b5b0c04e3e3fa0bb94b0e95aef131c66d85693a",
-        "SOURCE_RECEIPT.json": "a8e318b70abd1868a570cb3028135fd11b6c732c25992c2c96ab71168ab5eb1d",
+        "SOURCE_RECEIPT.json": "2ea491c56441aca1e1a09e25b786f90a683807b63faf5e99eb07f0f661d90ac6",
         "fixtures/consumer/tsconfig.json": "d3dca0e2f4a3036d6b1c9d8b0cec371392453f05b3999c0e932d8b6ac85b2440",
         "AGENTS.md": "118a77e18471be60397ec053dbeebf7c7c9137d4257d8234317146d896267d8b",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",

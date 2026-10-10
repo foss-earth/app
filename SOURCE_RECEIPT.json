@@ -2313,11 +2313,11 @@
     "Campus and Flight compiled adoption evidence",
     "coordinator actual remote admission/public transport/cutover"
   ],
-  "verifiedAtUtc": "2026-10-10T00:03:38.159486+00:00",
+  "verifiedAtUtc": "2026-10-10T00:10:10.996874+00:00",
   "currentSourceManifest": {
-    "path": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/foss-earth.github.io-r3-sealed-source-files.json",
-    "sha256": "6169241f36d23c539f10ad3a8fb340113dcd3f14240961cf1bdea837c997efab",
-    "fileCount": 485
+    "path": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/foss-earth.github.io-r5-sealed-source-files.json",
+    "sha256": "a6c3bc898a59f4dc679b7db8bd2b425b11fca3aeb2067e25ea1a2e7fec3126ab",
+    "fileCount": 491
   },
   "currentSharedCi": {
     "revision": "1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e",
@@ -2420,9 +2420,24 @@
       "exitCode": 0
     },
     {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-final-pin-install.json",
+      "sha256": "f0b3e87c921d1d943bc7f65b0596e0fdbf9553e7b19b8c504a1a41d9e8c7ca61",
+      "exitCode": 0
+    },
+    {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-finished-ci-r2.json",
+      "sha256": "6c2561359b8ab286468647413fc18dbe796f110cb25b802ef8c817672a59ef17",
+      "exitCode": 0
+    },
+    {
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-finished-ci.json",
       "sha256": "eb1cd9bb9f12eddc6731b746cd10d208901bc65119079bd515fee14034c011eb",
       "exitCode": 1
+    },
+    {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-installed-consumer-r2.json",
+      "sha256": "bfc673c79892556ad8b2e0b1bbe14af405be3f65a3c5e3ba92ca02b65cb78688",
+      "exitCode": 0
     },
     {
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-installed-consumer.json",
