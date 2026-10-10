@@ -26,6 +26,14 @@ authorities. Resource-only updates request work on the same scheduler; painted
 changes request a frame. Cleanup attempts all registered releases even after
 a failure and preserves the original startup/frame error.
 
+Normal destruction cancels unpublished uploads and stops app rendering. The
+same native resource owner retains the broker/device while submitted transfer
+tickets remain, using the supplied clock for completion pumping without a
+scene paint. It releases the device after actual completion or observed loss.
+A failed completion observation retains tickets and waits for actual loss;
+ordinary destruction never reports a synthetic device loss. Backend execution
+and GPU timing remain separate qualification gates.
+
 ## Compatibility
 
 `createBabylonRuntime` remains an asynchronous Earth host factory, distinct from

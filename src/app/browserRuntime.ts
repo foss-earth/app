@@ -75,8 +75,12 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     attemptEarthCleanup([
       ...detachResourcePolicy,
       () => detachRestore?.(), () => loader?.dispose(), () => worker?.dispose(),
-      () => native?.dispose(), () => broker?.dispose(), () => scene.dispose(),
-      () => renderer.engine.dispose(),
+      () => {
+        const releaseDevice = () => attemptEarthCleanup([
+          () => broker?.dispose(), () => scene.dispose(), () => renderer.engine.dispose(),
+        ], "Earth borrowed device cleanup failed.");
+        if (native) native.dispose(releaseDevice); else releaseDevice();
+      },
     ], "Earth browser host cleanup failed.");
   };
   try {
@@ -102,6 +106,12 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     const imageBroker = broker = createImageSessionBroker(options.imageSessionLimits());
     const resources = native = createEarthNativeResources({ broker: imageBroker, scene,
       limits: options.imageUploadLimits, createCanvas, wakeWork: () => composition?.scheduler.requestWork(),
+      after: clock.after,
+      observeDeviceLoss(listener) {
+        const observer = renderer.engine.onContextLostObservable.add(listener);
+        return () => { renderer.engine.onContextLostObservable.remove(observer); };
+      },
+      onRetirementError: options.onFrameError,
       invalidatePublishedSource(failure) { imageBroker.invalidate(); options.onFrameError(failure.error); },
     });
     const updateResources = () => {

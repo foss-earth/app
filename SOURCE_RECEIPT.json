@@ -2313,11 +2313,11 @@
     "Campus and Flight compiled adoption evidence",
     "coordinator actual remote admission/public transport/cutover"
   ],
-  "verifiedAtUtc": "2026-10-09T23:56:26.129944+00:00",
+  "verifiedAtUtc": "2026-10-10T00:01:38.553645+00:00",
   "currentSourceManifest": {
-    "path": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/foss-earth.github.io-sealed-source-files.json",
-    "sha256": "fa0aa0b12600069009dccc9ffd040ca6251ebfcce77ceb62bc68b5fe79d71614",
-    "fileCount": 483
+    "path": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/foss-earth.github.io-r2-sealed-source-files.json",
+    "sha256": "45209ea639a1e65357251e0e31d2df61e31fea785f34fd438d893e8385508775",
+    "fileCount": 485
   },
   "currentSharedCi": {
     "revision": "1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e",
@@ -2340,6 +2340,16 @@
       "exitCode": 0
     },
     {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-lifecycle-lint.json",
+      "sha256": "cd51760f770cbd6556c36f7f4761595504d9268de9c74390c82c7a0490bbd33e",
+      "exitCode": 0
+    },
+    {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-lifecycle-types.json",
+      "sha256": "5983c6dff81230c7bd785dbbb2d7c00297d5e32f08feae5dad1485bf4155b009",
+      "exitCode": 0
+    },
+    {
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-lint-r2.json",
       "sha256": "de59754551769b0b0dfa61512202d93ddf65610f374e181c9e182b6ac3808c3f",
       "exitCode": 0
@@ -2348,6 +2358,11 @@
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-lint.json",
       "sha256": "ea2bfaf5d52b1975ee00ca7ce99321c66a920040dafab5bed3e184211b26432e",
       "exitCode": 1
+    },
+    {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-native-retirement.json",
+      "sha256": "c3abe62ef24443681decddc789c0661615a6307e8c6b06d11a4d36433b56fd06",
+      "exitCode": 0
     },
     {
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-ownership-r2.json",
@@ -2373,6 +2388,11 @@
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-related-tests.json",
       "sha256": "20e9b67efbadfad67a72cfb814e78b2395f7105e676b64e3dacbf417ecdb2572",
       "exitCode": 1
+    },
+    {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-scene-world.json",
+      "sha256": "ba679b077d4fadca6dc8b12b36fd6812588f2006fcd7b6cb68f4d76da133ff42",
+      "exitCode": 0
     },
     {
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-causal-types-r2.json",

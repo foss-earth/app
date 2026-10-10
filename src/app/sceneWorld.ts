@@ -15,6 +15,7 @@ import type { PublishedImageViewer, ViewerPosePorts, ViewerWorldMath } from "@fo
 import { attachLookInput } from "@foss-earth/360/input";
 import type { ViewerHeldPress, ViewerInputPorts, ViewerNavigationLease, ViewerNavigationPorts } from "@foss-earth/360/viewer";
 import { controlTakesKey } from "@felipegalind0/gamepad-tools/browser";
+import { attemptEarthCleanup } from "./nativeResources";
 
 export const earthViewerMath: ViewerWorldMath = { levelUp, orbitAngles, orbitLook, pointGeodetic, glideSettling };
 export const earthViewerPoses: ViewerPosePorts = {
@@ -91,7 +92,11 @@ export function createEarthViewerInput(
       });
       let off: () => void;
       try { off = runtime.setNavigationIntentHandler(engineLeaseFor(lease), frame => look.applyIntents(frame)); }
-      catch (error) { look.detach(); throw error; }
+      catch (error) {
+        try { look.detach(); }
+        catch (release) { throw new AggregateError([error, release], "Scene input attachment failed."); }
+        throw error;
+      }
       let detached = false;
       return { detach() {
         if (detached) return;
@@ -118,9 +123,11 @@ export function createEarthViewerInput(
       return { press: () => held, stop() {
         if (stopped) return;
         stopped = true;
-        hostWindow.removeEventListener("keydown", onKey);
-        canvas.removeEventListener("pointerdown", onPress);
-        canvas.removeEventListener("wheel", onWheel);
+        attemptEarthCleanup([
+          () => hostWindow.removeEventListener("keydown", onKey),
+          () => canvas.removeEventListener("pointerdown", onPress),
+          () => canvas.removeEventListener("wheel", onWheel),
+        ], "Scene input cancellation cleanup failed.");
       } };
     },
   };
@@ -200,7 +207,15 @@ export function createEarthSceneWorld(
     }
     abortPending();
   };
-  for (const type of ["pointerdown", "wheel", "keydown", "gesturestart"]) hostWindow.addEventListener(type, onOverviewInput, { capture: true, passive: true });
+  const inputTypes = ["pointerdown", "wheel", "keydown", "gesturestart"];
+  try {
+    for (const type of inputTypes) hostWindow.addEventListener(type, onOverviewInput, { capture: true, passive: true });
+  } catch (error) {
+    disposed = true;
+    try { attemptEarthCleanup([offFrame, ...inputTypes.map(type => () => hostWindow.removeEventListener(type, onOverviewInput, { capture: true }))], "Scene world setup cleanup failed."); }
+    catch (release) { throw new AggregateError([error, release], "Scene world setup failed."); }
+    throw error;
+  }
   return {
     resolvePlacement(entity, { radiusMeters }) { return update(entity, radiusMeters).item.result; },
     watchPlacement(entity, { radiusMeters }, changed) { const watch = { entity, radiusMeters, changed }; watches.add(watch); return () => { watches.delete(watch); }; },
@@ -233,13 +248,15 @@ export function createEarthSceneWorld(
     dispose() {
       if (disposed) return;
       disposed = true;
-      abortPending(); pending = null; offFrame(); watches.clear();
-      for (const type of ["pointerdown", "wheel", "keydown", "gesturestart"]) hostWindow.removeEventListener(type, onOverviewInput, { capture: true });
-      if (appliedOverviewFov) {
+      attemptEarthCleanup([
+        () => { try { abortPending(); } finally { pending = null; } },
+        offFrame, () => watches.clear(),
+        ...inputTypes.map(type => () => hostWindow.removeEventListener(type, onOverviewInput, { capture: true })),
+        () => { if (!appliedOverviewFov) return;
         const snapshot = runtime.captureNavigationSnapshot(), fov = settings.get("camera.fieldOfView");
         if (snapshot && typeof fov === "number") runtime.restoreNavigationSnapshot({ ...snapshot, camera: { ...snapshot.camera, fov: fov * Math.PI / 180 } });
-      }
-      runtime.requestRender();
+        }, () => runtime.requestRender(),
+      ], "Scene world cleanup failed.");
     },
   };
 }

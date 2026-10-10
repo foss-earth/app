@@ -14,6 +14,10 @@ export interface EarthNativeResourceOptions {
   wakeWork(): void;
   createCanvas: ImageTextureUploaderOptions["createStagingCanvas"];
   invalidatePublishedSource: ImageTextureUploaderOptions["invalidatePublishedSource"];
+  /** Same host clock; terminal pumping retires submitted work without painting. */
+  after(callback: () => void, delayMs: number): () => void;
+  observeDeviceLoss(listener: () => void): () => void;
+  onRetirementError(error: unknown): void;
 }
 
 /** All supplied releases are attempted even after an earlier native failure. */
@@ -27,6 +31,9 @@ export function createEarthNativeResources(options: EarthNativeResourceOptions) 
   const { broker, scene } = options;
   let stopped = false;
   let restorationNeeded = false;
+  let stopRetirement: (() => void) | undefined;
+  let stopRetirementLoss: (() => void) | undefined;
+  let finishRetirement: (() => void) | undefined;
   const requireDevice = () => {
     if (stopped || restorationNeeded) throw new Error("The Earth native resource device is unavailable.");
   };
@@ -132,10 +139,51 @@ export function createEarthNativeResources(options: EarthNativeResourceOptions) 
         () => broker.invalidate(),
       ], "Earth device-loss cleanup failed.");
     },
-    dispose() {
+    dispose(released: () => void = () => {}) {
       if (stopped) return;
       stopped = true;
-      attemptEarthCleanup([() => uploader.cancelAll("Earth host disposed"), () => tracker.dispose()], "Earth native resource cleanup failed.");
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        finishRetirement = undefined;
+        const stopTimer = stopRetirement, stopLoss = stopRetirementLoss;
+        stopRetirement = undefined; stopRetirementLoss = undefined;
+        attemptEarthCleanup([() => stopTimer?.(), () => stopLoss?.(), released], "Earth native retirement cleanup failed.");
+      };
+      finishRetirement = finish;
+      const pending = () => broker.pools.stats().uploadOutstanding.reserved > 0 || nativeUploader.stats().outstandingBytes > 0;
+      const schedule = () => {
+        if (!finished && !stopRetirement) stopRetirement = options.after(() => {
+          stopRetirement = undefined;
+          if (finished) return;
+          try {
+            nativeUploader.pump();
+            if (!pending()) finish(); else schedule();
+          } catch (error) {
+            // An observation failure cannot prove retirement. Retain the
+            // device/tickets until an actual loss; do not spin on the error.
+            options.onRetirementError(error);
+          }
+        }, 16);
+      };
+      const errors: unknown[] = [];
+      try { attemptEarthCleanup([() => nativeUploader.cancelAll("Earth host disposed"), () => tracker.dispose()], "Earth native resource cleanup failed."); }
+      catch (error) { errors.push(error); }
+      try {
+        if (!pending()) finish();
+        else {
+          stopRetirementLoss = options.observeDeviceLoss(() => {
+            try {
+              attemptEarthCleanup([() => tracker.deviceLost(),
+                () => nativeUploader.cancelAll("Observed device loss during retirement", { deviceLost: true }),
+                () => finishRetirement?.()], "Earth lost-device retirement failed.");
+            } catch (error) { options.onRetirementError(error); }
+          });
+          schedule();
+        }
+      } catch (error) { errors.push(error); }
+      if (errors.length) throw new AggregateError(errors, "Earth native disposal failed.");
     },
   };
 }
