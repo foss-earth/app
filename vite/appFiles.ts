@@ -24,6 +24,8 @@ import { readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
+import { definedString, buildStamp } from "@foss-earth/about/vite";
+export { definedString, buildStamp } from "@foss-earth/about/vite";
 import { BUILD_STAMP_META } from "../src/app/buildStamp.ts";
 
 /** The worker's file, at the build's root beside its pages. */
@@ -55,22 +57,6 @@ function real(folder: string): string {
   } catch {
     return path.resolve(folder);
   }
-}
-
-/** A string the app's config defined, as `__BUILD_TIME__: JSON.stringify(…)`, or null. */
-export function definedString(define: Record<string, unknown> | undefined, name: string): string | null {
-  try {
-    const value: unknown = typeof define?.[name] === "string" ? JSON.parse(define[name]) : null;
-    return typeof value === "string" && value ? value : null;
-  } catch {
-    // Not a string the config wrote as JSON.
-    return null;
-  }
-}
-
-/** A build's stamp: the time its About shows (`__BUILD_TIME__`) where the app's config defines one, so the page and the app name the build alike; else now. */
-export function buildStamp(define: Record<string, unknown> | undefined): string {
-  return definedString(define, "__BUILD_TIME__") ?? new Date().toISOString();
 }
 
 /**

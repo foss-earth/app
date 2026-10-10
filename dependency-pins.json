@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "Exact local runtime/provider artifact composition; installed app and consumer checks qualify separately; no fabricated public download URLs",
+  "status": "Canonical foss-earth/app exact packaged closure, source links disabled; no public transport or downstream acceptance inferred",
   "commonCi": {
     "schemaVersion": 1,
     "executableSealVersion": 2,
@@ -44,11 +44,11 @@
     {
       "name": "@foss-earth/360",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-360-9c0ceb16ed29dd95d14441e3ebdfa654afd45ab2.tgz",
-      "relativeArchive": "deps/foss-earth-360-9c0ceb16ed29dd95d14441e3ebdfa654afd45ab2.tgz",
-      "sha256": "3ec6500c1f21391c31332167fa7c0f7ee3add82db52da19d629de05df387c01c",
-      "bytes": 191950,
-      "revision": "9c0ceb16ed29dd95d14441e3ebdfa654afd45ab2",
+      "archive": "deps/foss-earth-360-bcb2a028dcbe827618402f7b0060e533a659b0e5.tgz",
+      "relativeArchive": "deps/foss-earth-360-bcb2a028dcbe827618402f7b0060e533a659b0e5.tgz",
+      "sha256": "c40528e4c34bae6cb849c9963e77a18db09e67e49049b58129f600f6ddd95a0c",
+      "bytes": 192096,
+      "revision": "bcb2a028dcbe827618402f7b0060e533a659b0e5",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -100,17 +100,7 @@
           "import": "./node/preparation.mjs"
         }
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/360-full-refs.json",
-        "sha256": "b5e9d9778a8808436a28574769d4f2029598e8516941b82baea1dd682de09090",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "9c0ceb16ed29dd95d14441e3ebdfa654afd45ab2"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/browserInput.js": "bb3962f67d520ba408e20209278579a3a52ed3b292e5338aa6acba5bc37e707d",
@@ -135,7 +125,7 @@
         "package.json": "7e69d8bfc68ee0832d70577b93f2e0fa6fd19d9dd44eea13b26f52cba4f2e43c",
         "PROVENANCE.json": "f839371730343b597a185139c1a5ce7d5ff616c3a57685ecda21e13b3d26dc78",
         "SOURCE_LINEAGE.json": "e25815a66f12af966d7f0fa037e9de5e0547847f7a04f579ada6dd4a9f54385f",
-        "SOURCE_RECEIPT.json": "f9d8d9fcd3d64a344cff00997d57cd885139933196a958e22a552c4c51d53ccc",
+        "SOURCE_RECEIPT.json": "899f2d0f17f1c42ab8f33059b3a8010aa0e32cd795aaf1afd6b817ac5fbdca38",
         "AGENTS.md": "b9add53cda00a9ea9b821b325006f5f27cd459da1e4999b1f92a946ba1aabf7d",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
         "CONTRIBUTING.md": "691d3378a454a76d5d818c03fc981ea875344b76c466bac7b649ef46e3fbee61",
@@ -163,16 +153,21 @@
         "dist/viewer.d.ts": "a46f6fc1ea2e5560a5a98cecf4db09cfe27d50dca01e495de486f6cd4517d1bf",
         "dist/views.d.ts": "e4c31c97f8afff42eb305fe84596777ed9d9c29f12a28536cb475879d60cb30e",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "360-delivery.json",
+        "sourceReceiptSha256": "899f2d0f17f1c42ab8f33059b3a8010aa0e32cd795aaf1afd6b817ac5fbdca38",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/about",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-about-d4643e2d465a76d2752947090f9ba3231d062f38.tgz",
-      "relativeArchive": "deps/foss-earth-about-d4643e2d465a76d2752947090f9ba3231d062f38.tgz",
-      "sha256": "e7317c846495767967b7d7346cde34fa87df605ab229a576b9cd7b6f2e33cc7e",
-      "bytes": 152840,
-      "revision": "d4643e2d465a76d2752947090f9ba3231d062f38",
+      "archive": "deps/foss-earth-about-75277f70092cd8d18679f87a94361f83c779c6ad.tgz",
+      "relativeArchive": "deps/foss-earth-about-75277f70092cd8d18679f87a94361f83c779c6ad.tgz",
+      "sha256": "06a9b3322a394bd02eb69ba746db811664a496269e6368e1f8e5c2c9ce9e2319",
+      "bytes": 180523,
+      "revision": "75277f70092cd8d18679f87a94361f83c779c6ad",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -187,29 +182,25 @@
           "import": "./dist/node.js"
         },
         "./panel.css": "./styles/panel.css",
-        "./graph-template.html": "./templates/repository-graph.html"
+        "./graph-template.html": "./templates/repository-graph.html",
+        "./vite": {
+          "types": "./dist/vite/index.d.ts",
+          "import": "./dist/vite/index.js"
+        }
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/about-r4-full-refs.json",
-        "sha256": "84188b115ddceef90fafe0102910c0b08ad1e62f2cfb1325ab4db717c6fea514",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "d4643e2d465a76d2752947090f9ba3231d062f38"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "styles/panel.css": "dfb555e7eac9950e90e81685379cdb81ccabb4f95143b73be45fbaa469981193",
         "templates/repository-graph.html": "87266d51b331139bc5e74e633a06a0ed513a38ae2db0e35287ebfa15e9cc721e",
         "dist/builtFrom.js": "76d40d9b9c9a1596cd237a1916485bf5eb58451156b5e3dc2f854ad282cddee6",
+        "dist/vite/builtFrom.js": "0112dc2408a611bb03be8675e8f74b0625497dab4b3d0503a74720669f3097da",
         "dist/cli.js": "085764917f1ef09597a83ec8925baeb21887bda0a5f8b233045fc3ea0bb57c86",
         "dist/externalLinkIcon.js": "4541fa0a78909eda0803d0314c595be7a8f176f466f7cb1ba69f74c657ac8d86",
         "dist/graph.js": "fee7526e7b92620b0f239b62789cffe85013ea9b5d448d9f232988cf6644aa59",
         "dist/identity.js": "7b55b10ac4b6c016b927b4beef04d6ebbf49cb9ab1e030f4b7de1653aa24bec7",
         "dist/index.js": "6a39de428387385c7e3034eb5def7216d2832fe324c9bb65f63c05f08904940a",
+        "dist/vite/index.js": "63177b8749b12be0ebbd6c0a34b2146e8be89017fec57e151de1ba371c36dd9f",
         "dist/node.js": "92ca41f107900f3bc5b0ae35d5c717e3c34296b3e9e4bc27196e6a8c206befe7",
         "dist/outputDirectory.js": "267a4267a4ea8033fe187accba02f2e1690f5b966e34c861a487f7b3d80cdca2",
         "dist/panel.js": "554521dcf155d5e42cc7f42d266506135c1811b18245b86b8b9d968aa34bcb1b",
@@ -217,12 +208,15 @@
         "dist/releaseGraph.js": "3579633317d5a48c7da6078d46ada517a6c4aeb715482de5681fd314157b8008",
         ".attribution-release.json": "d60ee5067185a768f0890da2ed87d82dbfa08f28282e4d05a35e823c70307122",
         ".attribution.json": "f4be8310bb514e13808115779d13d130ac3bbed54e4fca9de6af00602da8d994",
-        "package.json": "f336f036ec7ac1d3261b32ec1a82f043f539300f0bcb423b5fda9d43cb184134",
+        "package.json": "a14683fe2a6a8c4d2a95f9463cf46b7e7234309e9f3c6553c45443d29d013270",
         "SOURCE_LINEAGE.json": "b219df400ba40e83676b2e3d189d80d0644050fd8a3138fdc8efa29a15ab2a73",
         "SOURCE_PROVENANCE.json": "a518317b2c9a5246cf0b68bd9654883b7bbe0993b5f72a85aae1d3f08234019a",
+        "fixtures/vite/tsconfig.json": "4f109d4dd19279cd1a2655f33d24be0c4cac56bce061d1454ffb2ba8570048a0",
         "tsconfig.json": "004b4a9b4c500c3e49b34dcf8b2f5ff03711b76a0aa685abb605bc8a6a72ebd6",
         "dist/builtFrom.d.ts.map": "240756184fd63fc17ab7062f09db5168b6bab08937ccf2c1116ac833073f041e",
+        "dist/vite/builtFrom.d.ts.map": "a4e266e8344de27fb2de7c5f829c2644ddd187160e9b6e5f9e4e82e8d4362721",
         "dist/builtFrom.js.map": "8538e3d61219d8adfda7a08fafa578443e483f45c13de4db433d10e8de686ee6",
+        "dist/vite/builtFrom.js.map": "944f746533b07eb2f969019863038dfb39214a0cc620dbf99611921a97a011c0",
         "dist/cli.d.ts.map": "07e1bab322fbea936a00ec149ad924a0d46aa4c8de79147e59c11d25bd0ca9e6",
         "dist/cli.js.map": "d26c566132bb258911158e3da40abdaa75d3453073a6565fd4914ccdbb6130d8",
         "dist/externalLinkIcon.d.ts.map": "a44c09e145bb8159185a1e987832f4e8070d9e9ce22cf0379160192b4adee845",
@@ -232,7 +226,9 @@
         "dist/identity.d.ts.map": "96cdeaea9d1aa50dfbd350dc31a8486f7d6a64fa854a6317bfe187f85681511c",
         "dist/identity.js.map": "f9c5d12e53d96829fd61b005b49e6aeaeca96a3c9b301dea4ec60288dc3669f9",
         "dist/index.d.ts.map": "959c2ade31c1ef7637c48156b2b029e1da6b2778622fff9c828ca70e5d53f545",
+        "dist/vite/index.d.ts.map": "ab0c3b2c5e01aee23166a7c694dc96cef201175e5507cda0b78bd43b604b056d",
         "dist/index.js.map": "52a874e2b004f190c426d655c1b99f8e82e38555c6645e193e73d608d42bed03",
+        "dist/vite/index.js.map": "6c97c4008f7408bcafb6661e82d9c000803fa5804deb95af3e13441cd4a0c675",
         "dist/node.d.ts.map": "490cb7da11021c61832e2fdee2616854be4f97d7857c36c7e554423c61b2a808",
         "dist/node.js.map": "399a14c9957edf53c252ccdeb7ff666873e00ed55a05ac5259e2d515c904aa32",
         "dist/outputDirectory.d.ts.map": "132d31741cd8b830ed2a17aaa7099e4e5da770c643fdc195c3aa84e0fcef5e18",
@@ -247,15 +243,20 @@
         "AGENTS.md": "a8686fc791f21a609e62021dcc02dd445c95f116c04ce37cdf73ddcefe3c531b",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
         "CONTRIBUTING.md": "342ce9aa5424bf2662638ad351786cb85bd8c2a71830a7b79ad4f4aa9c0090fa",
+        "fixtures/vite/README.md": "0f2a8c64d162c3e9f7fc2b5984fce49800575405cf8fde727d396c87ccb22fac",
         "README.md": "032d1bc125e0538ad4c4b982dea2d8734af49a5009efc40ea6d162ae0fa54352",
         "SECURITY.md": "6baf6d3c1755360f5d902275c893074fd17af2fc10c140fe932b8a90d77d9942",
+        "docs/vite.md": "8ac741279a2886089381b951d47066ce7dcdb9a2f0d5f92ec4eb240799ea1691",
         "scripts/build-repository-graph.mjs": "7c3b8e2924ebc7f083a2cdb7d247555e83b4e6c382838abeb9bf02b9d8af2967",
         "scripts/check-installed-artifact.mjs": "e23a8a837cc8e6d66284f819cb648615a5f87417d709368ef41224d190df4224",
         "scripts/check-public-consumer.mjs": "f233b8507de110c51d7c66954d722ccafab833ad29918fc4af413f79d00a5835",
         "scripts/lib/outputDirectory.mjs": "854f51ed31baa8b98d46bfeaa219e43a1299ef380157b94c874dfbfd5eb49e9a",
+        "fixtures/vite/public-consumer.mjs": "48a0ef2fc72052fec9af216b3f319906e8922177caaf907e28e11ad6b3170b1b",
         "deps/foss-earth-ci-1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e.tgz": "bd884d925b8a7339b15fa61a477cf652bb73d41cc68addf50a050ab6cb151611",
         "dist/builtFrom.d.ts": "3dfea51e84448c27084ff4b8140991e721bf7d695d8044c928cdd4b10a2b03ac",
+        "dist/vite/builtFrom.d.ts": "9d0eef87ae63729e36e8a0dac23f0d88f369c5162cb286291fa9589fcc3c3236",
         "src/builtFrom.ts": "d8a65f250f104367c0f356ee9da203d91c8dd073c75c5d49efe9a0549cd57dce",
+        "src/vite/builtFrom.ts": "f569455e518edf8dcd53ee354989abb2d15df94a350d76fd3764cf7a6d20503e",
         "dist/cli.d.ts": "6f77e82bfb5dd3b1015dd92c63e427d505f9bbbdaa041cad6c704f41c553a536",
         "src/cli.ts": "6a28ebcab406172bd19b26563db9c323218c49dbc937e2fb7c8c1523339bcc72",
         "dist/externalLinkIcon.d.ts": "eb4e1fdf458e7a93cfb04e478fe531336aeae7ff17b054700daa139032efe7bc",
@@ -265,28 +266,39 @@
         "dist/identity.d.ts": "ef8bf1cb13a35f73e0ce0bdad0e576ecff33e7eef08a7d4d1f9f0d5dae2441c7",
         "src/identity.ts": "41b6f2674c254e8c42f3629cd4fdb27628409a60db356d7376d4cf48b8549f9b",
         "dist/index.d.ts": "d06d08c241a0d709dc3def52d2e6a0bd098e512d14f8cf2f8f1917c6a3c114f2",
+        "dist/vite/index.d.ts": "941bd366e08faf7d6090eeeee5294e7bb9a17f477e53592c350a4ffeb2755877",
         "src/index.ts": "14091937de43e2c24404c90a013dfccdc18b68d3e9fdc1339f73065b3d3a81aa",
+        "src/vite/index.ts": "95576d01d6418488fddd2f1bb4fc22c14718ddc3561a037c49cbd5147a5f4fd4",
         "dist/node.d.ts": "2e7b9fac9cb195b860d58d516858e8f7a0587fa2f6e022eb69c841c8b846bf84",
         "src/node.ts": "ffd90ff8da63341a00eab701b9f0dff0bde9cabe0456cebc152edb75765202f5",
         "dist/outputDirectory.d.ts": "4355b2e28825011414393318ca738a03aae5b2d09fc54764e52211e8e912ed07",
         "src/outputDirectory.ts": "aa0b3e95407d4c561e540cb637def2dec8fd6ab4f70aaeafbb69198ceb5e230d",
         "dist/panel.d.ts": "47f1a700f5c280500af2068e85648d14faebd3ce83a24397f1613940550550b4",
         "src/panel.ts": "d5d9e7aabb257fa06e4b1de8e200ddac00eacc9e222b68751143508653749107",
+        "tests/vite/ports.test.ts": "0038996e146fe494cf1fcf311616b5a4809c2baa46cb99efba7916e1442ce28b",
         "dist/release.d.ts": "a1827ccd4431ec0254bf15596976d512db1471a863677980e96cd02d26b34523",
         "src/release.ts": "c0e599c39c48a7f2156c749b99f0a494efe50d19874470831971c372b1a64102",
         "dist/releaseGraph.d.ts": "12441dcce28984e4496bc94a81a3b1446f4c56a802f5b37056c3349ab882a338",
         "src/releaseGraph.ts": "cd52d5d1939c68e2ff7a511da9a9f922db7557f622ffbcc8a0a5a25950905b3a",
+        "tests/vite/tree.test.ts": "340a528f7b98aa2721dfe5434c319c38c0d9b6649185a9cf40e1ae5d95b333a5",
+        "fixtures/vite/types.ts": "3c9d913e5d9c4c24fd0212dffb7ee671332490c81226ba5edfc60c8e6dee0425",
+        "fixtures/vite/workspace.ts": "d62fba58c7fd63b342b646ea025f21ce21d6937d8625841011c637f170d6d097",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "about-delivery.json",
+        "sourceReceiptSha256": "cd74920170c9a863bedff45e8062593163e07f79b7e94791ca968f1a68db1c09",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/cubemap",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-cubemap-9bba9ad272af8efab04b8daa06ca0c2a4656129e.tgz",
-      "relativeArchive": "deps/foss-earth-cubemap-9bba9ad272af8efab04b8daa06ca0c2a4656129e.tgz",
-      "sha256": "1e1cc8cac31b515632242985c1f02b59332e1f4c295d072fbc076a44a3cb9f6b",
-      "bytes": 127252,
-      "revision": "9bba9ad272af8efab04b8daa06ca0c2a4656129e",
+      "archive": "deps/foss-earth-cubemap-d061dc53e8ce27eb7902c447aec01144b955f0a5.tgz",
+      "relativeArchive": "deps/foss-earth-cubemap-d061dc53e8ce27eb7902c447aec01144b955f0a5.tgz",
+      "sha256": "ccb83639bc8e55adcdfc634778a2384594a9fef40021de4b41e21242c4db6cda",
+      "bytes": 127400,
+      "revision": "d061dc53e8ce27eb7902c447aec01144b955f0a5",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -315,17 +327,7 @@
         },
         "./package.json": "./package.json"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/cubemap-full-refs.json",
-        "sha256": "64613fb8e8c9d2585a873abb813f34d2d4eab79f3576110b9e1cec65ebbc0f27",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "9bba9ad272af8efab04b8daa06ca0c2a4656129e"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/browser/babylon.js": "768df4462907c828f2387fc04e4396d395f6a45a8030dc262b8f53d63a932881",
@@ -341,7 +343,7 @@
         "PROVENANCE.json": "139ec55cf7908d65511b494595344c0920d32647ae86e025c1995d88d5886131",
         "schema/representation.json": "7f65013f1e0e3167e34f3f9d21878b86a5b19fecbac64afe5d7a5061f97506d8",
         "SOURCE_LINEAGE.json": "eceedd0116a092666ce499b1ed0d43733535a1d486de3cbcaba20e01be0490b5",
-        "SOURCE_RECEIPT.json": "5f9c4273553aee60fb812b54d7635ce1b9eeebc63bb6769e9fbb7dac8fb8278c",
+        "SOURCE_RECEIPT.json": "b8f46f432713445fa6f26d09250a6e835812f7f05b73056d813d30620ae7bd42",
         "tests/tsconfig.json": "c8487381046b2cac542337f316ec02ca4383a52f4791a055e3231d74119c0794",
         "AGENTS.md": "de260050396b55d9eef5467186c9d01872a2aee4ef59eeb01b211942b9fa86bd",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
@@ -377,16 +379,21 @@
         "src/shaders.ts": "793b4fb4ff603e52cfe8a21a20eab0fb99451a844d8b352dc3426cb7833ce5c4",
         "tests/uploadAdapter.test.ts": "078d92582333ef94820b78cebaf179d9592774d1f4a82c6a894f3462fa814bbd",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "cubemap-delivery.json",
+        "sourceReceiptSha256": "b8f46f432713445fa6f26d09250a6e835812f7f05b73056d813d30620ae7bd42",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/dev",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-dev-80bc61d66ef829402250ee9365babd421cb20c83.tgz",
-      "relativeArchive": "deps/foss-earth-dev-80bc61d66ef829402250ee9365babd421cb20c83.tgz",
-      "sha256": "84951973280afc055c910b3dbd7350c7dda5af8fcbc9d8b5fc807925aa1c6016",
-      "bytes": 113807,
-      "revision": "80bc61d66ef829402250ee9365babd421cb20c83",
+      "archive": "deps/foss-earth-dev-99c7259c87f20855e2da89557be3ad379c104e84.tgz",
+      "relativeArchive": "deps/foss-earth-dev-99c7259c87f20855e2da89557be3ad379c104e84.tgz",
+      "sha256": "b3e7bfb44371db111036e139ed88e86760681bffd66888338b7c0a371117312a",
+      "bytes": 113996,
+      "revision": "99c7259c87f20855e2da89557be3ad379c104e84",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -398,17 +405,7 @@
         },
         "./panel.css": "./styles/panel.css"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/dev-r4-full-refs.json",
-        "sha256": "06254b8988a271f24400013cd6344b543d3419d80810ee30d1b7c24b6f0a8298",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "80bc61d66ef829402250ee9365babd421cb20c83"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "styles/panel.css": "1e03e2da201dd35488b70f1a08cbb9a1d459f48d5f02b9bead241de8b24bb6ce",
         "dist/activation.js": "ea728e94bcdb0d19241376ea5abcb77e24e6200710029f7d5c843e4d81024bbe",
@@ -421,7 +418,7 @@
         "package.json": "2d9ac944ce0f79ccd44a29e9340d42eb2adc91643f13228d5556689137c3fba0",
         "SOURCE_LINEAGE.json": "d9fdddadf4c4000b56829d8e7c1ee307082a74ae680867b5d71fe35973b7b8bc",
         "SOURCE_PROVENANCE.json": "6474b6c07a08ac6c51d4f89ecbbed7d70678adc194d777ca8bbf8adb68f23ee3",
-        "SOURCE_RECEIPT.json": "4e400b0aea88685f6cba3e381bfa878eebc53c25d705b820decbab8021d2d46f",
+        "SOURCE_RECEIPT.json": "547b2de828b778febe8e4de1b7b49b2af28b3ed1da79c2c1a76ca5bf17db9dfe",
         "tsconfig.json": "004b4a9b4c500c3e49b34dcf8b2f5ff03711b76a0aa685abb605bc8a6a72ebd6",
         "dist/activation.d.ts.map": "a9140021fc38c7b2af1de5a7a50d903d5355ce33b6f593e702fef7c7c0555d46",
         "dist/activation.js.map": "07d32bc54ddd8b6af3b8dd2438496711c72a6ca200ff0b6819368ff1acb2452b",
@@ -451,16 +448,21 @@
         "dist/types.d.ts": "8b6db6b1d2378024a4d58da9e2db85fb46ad44bb1774970a092489b6dde84846",
         "src/types.ts": "f473cb7225548ae1f508a9d70e9397ded6d7c608476f578f928e0f7929a188bb",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "dev-delivery.json",
+        "sourceReceiptSha256": "547b2de828b778febe8e4de1b7b49b2af28b3ed1da79c2c1a76ca5bf17db9dfe",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/engine",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-engine-030d462f11d086a773eefe247acbe6fecf1fd6c3.tgz",
-      "relativeArchive": "deps/foss-earth-engine-030d462f11d086a773eefe247acbe6fecf1fd6c3.tgz",
-      "sha256": "bdc363fdbb2d6b5bc43637f7fb5d6e62119a015a1b9d609cbdb6c72f1e218ac4",
-      "bytes": 2719792,
-      "revision": "030d462f11d086a773eefe247acbe6fecf1fd6c3",
+      "archive": "deps/foss-earth-engine-693d48d80911dda364140202413e2d16c08a79ba.tgz",
+      "relativeArchive": "deps/foss-earth-engine-693d48d80911dda364140202413e2d16c08a79ba.tgz",
+      "sha256": "004adf0bc21b86b6a5a1884d5790736d55a3dd68dd5820730244eec303d7856c",
+      "bytes": 2745474,
+      "revision": "693d48d80911dda364140202413e2d16c08a79ba",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -528,17 +530,7 @@
         },
         "./map-cache.css": "./styles/map-cache.css"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/engine-full-refs.json",
-        "sha256": "1a442f54e73be6c81f0d0e92ec918e409827120b369d4113badcb197a3a4ff56",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "030d462f11d086a773eefe247acbe6fecf1fd6c3"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "assets/geoid/egm2008-15.bin": "b269e989d2511117747f52a1ed8b3a0de3cbf269c479a035506248c671346dc8",
@@ -580,12 +572,13 @@
         "dist/panels/controlsPanel.js": "0060ed49463ec4986ae4b10d80b027de91d41b79ef5c481ba9c27f3f5df3d4b6",
         "dist/sprites/core.js": "092dd526353ccbc5d93d329a5c41e95e57efbcbb5ff439c06983389b9c98751d",
         "dist/surface/coverageSamples.js": "9727598b6e584a48c6d1897ab6f6fad7b9bd534bfab76f2c4c30e6b2a142024d",
-        "dist/babylon/createGlobeRuntime.js": "f148b9c7cbb32aa8a95cfc922da105869933a643e373653762167e11b3f743d1",
+        "dist/babylon/createGlobeRuntime.js": "e55a4180b74702005f9262a2b19958c533ca99cf8a5cc87df685eb2bd99cba28",
         "dist/babylon/imagery/createImageryRuntime.js": "5abb8ea619260eaf7f1966e801781a56835b952c2a2cfc6d0eff08a26454471a",
         "dist/browser/createInputController.js": "525a6e01eb718fa9feff9a12226fed03930b3ced3feed545dbcd762666888eb9",
-        "dist/babylon/createRasterTilesRuntime.js": "7e4a397c4ca2cfe472c61ee4e37a14d3cc9a517e50610d372b3e46b15595457c",
-        "dist/babylon/createTilesRuntime.js": "58992236095af14a54df2024af2a3d299b290b50eb7bab4c5b15a659cba11856",
+        "dist/babylon/createRasterTilesRuntime.js": "17a457e7d3827239296bad015c07141c5b6db1b6df3e54467c06f7e3c068822a",
+        "dist/babylon/createTilesRuntime.js": "481aa1bdbc016698bddf427981241b68b0ba835d53a022ee0b0f03de67b4a520",
         "dist/perf/culling.js": "f3585f98e42cbd640376433a4dc9bb73b9fbbe455055ccfbbeea43553041d46b",
+        "dist/surface/currentReadiness.js": "09a0e68db9df9233515a7375192d5be84f6ee33f51c92308f4aba3b20d8cd7f4",
         "dist/visualization/defaults.js": "51a3c0a1cae8943124a5e2c9b568b17bfd02847079113b9797dcf372691821a7",
         "dist/browser/describeGoogleTileFailure.js": "ae584cba0fcb7e6a994031f412f89f96b39d9512d40bbc6cd275402aa04b0c52",
         "dist/input/gamepadDefaults.js": "4cc0f919081d703cd010270f076a0905ebe9261abb91844128b819e7996630a3",
@@ -617,7 +610,7 @@
         "dist/babylon/imagery/imageryView.js": "1ed0da6f6e8025ca3717843d6fb1faac7d319ff7e742d9346a0261924e4895dd",
         "dist/babylon/index.js": "3272e88baf42539c40f2168f5c6f676b788f1c255a6d6306237259d18a5cc1ab",
         "dist/gamepad/index.js": "8b9b8ab7084c14f5d869bcd1fb5ab2839c0c9059df78e2a977ff137282ae9e62",
-        "dist/index.js": "fc02ce1d4c21a15de7f0d7fe026c762af10d0cba311be9923c7a1537bd9dd521",
+        "dist/index.js": "5d3939992742656b7f84873ef5878d06ee00883345fa9ced8b20b8903013ad33",
         "dist/layers/index.js": "c56b3d3cc4dba504dc98dbfa5e35532a713310cd401e5453ab4c3e40cff4e710",
         "dist/settings/index.js": "cd9ecad708ceb61996ff41df379dd1b7c9fa865c2ef938e52e9e0288b8fbbae7",
         "dist/sprites/index.js": "56a528ae3cdc48b26d273577ad4ef7cc19bb24f78dce5c9ebb13427c931aa62a",
@@ -713,12 +706,13 @@
         "dist/input/wheelGesture.js": "29c935cbd3baedbf2ee96bb7e130f5b0bb39f05f980a1de4ea68d2a6f73e0b1d",
         ".attribution-release.json": "d60ee5067185a768f0890da2ed87d82dbfa08f28282e4d05a35e823c70307122",
         ".attribution.json": "f4be8310bb514e13808115779d13d130ac3bbed54e4fca9de6af00602da8d994",
-        "extraction-provenance.json": "22ea980a74c7ed12ad51fef33982f141a4c4e143f6c6ebc33801c7c18c430c33",
+        "extraction-provenance.json": "5ca3223e274223b7d6d8c089419eec4e92d187e796d27f0d76d8b099716d01b0",
         "package.json": "59bd79be338ac612ac3c66943c9ac91bd205a883812b419d72d6b4e37db52939",
         "assets/geoid/provenance.json": "bdfecaae166c89982a395985918eb4ca69ee13b8f87691285883d7a8e78816bf",
         "SOURCE_LINEAGE.json": "9711272592991b6fa8e483c100f76b20284c5de360bba3f3a63ece06f0281be3",
-        "SOURCE_RECEIPT.json": "2a4a5c9560d8f11c2a5b9f4496a96c752f97bb9a9d10ccf8165ee7828342603f",
+        "SOURCE_RECEIPT.json": "5213cca4379c6b398c586d925478c16921630a77b22c06c2cf60edc9b3f74e05",
         "tsconfig.build.json": "ff04dd21d94fc5d254b280a63d8a0218df1753738d408b515dd21fe4e53ca3c1",
+        "fixtures/surface-readiness/tsconfig.json": "7e5f5bcc96df4cade84fe316f41d65180258bfae9950dfba6df5e1c0d5389b02",
         "fixtures/tsconfig.json": "3fecf1bfad0a1f3fe041da2fd749ad97ab2a46f0dfcb5c9b6862a4b702ec3ce0",
         "tsconfig.json": "e4e0d03c0c56b899a72d430ca02a15889e5f4ec21fa4160004fd105e8c7e36c2",
         "fixtures/composition/tsconfig.viewer.json": "69d901808d93acc8aa1ff170c5afcfe963328cdb9a2020152c506e6f4483929a",
@@ -774,7 +768,7 @@
         "dist/map/connectMapDetailRuntime.js.map": "84e9fa015254d8eacf06accff9d41ee9bc4ed0f96dcb1535735f0fbc968862d4",
         "dist/layers/contracts.d.ts.map": "f5c9514000deae0462ac59998daf8975a50e2e1a7745dbfdf30caf551e2dd603",
         "dist/location/contracts.d.ts.map": "75b63fb3a37a598bd0c84a01a141866744b2c14dc16f1d6eb5654499787bc242",
-        "dist/surface/contracts.d.ts.map": "504fd2b71c31feb2903e582ddf07da5988c5d9515ad350e97e5d770d12841f1e",
+        "dist/surface/contracts.d.ts.map": "1795f5f1cf6890fdb58193c5854d183cc198103c7aff4517aeeab593341da7c4",
         "dist/layers/contracts.js.map": "b5c82fd08e049d73b8c3c037af80af3c70c8ed175621acd1e18ba1636415e384",
         "dist/location/contracts.js.map": "61a202d9232199744748a5c1d817a55197bc82b6b7f3268cce61f390e4d54df5",
         "dist/surface/contracts.js.map": "f9d5c2be89b4763443e799fd12715846539982045dc366b7ce91ff76a3a1ca50",
@@ -786,18 +780,20 @@
         "dist/sprites/core.js.map": "c15038a352d20bb1cbbf0ab0cfdadb175d6f4b840d494b798fc5e4a504245af7",
         "dist/surface/coverageSamples.d.ts.map": "1e0c33e97487bc4cdcc46db3eb7c6e76aa04ab651281d83ad492e7dce1067d44",
         "dist/surface/coverageSamples.js.map": "5cb40428a1503043ada387e9de0ddf5ed83ee5dac3ddd88196cb1e6cbf2eff7a",
-        "dist/babylon/createGlobeRuntime.d.ts.map": "6fce10ffa678e11c6935f748ec6ab4988ed5489314d42a90a72b1d16af6dadb6",
-        "dist/babylon/createGlobeRuntime.js.map": "2534213c09a9b5facb7afd0c0d6450a611240d6ef2ffd1c210cb61588da8d178",
+        "dist/babylon/createGlobeRuntime.d.ts.map": "eaef7f60f3350efc26fb001d72c8eaff7774e9a88017746490ecf55bfd65ef32",
+        "dist/babylon/createGlobeRuntime.js.map": "0bd05ab3ca5185ce0f00ee51e40f97a7447a02ebafc46765d783c5dd8af52088",
         "dist/babylon/imagery/createImageryRuntime.d.ts.map": "7c2a1127fbe404adc0222ddad3124898e4676df5af98a0872a38fe401b43ada5",
         "dist/babylon/imagery/createImageryRuntime.js.map": "a329c5ee9dad7f3abb503809bf8f045aa95e4e1f7af4e9a8bf5675ca51d4886e",
         "dist/browser/createInputController.d.ts.map": "4353ace776365dc55ee79cdef5204e172c0f5cbab49bc55f76bd14cc06305606",
         "dist/browser/createInputController.js.map": "cd66920a6d823b415ca90659dbc47b31583b2cff2bd83b18c4aa4b80b5f2620f",
-        "dist/babylon/createRasterTilesRuntime.d.ts.map": "f71b6450f4d225d03052f9b6120f6d718ae90509a9287c8890f28f002347595b",
-        "dist/babylon/createRasterTilesRuntime.js.map": "a9961e88c92173d75695fb4dcc62b8eeb37549b93054cc3eab330d8bff95313f",
-        "dist/babylon/createTilesRuntime.d.ts.map": "699973a0ebda06a0cb4b401ec33e4bd932ed276808dc403d3079c983e5e3e143",
-        "dist/babylon/createTilesRuntime.js.map": "4ede53379366d33853ac8862e93b0a9c7acc405897b806d0b164e516a924b9ad",
+        "dist/babylon/createRasterTilesRuntime.d.ts.map": "0fd11b2f956009d13f6d70cae4fd4dd3a369070d1e16d518f1d1bc546c1f0088",
+        "dist/babylon/createRasterTilesRuntime.js.map": "9cfa76b7003f43ef847073c7e1ff66df520ef2c95a0a579a44ad647e69191450",
+        "dist/babylon/createTilesRuntime.d.ts.map": "32a772c8ed909207275c011020d642f94cda80819a2cffa2e5a57bc1d4bd83ee",
+        "dist/babylon/createTilesRuntime.js.map": "62207f0d1f48e1fe2850db5abf2f735f5075b477f4d64075499d8cec9b50c1fa",
         "dist/perf/culling.d.ts.map": "64f2a80ba3f3bc774f91e1b9f21cd13a43876078b6e079e3ae0d0bd90a5b0c16",
         "dist/perf/culling.js.map": "b55cc188118acc83baca745652f50ba3fc7aab85a0b7154b6add26d66011e6f5",
+        "dist/surface/currentReadiness.d.ts.map": "2a7d8bd43f79b097c4dc643d8efac0fb69a83fda5c36d8a81b20c88edcde6d02",
+        "dist/surface/currentReadiness.js.map": "94c1b276f2960b58ad4df35f7ab51dfbdc726743ab1149ca29be21ec9451af4a",
         "dist/visualization/defaults.d.ts.map": "1fc4f446aff2285c72411b231165c979168142da35b96b01d28189da833023fe",
         "dist/visualization/defaults.js.map": "057dccc67e3918a05b9c81a7cfcec02cf214f33556753a071a22bb5a09ed9d31",
         "dist/browser/describeGoogleTileFailure.d.ts.map": "4954d08f1e4f1241ff5f4f72524cb42ff1a209d50e472cf466436471b450224b",
@@ -856,17 +852,17 @@
         "dist/terrain/imagery/imageryTestViews.js.map": "b2058565ad01d52de4bfc6f3bed825186b5d8e7dcde1f5898b9eea1b426db149",
         "dist/babylon/imagery/imageryView.d.ts.map": "7027aababcbb14ab0d104eed147973c68d37e2241b4235e4f934fd3b1879eb79",
         "dist/babylon/imagery/imageryView.js.map": "e39f24af014bff365cc2c7e9c74cf4de8f404f6761e3bd69e36da4189b30160b",
-        "dist/babylon/index.d.ts.map": "0a3f629354f06f2266ad1caf1bfa61effb32e3779b0e0f9f7ecd16d22bad540a",
+        "dist/babylon/index.d.ts.map": "a96e1b28bbb8819587174188e1da3f36e8a8202da98a82441932ea34195f01f3",
         "dist/gamepad/index.d.ts.map": "4fd1b8aa167bbce194b3e5b10f2bf925114ded8f2b7dbb7d03c530ef1c5ae3f7",
-        "dist/index.d.ts.map": "7b41147bf6c763290adf9a1fc5e9e99a917761577d2023bc7df793a39db46702",
+        "dist/index.d.ts.map": "1d9d466f9276eefee18e9888399dda2b8a22a9a86a7e1cfc1c146138a849730f",
         "dist/layers/index.d.ts.map": "2000d46afa8e90e571c08a68b3105128fa7996772010a2c55f02ab4554de7f60",
         "dist/settings/index.d.ts.map": "5eafe6928e4a05d04d6bf900074d6887f0f8195df36dfa80550bf8542961a0b4",
         "dist/sprites/index.d.ts.map": "b5fd85413c621e7bfc75f45cdeb97bee673302129c34d5ce3b186c172bf3af8d",
         "dist/terrain/imagery/index.d.ts.map": "75e7a0d0359ce64b85708586479cde38c2be0b19b906cac26e485dc0b7bb04e5",
         "dist/visualization/index.d.ts.map": "8655e43807d97e9c3a840cea5cade167df42f0215fcb6064303772f7a82da3c8",
-        "dist/babylon/index.js.map": "a7f4fb92c1c4f97f835d41b6bf8af3601e0dec50c3e1c3d6254b9a198dabfc2e",
+        "dist/babylon/index.js.map": "3e1b41b546a6dc7f2808bdfdd731845c49feea6c5b89af69cdf06aeeec9d5cee",
         "dist/gamepad/index.js.map": "a752b1c488890d72ed1eed6af11cb8d80209622985fd4568d1f9132523407c62",
-        "dist/index.js.map": "bfe015f5ab40408d3044725dfeaa29e3800bb2bb691f64b472b9b42c184b4cef",
+        "dist/index.js.map": "284af5e89646f9c808709751fe20e9a923d4774bf92cbfeefa7c324e0633dd60",
         "dist/layers/index.js.map": "eaa0be93f49eda4c613f1ca3f3f9d1c6cabf90e99472fd2f400f9547480cdc33",
         "dist/settings/index.js.map": "f03367e85f2568799256417bfa17f14fd7eb155dbece50f311ab95147d6af48c",
         "dist/sprites/index.js.map": "b29ff61850c7a3a814fa15e2c66e5330ea66f5e6df9c1948660f34402ca1d048",
@@ -1058,6 +1054,7 @@
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
         "docs/compass-height-model.md": "b47e5b8595eb5c3fb71f51311acbbad18303861f55822a00204f7eb751b99e8b",
         "CONTRIBUTING.md": "ae17c446b45bb7819aa2f12775c1acaf1a2626affbb49a8b0e578dccecadd69c",
+        "docs/current-surface-readiness.md": "f4cb569e8a6cda7c5b3fbaa0e046f7f21d0164965a4f1abdb21e8b5180f1e791",
         "docs/globe-runtime.md": "a7d735a25999ec77cc031d8a23e9a1253bc7380c42d392bfcd072adbc8ee2f90",
         "docs/proposals/imagery-detail-continuity.md": "25d33c45c744f701e69f490b97a22201dcbdc523995f99e6dc62cd70ba73f6b9",
         "docs/imagery-detail-drop-prompt.md": "84f4662b286a930371a1ae5ce146ac71f2698180e5e02f066ea2904a4bb13495",
@@ -1080,13 +1077,14 @@
         "fixtures/async-raster-consumer.mjs": "e239d10193414795ebd8dada97972b221558fff8c14e3789e3b7746ef0fb1bd4",
         "fixtures/bounded-atlas-consumer.mjs": "86599f4c9a6fe1d74fdc3833a91515189c35ba2151681ca217e78ece81f14c8d",
         "fixtures/browser-worker-consumer.mjs": "4a6571d173f4d87ab827a32126f14cec5f3260acd18fac0b578a70978e78fd3d",
-        "scripts/check-installed-consumer.mjs": "296c6a9a293102029c11e887cc5a6246f01e48eb528ad11e3dc61ff605784cb3",
+        "scripts/check-installed-consumer.mjs": "8c87d8701532598705891ba51107e215fef0dfb398977b42b5367fbb42379218",
         "fixtures/consumer.mjs": "5e9ecc7fb80389c152aca9779d58534aa3af71a5139eb7073328888e7859042f",
         "eslint.config.mjs": "5190a28c19acfb02c1edcf32da7fc2cbd1570ab33e971cc33ed3f7319528c8c8",
         "fixtures/globe-consumer.mjs": "e796212e6a64b5cfccfea635014a7be285456cad783cd72c507f88d94eb0df40",
         "fixtures/location-consumer.mjs": "6d62c29f134bb353714f0fe0b1d901180dac198d00e6af54ae5f3a8a32231ce6",
         "fixtures/map-cache-consumer.mjs": "48d179788a84da5ed70dbf44bcf3eff023cc0930e75b5088caa09d5bd3cf657b",
         "fixtures/owned-atlas-consumer.mjs": "a8cb337c1da069535cae82a7cd90283eadeb8d533d75ed5164fce3b9305e3289",
+        "fixtures/surface-readiness/public-consumer.mjs": "ce8a12f678d11612574009e6bf05eddf3d94f3ef42501a5820008f7e0485aabd",
         "fixtures/visualization-consumer.mjs": "f7975a46b630d9644deb0c9e4156cd32368cbce44938ddc51b701c673af5c5ae",
         "assets/providers/openstreetmap.png": "01b04a8daa2032ae585976e7328edfb9d860c7deaf2d2f7e541c00ba35ccfcc9",
         "assets/providers/carto-logo-on-dark.svg": "8f0d26d14228b4f3941652b5e4f87f57cdd5c3e09eae320fe3484c9777fae92f",
@@ -1166,10 +1164,10 @@
         "fixtures/consumer.ts": "a46d4838082724bee21405c4fc9e1ceb58dd9365d283db93b51ed6d98392deaa",
         "dist/layers/contracts.d.ts": "3118d9f0cf49b3d62be58dc93a69e64f8538f80416afbdbb603383e85d1b682c",
         "dist/location/contracts.d.ts": "0649dca7d5e54a8fa779606b7f91c8151a6d5cdc3c55abec545b1bc234c4cf80",
-        "dist/surface/contracts.d.ts": "6d7a00989cd5eb86e0ea15813f3f033d83d1cc53e63192daa1c29aeab18f1fdb",
+        "dist/surface/contracts.d.ts": "d0f2ada16b911edb3f384cbc14398cf53b0b70227a7d4f7f85812373e71783b0",
         "src/layers/contracts.ts": "c17bcd02357f16585d64ac13d0ac1ccb48a373c85dea9b233bf50f52a62c5b9d",
         "src/location/contracts.ts": "37f6d4e732edf9fdb157331048edede8267ac39b14fa2b6fb5f4878b9a48e8bd",
-        "src/surface/contracts.ts": "6f4cd41243abdf8446d34dc9696a21b65a80bd53f0fa1e0e9158cccd070d48ba",
+        "src/surface/contracts.ts": "c2e68a28e19ff9ef5c73c84bf8541799e363b6f35adab56b7888e63124b8a67a",
         "dist/settings/catalogue/controls.d.ts": "45bb1bb6319d24c67b7e9c9ee5c0b91492bfb4486c18517a8f832366d01e7d49",
         "src/settings/catalogue/controls.ts": "ce94fa0c94630d182532a7f88d261a0cc4f67b9e76a148da1fbb663dbbf57762",
         "dist/panels/controlsPanel.d.ts": "023bef455bae5b0c0b36a457d80ec34d80b6a4ceef9259d1ba0dd5847ea2c236",
@@ -1178,8 +1176,9 @@
         "src/sprites/core.ts": "e9f7c221bb499854df68d138a327e4df9824a03e540e624d40f1f6dabbcd0911",
         "dist/surface/coverageSamples.d.ts": "2f41335a8e37567e45ea4ee96aca5ceb11069a119695b1bcb95e48f26d89bef3",
         "src/surface/coverageSamples.ts": "b62275def617393c6354b18e444edcfc56fb198e50c91ff16f65d1a868779fb8",
-        "dist/babylon/createGlobeRuntime.d.ts": "36c72a3159c83749567d870982e3623027677620b6b42517213e6be53b5fdd8e",
-        "src/babylon/createGlobeRuntime.ts": "e57748b9ccd0a528632b52d7381dec04acc85272e68a7e799be9748ae671534c",
+        "dist/babylon/createGlobeRuntime.d.ts": "17e775708a59f69008e873e653366592b3aff337c9b0517d3ee098697edeff16",
+        "src/babylon/createGlobeRuntime.ts": "0d0be144f53d021db2d85238859c5deb34ab0cb6b5a9227508e7e0e70088b8e0",
+        "tests/createGlobeSurfaceReadiness.test.ts": "ddc10d83c822016ed43a26303aaa66b697170565964c78ae1ed7f2abcc0f243d",
         "tests/createImageryRuntime.continuity.test.ts": "4b25aefaffd7f0131709679af314bc5ca4e747acc649d0810ded8c269c15589b",
         "dist/babylon/imagery/createImageryRuntime.d.ts": "07b009aaa97d7313f78f0d5b96977de0e03511486a2dc42ae634aef01244a334",
         "tests/createImageryRuntime.test.ts": "8bd21edd2bad55ee36c520dc6a9dbe86eb1c3de490857b8a215bf80f399a9412",
@@ -1188,15 +1187,17 @@
         "tests/createInputController.test.ts": "2dd2c9291e4863c27860b6f121c69bb27c73d88f8b84982231c406a5c5febf70",
         "src/browser/createInputController.ts": "6ec21358a5a1377632db63fd0ac35ddefe66daa27e12dada1040c4a41b7ca6f9",
         "tests/createRasterTilesRuntime.atlas.test.ts": "33980b8091e077628cdb71bf6b36a3a9c3413c51835281e6ee3fc78f03475d9a",
-        "dist/babylon/createRasterTilesRuntime.d.ts": "e22f4c0bd5fbc94636525710d7e645c9062d9db5289e39570f35860fe82b3739",
-        "tests/createRasterTilesRuntime.test.ts": "1808da5300339fbc34ebd5c1b8af0b46795b337c11680e29f45060cb51903b79",
-        "src/babylon/createRasterTilesRuntime.ts": "7db7ceaee51eaf66f06fb05d504b7e31aef14ac21f7737efa018d3fbbf247974",
-        "dist/babylon/createTilesRuntime.d.ts": "a5fedcd5744119cd04adc057b15de180787a4d04dbbfeb0afb734268cbebdb63",
-        "tests/createTilesRuntime.test.ts": "9cff3cce2db5627fdb401e33c30dcfd84cb88d41dfc0bbafe65138ecf25c8cf0",
-        "src/babylon/createTilesRuntime.ts": "fe4e020d53dc09b4756a8adf9b1af38d50a9bd385141a98c736122fc9fbf700c",
+        "dist/babylon/createRasterTilesRuntime.d.ts": "f52e2d049c4ae8938653eb3afae8c27d7068f6723faaae832b7726e645004a48",
+        "tests/createRasterTilesRuntime.test.ts": "2d74c1dc87b2cc1e8698372f4148b3b80db7eab05df59f915e4dd7a21d6d9dee",
+        "src/babylon/createRasterTilesRuntime.ts": "95d9bb7c26aa178d7cf0ffec69b9f81ef1cc9773378410be10866e634245a812",
+        "dist/babylon/createTilesRuntime.d.ts": "1761aa80ec00df8b97769c24261b7d949b095b49ebc2e06dfb598333bd28f236",
+        "tests/createTilesRuntime.test.ts": "a4f6036a14f3048d4a1724d4f67086481f6c9cf4d4b7060f5274f198e8e6bc40",
+        "src/babylon/createTilesRuntime.ts": "c93cd4ca5e48f1b0e9f6f64cac7236cedff67b9c3b5a8cdf1b8461c9d40f5b69",
         "dist/perf/culling.d.ts": "511fbfc5480b262b401a9157118986f706b6f127bb0094946a71e0c1873857f9",
         "tests/culling.test.ts": "87303f5c84c749eb249e0c99455320f0af50dc098d973c08811b028192fbbbe6",
         "src/perf/culling.ts": "a5cc8bb2e4e8e08d240d196288f9d865f73260ead06d251858e6521086faead9",
+        "dist/surface/currentReadiness.d.ts": "4b48bcfc2204ec10acdc204c30c55d14b80bf400afafc314838c192fe5685985",
+        "src/surface/currentReadiness.ts": "2aa0e74892db799e0504436f7bdcb3935b178d63db5068f871979ee924444344",
         "dist/visualization/defaults.d.ts": "30bfcf9b03296e4a4ce6806c9ddda3bdb945311ee6c809d33164d8603f865d14",
         "src/visualization/defaults.ts": "319f8c78ae852c4fbd4476313af762469e237f0e4f8f37bbabd17bfbf1de2254",
         "dist/browser/describeGoogleTileFailure.d.ts": "ec6c89fc23f8df5dacbf59a26c549c9d75c7540bf07f7e5c8c91dc653814e8cf",
@@ -1271,17 +1272,17 @@
         "src/terrain/imagery/imageryTestViews.ts": "11dd9e935badb9237ef999465ba58ce0e88437bd26c347cd63b0df5ecbbcb1ed",
         "dist/babylon/imagery/imageryView.d.ts": "407f1371711d4f051eab044166b3ab9136433236166c73878116d68e42b5c4ac",
         "src/babylon/imagery/imageryView.ts": "8fb657e93774587f8b3da0f7581a35132dba704b8833d6c6923ff6abca51efe7",
-        "dist/babylon/index.d.ts": "acdb59f197859eef2835d8a95a226510c096c80a21ec8121aa6433a1d8704fe6",
+        "dist/babylon/index.d.ts": "fe5b27dbca812e993fef2f85af8a1f41ff982ea4fddd96c70d2c1502befd8e9c",
         "dist/gamepad/index.d.ts": "4eb186e5a7b2b85da68c4d859dababe6f25140012ab5d8f7aafe41d473920245",
-        "dist/index.d.ts": "a9e5b5997d72dfd68fdab42ce47479b955cfd53b3c8ebc16960bbbfba07420ab",
+        "dist/index.d.ts": "634ec966d1b8c8a10160f0067e1197c584c7bdc7f70b8c696e858300b5915d2e",
         "dist/layers/index.d.ts": "5eb41a007617f24cdfd21bc7fd6f02b5463afdc114785d0e246b798eac3fe209",
         "dist/settings/index.d.ts": "9ad556a44e047decc62ae530eca534eeb2134ce7e56f23603b473537d7dd45fb",
         "dist/sprites/index.d.ts": "084dcd6d42cbd00d76e85230484ccaad666c4e6a95552557333c7af309e38360",
         "dist/terrain/imagery/index.d.ts": "1efc1ac2408db8728eab262ebd03adf0e40e6ebe6a85df1752e52e6eeae69a9c",
         "dist/visualization/index.d.ts": "e42a72569b67d86c1fa1041f52999f776c7bcf2e9ab3df34f3412429095eddd4",
-        "src/babylon/index.ts": "23a94e02427bc35d51ee5916d0d8467cd5d22c167cce973ea768d27a65cc45fd",
+        "src/babylon/index.ts": "16b97cb0cb5b23b082fe2d87118817cfb2ec963c2b8c8e990870a76b1e9f5688",
         "src/gamepad/index.ts": "0ebd23c1557ab5d3e40c1edb2724ac56360497c053a86d0e4490af96ddde10eb",
-        "src/index.ts": "53e0afada75b080b302a6cba44ae5c632edbe52b3f03509d48aeac1a2523ea00",
+        "src/index.ts": "e4e36ab2c8cf1e855b8f73907439cfbe526c047d3b720f5f57b7a343da0452a1",
         "src/layers/index.ts": "9e227fc659bb9c61826ce1631d8aa29197d0540560135f555315b9c49e2ecdaa",
         "src/settings/index.ts": "ad5dc038c59ea42a6dca5ecebac8f3205ce9af9faedac8f3710695c1777b9613",
         "src/sprites/index.ts": "40a85e415de9baffd6b8a1b03472c5b80c6b5cd76de4ebe3f64294979957bffd",
@@ -1363,6 +1364,7 @@
         "dist/browser/mapDownloadMeter.d.ts": "0a51c1aed26ace5c3d878fd593eb4a0564d04de728202ad490b8ee18e8febf93",
         "tests/mapDownloadMeter.test.ts": "251b60f730cc3d61f0f5aa7e7132bbcc3523434248ba6662fa02adba9dc337f5",
         "src/browser/mapDownloadMeter.ts": "5a183b05462588347c9ef479738cc7ad5cda98143e3451571307655dd15dabac",
+        "fixtures/surface-readiness/mapHost.ts": "cfad46d96ebf788e92036266553124e4e7d68ddc9d1fe028f284c9c697eb01b5",
         "fixtures/composition/mapPanelHost.ts": "72c056790550bdb7a14540127aa8494a44b3f8cb7b018fa65727b16c594cdb02",
         "dist/settings/mapRuntimeConfig.d.ts": "5476edb8f0083b25aa5769498df39ed6d48a711f5c2d0a4a274deb4067c8b2f8",
         "src/settings/mapRuntimeConfig.ts": "19ebae7f5f8d48ac92648a37ef84627ded0e7d2a104b92de374ffc8c275875b4",
@@ -1419,6 +1421,7 @@
         "dist/sprites/positioning.d.ts": "e6bae20aa6294ad983fbe11ac649d46eeed95554aa272325d9d9e509c9b35699",
         "src/sprites/positioning.ts": "438cd1442572dee5e58a77cc00f1105557c9f9666434ff66ecc0fc0841dafc26",
         "tests/location/providerPorts.test.ts": "9d312338a4341492004c2c2d04b24a5e9c6198f1e67b261542faebbbe506e1d6",
+        "fixtures/surface-readiness/public-consumer.ts": "610201723cece4eae9091d9104b957305fa6846b2f5c8b6d4b0871eb94a7fafe",
         "fixtures/publicEntries.ts": "9d7f45261ded39eef0fec37fcc13677254aae6dd164262d2cf8c675d5dadcddb",
         "tests/rasterAsyncTextures.test.ts": "7409851dffc49de771c3ec98dd2d76da87ac386e6eab1e468678d62c57299083",
         "dist/map/rasterBaseMaps.d.ts": "d768729fa59ea22c94ebe86fdd69cf0b870f74df60ceeb9cd3247f736f6576ef",
@@ -1456,6 +1459,7 @@
         "dist/babylon/surfaceQuery.d.ts": "d028c0b4db0164e478c282d3c16046912ffc37fa425f155ef48483f172f10d6c",
         "tests/surfaceQuery.test.ts": "e355ee42f93d7f1ccd7364d76098b39ebb2edfcc397c85ee4b0c599782806fef",
         "src/babylon/surfaceQuery.ts": "9f7bb03fc876698ff57544b87e643166367963b9ed5e0af2f15d4cb1e8c424c1",
+        "tests/surfaceReadiness.test.ts": "080a79e9ad116fcd474af91f5875015edc4c9b07df1c6b29dfe8d28f3b7f0816",
         "dist/terrain/terrainGrid.d.ts": "8454925d3fc78d3dd492825303f0d1f589936dd4d9b1d64453f98e2d4a242af0",
         "src/terrain/terrainGrid.ts": "7686586013e496cd26acf245045c2099403e1d8ab175bc25c252af415b0962e8",
         "dist/settings/catalogue/terrainImageDecode.d.ts": "b372c2788db502e182d52f806ce66c6e04d78443d72d61c99e47e91ebb8528c7",
@@ -1524,16 +1528,21 @@
         "tests/MapCachePanel.test.tsx": "33e9d3b41b4d83a02457c05ce22b7cca0455367b6c19915c672f08171017b89e",
         "src/map/react/MapCachePanel.tsx": "608f722d132e79f9de3f8c0f833c75142e43f75a2b56ba9bbe3ee33c930552d4",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "engine-delivery.json",
+        "sourceReceiptSha256": "5213cca4379c6b398c586d925478c16921630a77b22c06c2cf60edc9b3f74e05",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/equirectangular",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-equirectangular-706d8d5e2eee24bc63bc19016609def2380b863e.tgz",
-      "relativeArchive": "deps/foss-earth-equirectangular-706d8d5e2eee24bc63bc19016609def2380b863e.tgz",
-      "sha256": "3c335b90cfa33f58b614343bbf5ae2a1bfa82426a84836db7e11e1d64864c2fe",
-      "bytes": 129591,
-      "revision": "706d8d5e2eee24bc63bc19016609def2380b863e",
+      "archive": "deps/foss-earth-equirectangular-0bfc0554c8ae924aada57678cc90dc61f56d2dc7.tgz",
+      "relativeArchive": "deps/foss-earth-equirectangular-0bfc0554c8ae924aada57678cc90dc61f56d2dc7.tgz",
+      "sha256": "c0ef5534d5e2c67bac5c4059ee5fe95225e549e9b7a2e40af3781e930a75b045",
+      "bytes": 129763,
+      "revision": "0bfc0554c8ae924aada57678cc90dc61f56d2dc7",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -1562,17 +1571,7 @@
         },
         "./package.json": "./package.json"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/equirectangular-full-refs.json",
-        "sha256": "425adb398b062ed7863d6edbb64399acb6dae0deab536c79da15687d3beee0f9",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "706d8d5e2eee24bc63bc19016609def2380b863e"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/browser/babylon.js": "07f733b803c93fc22bc5d204347611c21b3f703e4bdcf98cd9b6772775df9c3f",
@@ -1589,7 +1588,7 @@
         "PROVENANCE.json": "88ff009b8881b5e84934f59a0daeece91d14b940aecbb3ec67a2c0d279037011",
         "schema/representation.json": "bc99a4669cf959d92b7e3f6ca3b22aac260bcd0bb4836b49d4cf71a5e3d18ef7",
         "SOURCE_LINEAGE.json": "b9cf385a9424854d9ab8bc74c471ec5e0d7cc6ed152ca0711014beb0c404659d",
-        "SOURCE_RECEIPT.json": "f60297434e8ad3dfaf6003b094f71e149477a541e8f00611881f1ff39cb56d05",
+        "SOURCE_RECEIPT.json": "7df3cb8f55e96fe5921578d000f14b378a014218ed6d5e07ad029507078acc56",
         "tests/tsconfig.json": "c8487381046b2cac542337f316ec02ca4383a52f4791a055e3231d74119c0794",
         "AGENTS.md": "40f2b76eae0eb67bba6736ed246fd38d22101832345cdde2871e9927cb4387fa",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
@@ -1629,16 +1628,21 @@
         "src/shaders.ts": "10473087785e2abb44c124460f1fbc2108b3e8d9184c986a94bafa3f4dc7e78c",
         "tests/uploadAdapter.test.ts": "ca2ad3e9060ffa21bd989ccf711ebfdaa160ce75bbe82750e4f5215223ba1453",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "equirectangular-delivery.json",
+        "sourceReceiptSha256": "7df3cb8f55e96fe5921578d000f14b378a014218ed6d5e07ad029507078acc56",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/images",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-images-015c4540beb813c079dfa95d29f6483bfecb6cff.tgz",
-      "relativeArchive": "deps/foss-earth-images-015c4540beb813c079dfa95d29f6483bfecb6cff.tgz",
-      "sha256": "fe041a23abe750f3a8f382daba85ed214003a6cabef8af628616067070a042f7",
-      "bytes": 155874,
-      "revision": "015c4540beb813c079dfa95d29f6483bfecb6cff",
+      "archive": "deps/foss-earth-images-669b93b8a7f2e5d671c36a29a84761275265b2f7.tgz",
+      "relativeArchive": "deps/foss-earth-images-669b93b8a7f2e5d671c36a29a84761275265b2f7.tgz",
+      "sha256": "96f244b1032ff057910c82f04548ef35191dec79cebf4674e7b0537ddfd6edf8",
+      "bytes": 156003,
+      "revision": "669b93b8a7f2e5d671c36a29a84761275265b2f7",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -1661,17 +1665,7 @@
           "import": "./dist/settings.js"
         }
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/images-full-refs.json",
-        "sha256": "aeb177e65d59298cdf9539d1a54d48aa4958f6275ec2ba28eaebf96ad02372bf",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "015c4540beb813c079dfa95d29f6483bfecb6cff"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/bytes.js": "faa6036878557d7404f3e5c370a71b11a092a59ea6e0ccd49b036a6124077695",
@@ -1699,7 +1693,7 @@
         "package.json": "b0688603981de674df52d9751e3509a6472b470029d5ced2370b8b0b581d1574",
         "PROVENANCE.json": "95c4cb3ada9d79c9cd5bf78506325ecb254a54ab38a30dbb192af8b382c7b674",
         "SOURCE_LINEAGE.json": "13defc1df29684603b610a94c569d91638e2d8a53f1a829ad7c169781edf267c",
-        "SOURCE_RECEIPT.json": "f37a4b7b3e8ad95532300e697044d4d3e04a9a324a9722081e3712c386385286",
+        "SOURCE_RECEIPT.json": "0a583afad43f3e5cb8e57916c1b3822bfa6b73c9808ee39cbe69e1b47495913f",
         "SOURCE_SELECTION.json": "8bae6a14afcc6fc9732392d23bc7ac5c27a7471cae26761bbae8b9a1211ce5de",
         "AGENTS.md": "093b855d144a3615583b64d3dc10302b586cca4dbcd6602cb8ca1d4fab6ecb76",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
@@ -1730,16 +1724,21 @@
         "dist/browser/transport.d.ts": "48ae48dcede619001000d804557f7fa8cf29e04261a4451d8078418a6f412e78",
         "dist/vectors.d.ts": "114dfe216917ebf6e76b809115ab17ba9b93aaa2d6abb5574d9a54d76c011492",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "images-delivery.json",
+        "sourceReceiptSha256": "0a583afad43f3e5cb8e57916c1b3822bfa6b73c9808ee39cbe69e1b47495913f",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/preview-sheets",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-preview-sheets-ddec72474a4ce5ae436f46c347f8648cdbcaa341.tgz",
-      "relativeArchive": "deps/foss-earth-preview-sheets-ddec72474a4ce5ae436f46c347f8648cdbcaa341.tgz",
-      "sha256": "af2ec8b282ac5c743561ff640dc6026f2d8e821ea4089ff435cb27096de33dbe",
-      "bytes": 131145,
-      "revision": "ddec72474a4ce5ae436f46c347f8648cdbcaa341",
+      "archive": "deps/foss-earth-preview-sheets-138939f845c5ab384740773a46eb4350bf2b4066.tgz",
+      "relativeArchive": "deps/foss-earth-preview-sheets-138939f845c5ab384740773a46eb4350bf2b4066.tgz",
+      "sha256": "3dceac643adcababb61c2299fa9d202cdffc56b01279cc13244f9370ffbfcfbe",
+      "bytes": 131420,
+      "revision": "138939f845c5ab384740773a46eb4350bf2b4066",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -1772,17 +1771,7 @@
           "import": "./dist/settings.js"
         }
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/preview-sheets-full-refs.json",
-        "sha256": "786d1e36b1c27bfd805c5e83eb4f48d0b8acd8d5e8d114fc44d89727cecf4638",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "ddec72474a4ce5ae436f46c347f8648cdbcaa341"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/browser.js": "2c4496d0d74aafc21567b241c957f135dd6a432da3ebfa1e774e9df830ac7fb8",
@@ -1798,7 +1787,7 @@
         "schema/place.json": "eae82f1361416478c155efde1837dab8e287d19116943bd67384151e96937aa7",
         "SOURCE_LINEAGE.json": "08d85ad3cb1b0468aaa492151bb12be1acefdf014b410ee625d0236ac552612d",
         "SOURCE_PROVENANCE.json": "64607a0901df252fc1b71bca9dd5a1d76b75714ae14eee0e98b0e1f43a1e48bc",
-        "SOURCE_RECEIPT.json": "eabadc660efa2aaeb42dc0dc2566914e615c98872dab592a4754076116f0edec",
+        "SOURCE_RECEIPT.json": "9b1d31f721831c804b95dc0c14b6a3686b297bc146c166206e041da271d0bae5",
         "tsconfig.json": "004b4a9b4c500c3e49b34dcf8b2f5ff03711b76a0aa685abb605bc8a6a72ebd6",
         "dist/browser.d.ts.map": "b01b6f159e42b03d02a0327214704d9dd8161870054b810ea040052211c80c9b",
         "dist/browser.js.map": "a0ffa73aa0f417723f838eb05c5b7cc378f0ddeca72ade2e3f15542c9af9977f",
@@ -1834,16 +1823,21 @@
         "dist/settings.d.ts": "1cd16b062eaca05e82359ed2c79990846298c9c00c2f127e98757c178c13a61b",
         "src/settings.ts": "b35d45f042504afa132aa09123bb493dab343a544c0f506af35f713c5f5bac27",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "preview-sheets-delivery.json",
+        "sourceReceiptSha256": "9b1d31f721831c804b95dc0c14b6a3686b297bc146c166206e041da271d0bae5",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/renderer",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-renderer-ee8954c36626453a7454538d6313024385f4de68.tgz",
-      "relativeArchive": "deps/foss-earth-renderer-ee8954c36626453a7454538d6313024385f4de68.tgz",
-      "sha256": "5feb65a4c85319f8c7666f7728848a6ffc56daf3cb02afd8200700c881d1dc5d",
-      "bytes": 367096,
-      "revision": "ee8954c36626453a7454538d6313024385f4de68",
+      "archive": "deps/foss-earth-renderer-9a68115ae240ccb8e9fb28253787572fc09ddcef.tgz",
+      "relativeArchive": "deps/foss-earth-renderer-9a68115ae240ccb8e9fb28253787572fc09ddcef.tgz",
+      "sha256": "b3d19168e0933ea9514ed292c43240820382b394391ecfa44a524e609a203fc1",
+      "bytes": 376512,
+      "revision": "9a68115ae240ccb8e9fb28253787572fc09ddcef",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -1878,23 +1872,18 @@
         "./diagnostics": {
           "types": "./dist/babylon/diagnostics/index.d.ts",
           "import": "./dist/babylon/diagnostics/index.js"
+        },
+        "./vite": {
+          "types": "./dist/vite/index.d.ts",
+          "import": "./dist/vite/index.js"
         }
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/renderer-full-refs.json",
-        "sha256": "0caa1eedca2e460e37e1cb5c562a9bb2f6c2c11bae4065ae6a91d412e6446486",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "ee8954c36626453a7454538d6313024385f4de68"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/styles/frameBudget.css": "c3a71dd021183e74a2ba4c5f8fa3a91a61ef809403aeae14fb2ca6cb5fb4a650",
         "src/styles/frameBudget.css": "c3a71dd021183e74a2ba4c5f8fa3a91a61ef809403aeae14fb2ca6cb5fb4a650",
+        "dist/vite/babylonShaderChunks.js": "7f37edc6bf07d2b3506ac5f7e7c72a941d8efa805a9118ee631652bac671b8c7",
         "dist/browser.js": "75145aaf00b4d93e9dc81b16410290ad336f40760667440ac7e902ba081e0eb5",
         "dist/babylon/browserRenderer.js": "4808398a9b22303c93d67843f2489894e788ab25d5a3e46ec9c5cb724303dc85",
         "dist/babylon/canvasTextureDevice.js": "8380d091cadedb9fc4a095c4785df14566a65e3f85450e982f437338636c55be",
@@ -1919,6 +1908,7 @@
         "dist/index.js": "da5cad69e5bc142d13027711c4da337b789ccdcb6c1e32a0cf92b23da2fee035",
         "dist/panel/index.js": "8003a0b1a560fd0bd0ca5a61b2aedaab32f31ab37ed55e06ede9bbd6d7a08193",
         "dist/profiling/index.js": "5f92f911048078ab8824015f8fb8c7b405e2c28625de6d61a08b5f69e09aa457",
+        "dist/vite/index.js": "da53978adf998d0793e62bd7fa3195f0fc99b7a389729efd7ba60b275f52ca8a",
         "dist/babylon/diagnostics/metrics.js": "e2471fccddcf617e40df1d0c1a007d7b538231d74920960df48a47f873eadbf9",
         "dist/babylon/diagnostics/metrics.test.js": "0564c83870376739f56fcc58f954fff01c262bd39086d50d35658d280f67daee",
         "dist/babylon/pendingImageTexture.js": "ccdf76b3a94de4c32658bdc27bcfe65fbd514d759c56d36180011d653c2a00f3",
@@ -1943,13 +1933,17 @@
         ".attribution.json": "f4be8310bb514e13808115779d13d130ac3bbed54e4fca9de6af00602da8d994",
         "fixtures/diagnostics-extraction.json": "19bfa0e989571188587241fd2dfdf41972a408fafcc02a8dfddab102dcf5a4b5",
         "extraction-provenance.json": "87062e0ca35f863eaf4704e9cc3e787de55a24dddb6a9e06eb239a32cf8a5f49",
-        "package.json": "0f46f1762b8d9c299ffdc6577a3f75c966d02f5f37430fe364850a7a53e2ed01",
+        "package.json": "a79422851552e279be9e7f66a4e7b03743c7ff5dc24962412bd39daa0208ddc9",
+        "fixtures/vite/provenance.json": "e299b2203207facc4bff7621fe4ce4ecafeb70313466139126c044ceb06648df",
         "SOURCE_LINEAGE.json": "6b53f9b39199c5ce5a48039a79efd449621334f8c3ca6640a039e869cd7372bd",
-        "SOURCE_RECEIPT.json": "ef035a7c3d415e5f9286c6685b4442652112ab7ebd8dfe9cf60e0eeb55a91e7b",
+        "SOURCE_RECEIPT.json": "271667b80623033c6edaa4e7c3f3471fc15f22a9ba579ed13da0483409a45156",
         "tsconfig.build.json": "77e551c61320681cab3b093ada73a16528495b2f4911eb2f2c946b873d5a8f3c",
         "fixtures/tsconfig.json": "54200dd00b944ae96e8466bfdb1827558427af9cfc4c5895dea665dd9869f912",
         "tsconfig.json": "442873bb4757811049b57c1bbf0b4a9f4b19fe845fe712db94cf9e79cbd016e9",
         "fixtures/tsconfig.public.json": "5ff9a401d25c2206a8f0a8fa507d73e482e0bf7b4a4e5be3a1be7e6154dac3de",
+        "fixtures/vite/tsconfig.public.json": "c7578d711fc3ec661988b96e348bf83364c4394aea5e4ae9e18b27c7972efa05",
+        "dist/vite/babylonShaderChunks.d.ts.map": "c888d0f6239dffaff798a5df8a9a4838e73e32929597433d7a07106a6fc71696",
+        "dist/vite/babylonShaderChunks.js.map": "29cc7aeddcf1c633cf1293c3db6c9487e3b64cf6716594275c63bc0f70153a22",
         "dist/browser.d.ts.map": "b5f4958548ce57c47cdf7d6d19171ab3da06c6cb57a42af3a86065425487d364",
         "dist/browser.js.map": "c0f66589f88981d1be92ae394329e63b6c57e8e079214a6790b6933a8b79a0ea",
         "dist/babylon/browserRenderer.d.ts.map": "4a8d470692ba4c5fbde24b8559d2e68fb0971a37f31880f99dc493015ec4f0b4",
@@ -1993,11 +1987,13 @@
         "dist/index.d.ts.map": "841ec2ac17c7f324075de4e7f52bebc542154c8420727678ca56d85802809c95",
         "dist/panel/index.d.ts.map": "e3f7a98194d04850cdce14423870606ea2686e80c3fb219f25a61279f47a54e8",
         "dist/profiling/index.d.ts.map": "6b85c890d38f87831a29ca9385d2f714cb930e49cb1ff76aaa3842a7a5e48ba0",
+        "dist/vite/index.d.ts.map": "7e01d99e96fdaaa6092df549ad509883ba6e9d9a3fa2606351d67597b779e17a",
         "dist/babylon/diagnostics/index.js.map": "16dc818d9257df67daefdec9ea05009f1dae11c57a8ac7f4cf37a305e6acae50",
         "dist/babylon/index.js.map": "8952684bbc6e0524d018b38a85a91a4fe17572716a3277549c9c61c4390c947a",
         "dist/index.js.map": "9d6df7715b0729b586b9dd64b4c9dbe1c55d212b6cf4e8cf3bd02419deeae729",
         "dist/panel/index.js.map": "73e5314d3abc1ec4e9d94d9e1565cbfb80fdf8a9006433a3c8c5e2e393ee6e60",
         "dist/profiling/index.js.map": "142751428e420304cc1e2786697677476e603fa2556d066d4000cfcbf9d87215",
+        "dist/vite/index.js.map": "813ff17a11318ebbe6d5981b32cb02fd465893562e42219771665b9031742c14",
         "dist/babylon/diagnostics/metrics.d.ts.map": "773ee1da594c6a256f9e9f9b5420b0673f8730a95fbbc1e145741bb12d110af3",
         "dist/babylon/diagnostics/metrics.js.map": "af5ea275eeb84d08ede6a09cbfd37676899ad51b2d7be784fa9f1bd9d68f8be2",
         "dist/babylon/diagnostics/metrics.test.d.ts.map": "789e1f4043cc80aa75bd1a3b3423675e7703ad83a5b532b3bfb9d3b5ae1796d3",
@@ -2044,13 +2040,19 @@
         "docs/host-contracts.md": "d1ccca8e05a56509be05b48589c2f46810b6e9fdc56deafc255e5a2f067a7abd",
         "README.md": "aa5bf188f7e13a1f1f1cbdcc21e555f13fccc5e1eb8e0bf7020415d086e4d4c7",
         "SECURITY.md": "6baf6d3c1755360f5d902275c893074fd17af2fc10c140fe932b8a90d77d9942",
+        "docs/vite.md": "1d985fc9380fa9bcf2218ef1b4d155a915ad1ff932889c6d6f4a0c7e641e6652",
+        "fixtures/vite/check-built-graph.mjs": "a470988bbbdc02ca8a5751edce5a2582398c79923965773799b9e682fc9f3eab",
         "scripts/check-installed-artifact.mjs": "d0eb17bd331f9a2a3d6ec8489de52283ed7b56998d355ad7005ffe8453d593f8",
+        "fixtures/vite/check-node-import.mjs": "ffb4ad978ba66d7c686e84603a0c81f2acf3ee84818c06efd59b14e95bdf7357",
         "fixtures/consumer.mjs": "493ec46c646787a37bb18bccd9ecf1740e8c45815ff7f65f0e07f8d07c6a46b3",
         "scripts/copy-assets.mjs": "2e88e6267fd55612ae8e91aecd3ff4f240e62ad6f8a495b2514df14bef191120",
         "eslint.config.mjs": "ada5faa80a90dcde13e9516a49dc77694f56d3fda6f47932b59338eb0401f5a4",
         "fixtures/raw-transfer-consumer.mjs": "19d8f854e7b3ed48f75a6dd23349bbbc2269ca0a0b71f04cc376c178990ab9b1",
         "fixtures/work-scheduler-consumer.mjs": "59365c6041a4c678cbbf446bd7ec3754c85bf6efdd80b8a39ea6dc3f8683d138",
         "deps/foss-earth-ci-1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e.tgz": "bd884d925b8a7339b15fa61a477cf652bb73d41cc68addf50a050ab6cb151611",
+        "dist/vite/babylonShaderChunks.d.ts": "823039317e2d7bead8365146b9dcb168450f29642fdff7e5b18bd228a2831e54",
+        "tests/vite/babylonShaderChunks.test.ts": "06ceca055337148eb640612f9cc0e789d3dfcce9b3a76b268d16262b0f131860",
+        "src/vite/babylonShaderChunks.ts": "03594d8aa00a91b6366f89836872a012fb571866cbf09804e66638cd44ad217a",
         "dist/browser.d.ts": "e0b52c3995f66aeb847714adef381e448a71fb85eb2455e394093a36cf9d23ef",
         "tests/browser.test.ts": "5bb231951e0b4a4d2a9df30e7bad3ae60500bf0046f4a184cdf3e8b45cdc28ca",
         "src/browser.ts": "f822b084b34c3465a402c2fa01ddb3237c38864dc2e3c0fa5afa9f68d5f86dbd",
@@ -2103,11 +2105,13 @@
         "dist/index.d.ts": "11df76b6b758d91c72fd4c4b0c3cec0e7d2adcba8eab37fc745c10c3e88110c4",
         "dist/panel/index.d.ts": "1deac6a3dc24f69b0cc527e212a404ac27de8282344f3e40c5586017e627c59e",
         "dist/profiling/index.d.ts": "a78d9d851c2162ee9c7a048c4171ad6f5e1745ef2ab22018694ac89e3f40c7e4",
+        "dist/vite/index.d.ts": "7ad3887ba1bfdd705b8d7afc9dc056a83d8df8b813151430c6dd3ad05ae7cee1",
         "src/babylon/diagnostics/index.ts": "7c37cfe8f90fce6ba62104d9e58f2eb0b5a010c290c1c1d3fc8294ee24ec5b2a",
         "src/babylon/index.ts": "bd10d92b3a9058d23360bfc9b551b9f3357b3aad06eafb50a72cb32147a9018a",
         "src/index.ts": "44077aae08a321709320fcb54af919030ff7fd7265ec35b234730c9b205594ea",
         "src/panel/index.ts": "e5d22e47c01ad12a58bcc0a5c7e3c41d4d39777b883afb01c9b8d1a66db24e73",
         "src/profiling/index.ts": "13883ce127f11c22c098bab30de7e6f5c011a04c2bda04b6376383d899fd1925",
+        "src/vite/index.ts": "2535e445044f98b38c197adf265c02fcbe74d6e6b214c4cff2f25a0d39c417ec",
         "dist/babylon/diagnostics/metrics.d.ts": "e05e2e73a207ad03e2501e98e7f0367bffb9b219b9d3ff1be3ad1dbe6be7f738",
         "dist/babylon/diagnostics/metrics.test.d.ts": "08fa7ddb320128900cd9998be989514a6c65e520b37d8e8fa63bfb1c4a288e4c",
         "src/babylon/diagnostics/metrics.test.ts": "9c32e7fc01190af5ec1b753a5b9dafd1fe2759ce219e396797c44c0e3ab4f455",
@@ -2115,6 +2119,7 @@
         "dist/babylon/pendingImageTexture.d.ts": "ebf2098ea2892b68b2be3ca00d83411ce81bfefb83e3f88b4518e78898ba32f1",
         "tests/pendingImageTexture.test.ts": "39dbf013037bee96f46048923da1685a5b4ed2256037f5271226ebc5abeeba9f",
         "src/babylon/pendingImageTexture.ts": "fddbd1721c14d499c93d64f767c5bba9b120decd8d53ee93662b9dc5b6df8aed",
+        "fixtures/vite/phone.ts": "bb3267527304b5677040b12fa332850cdb615cfc1e5a4b1db525612ba228d931",
         "dist/babylon/presentationCandidates.d.ts": "c52b79ee2541a0564d73b39b3bb6122b015db6209e35be1832bcb01aed5fc138",
         "tests/presentationCandidates.test.ts": "dbebd2379676082743e08cc51593f0e3831b63ad8305017aa3f6b88fed1f88d3",
         "src/babylon/presentationCandidates.ts": "25ff994025c033a653adcd1bf0b5aee9a548bb5196a58fa8c4db65d58462a93a",
@@ -2123,11 +2128,13 @@
         "dist/settings/profiling.d.ts": "33a54646b54b056e937104e6b0479f505db2a04ed2129ac82aaa374b4ae3fd89",
         "src/settings/profiling.ts": "ee8f1deb1c3e2baf5ccfadb3147c4f617ac7bf8feede664f9f7bac8a836b1713",
         "tests/profilingLifecycle.test.ts": "82c401f6037d56801b22d578b355d921be74b4352fd0f14fa4012a2ca94c551f",
+        "fixtures/vite/public-contract.ts": "a2a1266ece9acf38407f352e93e1aed005ff26176e898b26b6897c40ff441d81",
         "fixtures/pure-consumer.ts": "8915913ed44b4074bd11df5481108ae981b4ea39b502e09562abfa06c0e8a090",
         "tests/rawTextureBatch.test.ts": "3130c21502ff346207f5724ffd10b7899bdaeb8a7f23f55548614a5d2d70d069",
         "dist/readiness.d.ts": "2eb046ef2c3d5099ebe066c44fbe5a4d098d84372bc814bf0a0c4ccdbd6b08d2",
         "tests/readiness.test.ts": "a0d43f3af1a13971dbfbc7f6d16d456f00fde3394ccbd8162ebb8e01b69853e3",
         "src/readiness.ts": "1cc2b8b1ad9b9a9d35a1616ef2a290c7bef2a6d42288def1213d91fa4f45cab3",
+        "fixtures/vite/renderer.ts": "a9d05e9a241d1eb082d6a47949cfb4a905bd70dd8ea62e0e4cbfc04513c384e5",
         "tests/rendererChoice.test.ts": "d0358d2bfbcc3c39fe20cd5672541839b7de1b0c7acbc6b981441f333b57c2e0",
         "dist/babylon/rendererLifecycle.d.ts": "9df238c8ee3144ec61b1e3389fbc4e9cd21c1259f284bf833a00d073b383b93f",
         "tests/rendererLifecycle.test.ts": "aa24d336a46a0b86ba947340c87f3680b4a7db6054ff4d07a429bea8c5d00be2",
@@ -2170,16 +2177,21 @@
         "src/babylon/webgpuPresentationProbe.ts": "144085c5913f081eda1a6f55cc90901c8720a8d6fa05fa9d2e321ded246b7c65",
         "fixtures/work-scheduler.ts": "560338552fe5751ccaebb38e4f3917220534ead645c0cb32ba43d2ced733fdb1",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "renderer-delivery.json",
+        "sourceReceiptSha256": "271667b80623033c6edaa4e7c3f3471fc15f22a9ba579ed13da0483409a45156",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/sky",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-sky-65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5.tgz",
-      "relativeArchive": "deps/foss-earth-sky-65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5.tgz",
-      "sha256": "a7e01c7cdc08aba81d70ad833d4f3a81b6b0acb45b50ade675ffb9e9a2036363",
-      "bytes": 455730,
-      "revision": "65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5",
+      "archive": "deps/foss-earth-sky-6720abe37543682e118e5cee85dff9243449dd2d.tgz",
+      "relativeArchive": "deps/foss-earth-sky-6720abe37543682e118e5cee85dff9243449dd2d.tgz",
+      "sha256": "0d0f5ef72380590a5a1177882176e63cec372212725b7259f9d2311486b03eb7",
+      "bytes": 456017,
+      "revision": "6720abe37543682e118e5cee85dff9243449dd2d",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2203,17 +2215,7 @@
           "import": "./dist/catalogue.js"
         }
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/sky-r4-full-refs.json",
-        "sha256": "4840010b7583c641230afa337ab8e23b6b9081188560b4f7d6a2c8719c896a7c",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/styles/sky.css": "b7208c552fb3ad186137177fffcffcbe81617f78be5fc2bcedcefba4c20eb298",
@@ -2251,7 +2253,7 @@
         "package.json": "f26ee118ca283ddebbe8e2f79b77d4c895149dd69760ce7d64854a1210cf9637",
         "provenance.json": "b08d5755335a5063239918f474efbb89f547893a12dd0e9c3279cf91e6b2cb36",
         "SOURCE_LINEAGE.json": "7adbd8ce568be8c06c66d90150245f98234d50572ad0fa8aac1b37ce63e376ef",
-        "SOURCE_RECEIPT.json": "2dd2c3323e4df089e16e3b66c3072d81afe15d9dfeef8424f1fe15b3655f0a23",
+        "SOURCE_RECEIPT.json": "9348e31081a961c672c3d1a81d71394d8aa87b058a2935cc39ea9609e9726065",
         "SOURCE_SELECTION.json": "7a19cb54ae7203530ea4774996678d65ff42612dcc1bbcafbbbf864b8602d829",
         "fixtures/consumer/tsconfig.json": "104d599974228a5dc9d89ccdbe14e0393b18399d0942ddbb8f821f4c16d81b1c",
         "scripts/validation/tsconfig.json": "7df785c8636ce97d3dd593244421b458cf73c6f6aab2d6c77014bb714d82e1df",
@@ -2312,16 +2314,21 @@
         "dist/time.d.ts": "d507fd20de9a4cca0f08dcb97fbc9c683d87dd9bc51aa830b8f9949ee5d425ed",
         "dist/units.d.ts": "b5283461e9ccfa59569f669d07cabca571428518d1bf72383a9be1f97ce7ff47",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "sky-delivery.json",
+        "sourceReceiptSha256": "9348e31081a961c672c3d1a81d71394d8aa87b058a2935cc39ea9609e9726065",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/tiled-cubemap",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-tiled-cubemap-7e573b7796d90317d32c1570c31b99816d6c4a7b.tgz",
-      "relativeArchive": "deps/foss-earth-tiled-cubemap-7e573b7796d90317d32c1570c31b99816d6c4a7b.tgz",
-      "sha256": "1cd7c3d65274437f39388bddf7273eb209eea91a5417d721260a9b7f11f1bfef",
-      "bytes": 134838,
-      "revision": "7e573b7796d90317d32c1570c31b99816d6c4a7b",
+      "archive": "deps/foss-earth-tiled-cubemap-987c673ed25c402766c38cdef1d9273970f05427.tgz",
+      "relativeArchive": "deps/foss-earth-tiled-cubemap-987c673ed25c402766c38cdef1d9273970f05427.tgz",
+      "sha256": "9a3712a18d4afa89f825612a728785d330cd4a35d4d4ea72521b0423c82107fd",
+      "bytes": 135079,
+      "revision": "987c673ed25c402766c38cdef1d9273970f05427",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2353,17 +2360,7 @@
           "import": "./dist/catalogue.js"
         }
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/tiled-cubemap-full-refs.json",
-        "sha256": "9bfb3f05bdd66c6acfa12767be8757df6305da73c5cb9e12d9874d15bb4a8c98",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "7e573b7796d90317d32c1570c31b99816d6c4a7b"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/catalogue.js": "e18c45d1a4027d60a309362e3c92b12f295a2ef6b395b28eda005f4cbe45cf8d",
@@ -2385,7 +2382,7 @@
         "PROVENANCE.json": "efe97fb008a56070d908d8f55c0e2cf8a527487beefd137dfe2cc9835d675a97",
         "schema/representation.json": "30b335df928301439fe093e52683e8d6275b685cd7d7727df554bf16023e03e6",
         "SOURCE_LINEAGE.json": "425357299cdf871b087d0a28aa143bc831176899794021bede52d6cfba6a87f1",
-        "SOURCE_RECEIPT.json": "ca0b65976882bee1912906d8c18343393063585fca953d27b4f4080b0a7ba86a",
+        "SOURCE_RECEIPT.json": "02f7fc54abadd2cb02a8720e1e6a0b958a38f82132d7e7a21e1f49468eccfbe2",
         "AGENTS.md": "699d4d5f9c89e9ad885ff2453ff3dbc2c385f29ef200b345b43302a09e655e00",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
         "CONTRIBUTING.md": "3401cef4bccbc2f2ea98da30a1b0ed618c0f6e3b0f9722b638ccbb7cc6fc119d",
@@ -2406,16 +2403,21 @@
         "dist/tileScheduler.d.ts": "45ce7e3d7e73dcfa30370770c87e6feefc9cb158134b8f746716c29e5be9889a",
         "dist/tileSelection.d.ts": "6e1af03b9a86873237e0c0c3e1d5d49af5a74fd2dea1ed17430db7e60d3edb32",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "tiled-cubemap-delivery.json",
+        "sourceReceiptSha256": "02f7fc54abadd2cb02a8720e1e6a0b958a38f82132d7e7a21e1f49468eccfbe2",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/toolbar",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-toolbar-a1b34e52fdab9068fbeab1301ffc0165d445dcae.tgz",
-      "relativeArchive": "deps/foss-earth-toolbar-a1b34e52fdab9068fbeab1301ffc0165d445dcae.tgz",
-      "sha256": "ec900c7c866d8da3e09e3bb62f70cb2bb3bd137c649af55c5579dba6d3a5e118",
-      "bytes": 147277,
-      "revision": "a1b34e52fdab9068fbeab1301ffc0165d445dcae",
+      "archive": "deps/foss-earth-toolbar-6918624c214f1619b80a9ed8d7c90e10b10b9cab.tgz",
+      "relativeArchive": "deps/foss-earth-toolbar-6918624c214f1619b80a9ed8d7c90e10b10b9cab.tgz",
+      "sha256": "91436856c075797b61679b833eb8002841347bb019a1df3eabc2e0a8c8a73215",
+      "bytes": 147433,
+      "revision": "6918624c214f1619b80a9ed8d7c90e10b10b9cab",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2431,17 +2433,7 @@
         },
         "./styles.css": "./dist/styles/toolbar.css"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/toolbar-r4-full-refs.json",
-        "sha256": "44195d8859602010ed11cde5ad064cc55f1c938816c9bd77f260c53969bbbe5b",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "a1b34e52fdab9068fbeab1301ffc0165d445dcae"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/styles/toolbar.css": "6217a5d129cbf5baf40ea805cd102842cd9b02d5b78b7d244617b4ae4599d6f3",
@@ -2477,7 +2469,7 @@
         "fixtures/renderer-activity-extraction.json": "42bcfd3228eeb07d7c82a3185d1dea0e8407900c0edd82f4e8193f419287854f",
         "fixtures/selected-original-paths.json": "586118af93d44fad007067930c71c47e8ea871271f6d85b4790c10b95e13c62b",
         "SOURCE_LINEAGE.json": "c077a83c2bb9936d56966270b68c607ead9c8adf5b9515fc0ad50ce42b33b9cd",
-        "SOURCE_RECEIPT.json": "a30a7e8682712b8e5c0ec3547a4325449fdd6aa94c84f24478e336d38292bf0d",
+        "SOURCE_RECEIPT.json": "d611a2783dedc92da725d139aa923669f876f4e0bef45340e02a540252014d11",
         "fixtures/consumer/tsconfig.json": "d3dca0e2f4a3036d6b1c9d8b0cec371392453f05b3999c0e932d8b6ac85b2440",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
         "CONTRIBUTING.md": "d1c8e8ff3427a5402751a2cff187940d10227aaf65bb40ee150deae3446ac78f",
@@ -2510,16 +2502,21 @@
         "dist/settings.d.ts": "15fd387573ec547ccdec485baee57c678f1efde847f633c7a64d86d3d8558da1",
         "dist/browser/statusHud.d.ts": "5f6e3db2d3758d85b5da426e11a7898634f8b593a6b030437945b7891ea600c7",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "toolbar-delivery.json",
+        "sourceReceiptSha256": "d611a2783dedc92da725d139aa923669f876f4e0bef45340e02a540252014d11",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/ui",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-ui-8a34c3732fdaf3049035c7411a893380ccd1e4b7.tgz",
-      "relativeArchive": "deps/foss-earth-ui-8a34c3732fdaf3049035c7411a893380ccd1e4b7.tgz",
-      "sha256": "78ead4a0f76d9c97cbd07573670382f34ed4be4be729e2fc52d479c196b12518",
-      "bytes": 273534,
-      "revision": "8a34c3732fdaf3049035c7411a893380ccd1e4b7",
+      "archive": "deps/foss-earth-ui-c4edc5b2186aa96ccc7ea779f836d1641d0fefd7.tgz",
+      "relativeArchive": "deps/foss-earth-ui-c4edc5b2186aa96ccc7ea779f836d1641d0fefd7.tgz",
+      "sha256": "6870f792bc2e480da70ecbf1b7870274204b96830a1d2bb05b141745cf6e09ef",
+      "bytes": 273820,
+      "revision": "c4edc5b2186aa96ccc7ea779f836d1641d0fefd7",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2556,17 +2553,7 @@
         "./status.css": "./dist/styles/status.css",
         "./mesh-inspector.css": "./dist/styles/meshInspector.css"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/ui-r4-full-refs.json",
-        "sha256": "667504cd78a079888248f57605960d46ae60f1e2e47eec48d0842f5769c18bd7",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "8a34c3732fdaf3049035c7411a893380ccd1e4b7"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "dist/styles/cacheSection.css": "7f8681164ea6faed28b459fec437c8b5f18ad4238da6f8f8ead984ebaf3bff31",
@@ -2662,7 +2649,7 @@
         "provenance.json": "b18d767941ac30a78b19b87b2308a97ace863ffb91f84d54c84cc3e46a110a98",
         "fixtures/settings-v1.json": "9957c3052ca4a8389d798f2dadd6d625ca5c420d17e62efd8891398cd98ad491",
         "SOURCE_LINEAGE.json": "9938b39df1e941060ab4e5646c53262e2e181827276f6570ad9196e1f91a9a08",
-        "SOURCE_RECEIPT.json": "7b1e335fd350a4a42b62a4214939dab8717781bd7d7e81063f2db050559e1787",
+        "SOURCE_RECEIPT.json": "83c3f07cef159da5f856ef4bf8a7313b6fef7290524865b2fa3b086c3518d5f7",
         "fixtures/source-review.json": "adbe78057b2ab387040b04c95876e1f10f3287c105f4af7b7d3125916bb98ea5",
         "fixtures/consumer/tsconfig.json": "8607635d7d88815085aac0f8e5fa33eaa18c512989c64e124cac64b7c20fc851",
         "fixtures/workspace.json": "20785c9fdfe56944b0fe95348a0a87bb25cff2082c84c85827d51100d8eef8da",
@@ -2759,16 +2746,21 @@
         "dist/windowing/core/workspacePersistence.d.ts": "828e87ed987433078e6e31510192baf4094c79a50b46ab0dcb4acedc6dbd8b0b",
         "dist/windowing/core/workspaceState.d.ts": "8d2501c8d36d0a4b8b9694d585d0c9faa851f56f7a9b7e5b64cd228560afc525",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "ui-delivery.json",
+        "sourceReceiptSha256": "83c3f07cef159da5f856ef4bf8a7313b6fef7290524865b2fa3b086c3518d5f7",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/weather",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-weather-aab33d5152271949ec323735742ffd34b19c78d1.tgz",
-      "relativeArchive": "deps/foss-earth-weather-aab33d5152271949ec323735742ffd34b19c78d1.tgz",
-      "sha256": "282f3ffdb83e67f3292ac8a7ff694b62cde882f757c90396cf1591c29ffaae17",
-      "bytes": 107867,
-      "revision": "aab33d5152271949ec323735742ffd34b19c78d1",
+      "archive": "deps/foss-earth-weather-cc19e3f12208d1070df49bfe168a7149e3a75ca6.tgz",
+      "relativeArchive": "deps/foss-earth-weather-cc19e3f12208d1070df49bfe168a7149e3a75ca6.tgz",
+      "sha256": "b772c8092ad5d27412499666e60daee1f044951fe8e846768aadcf24263fbe65",
+      "bytes": 108323,
+      "revision": "cc19e3f12208d1070df49bfe168a7149e3a75ca6",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2780,19 +2772,9 @@
         },
         "./styles.css": "./dist/styles/weather.css"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/weather-r4-full-refs.json",
-        "sha256": "86694a34a8048a6506d2ee22042e2055923e643750128d562914808be36a202b",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "aab33d5152271949ec323735742ffd34b19c78d1"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
-        "NOTICE": "5bd2680c0815648da8724daa0cd07afae3d3e5da59ec3c4b0837fd10e12628bd",
+        "NOTICE": "d00b3b693b87b31561cad3d87c2115977a54108de41088d1d35b5bab43919cfa",
         "dist/styles/weather.css": "00a35dda35698281047b020bef677d08066feadc14658fc96cca245a3e735502",
         "dist/index.js": "3e6186208b5bdde4c83d32750fa0c43f6bde030384ea7f0282a0b778bd89bbcd",
         "dist/LegacyManualWindPanel.js": "7556f7f2aa9834cdb393b2997895a71742658bfcb838284de9e264a5355f89fa",
@@ -2802,9 +2784,9 @@
         ".attribution.json": "f4be8310bb514e13808115779d13d130ac3bbed54e4fca9de6af00602da8d994",
         "dependency-pins.json": "6af9a24b2c65dfc91f6bba5aadcc0fa388d1ab3fa98773eb2970940ecbbff448",
         "package.json": "0fbdbbe51b4ec92329bc721b7f333b9cd72d4a66343350b4102b75cf2248f915",
-        "provenance.json": "c5bf414913213a244378e983cfd0443f75580a8a7d097bacab828e757b4a85c0",
+        "provenance.json": "9f2c6c26ac79b5b991dbae026c7c8a435fc661a84f92d167707776ebab5c2195",
         "SOURCE_LINEAGE.json": "1692162673d9c892281e14621b5b0c04e3e3fa0bb94b0e95aef131c66d85693a",
-        "SOURCE_RECEIPT.json": "2ea491c56441aca1e1a09e25b786f90a683807b63faf5e99eb07f0f661d90ac6",
+        "SOURCE_RECEIPT.json": "2ec94a829f7f5b1dfaa56861410d9daf0bd7c8c8bd171697e355389f0b242346",
         "fixtures/consumer/tsconfig.json": "d3dca0e2f4a3036d6b1c9d8b0cec371392453f05b3999c0e932d8b6ac85b2440",
         "AGENTS.md": "118a77e18471be60397ec053dbeebf7c7c9137d4257d8234317146d896267d8b",
         "CODE_OF_CONDUCT.md": "c3a907b9e659a0f5a4c701be1b34a7d416526c3a99f129bf4d3b9db09c7ffa9d",
@@ -2821,16 +2803,21 @@
         "fixtures/consumer/minimal.ts": "93d3a3254e0141fd0b944c2dbe4e007804b98ac5ec9e44f6be447cf3ce95b38b",
         "dist/react.d.ts": "bc2b50e955db60f67bb020bc61883ad7c1f2bef870d8d1b61a261fc28d6d5733",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "weather-delivery.json",
+        "sourceReceiptSha256": "2ec94a829f7f5b1dfaa56861410d9daf0bd7c8c8bd171697e355389f0b242346",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {
       "name": "@foss-earth/scenes",
       "version": "0.1.0",
-      "archive": "deps/foss-earth-scenes-2ac022d043901e4ad6d3a4cda86f6dc2a5f90f3c.tgz",
-      "relativeArchive": "deps/foss-earth-scenes-2ac022d043901e4ad6d3a4cda86f6dc2a5f90f3c.tgz",
-      "sha256": "95e441e5f166c8eb6c1778c88433646f21774849573807dd467fa7ac377b48be",
-      "bytes": 264346,
-      "revision": "2ac022d043901e4ad6d3a4cda86f6dc2a5f90f3c",
+      "archive": "deps/foss-earth-scenes-d58408d90542a73282d8bf544c54e0c9bf847b56.tgz",
+      "relativeArchive": "deps/foss-earth-scenes-d58408d90542a73282d8bf544c54e0c9bf847b56.tgz",
+      "sha256": "451a0ac2ec289ff60087e0f0da43d42a984465b27fc65c8a04ff8f80e1a791ad",
+      "bytes": 264587,
+      "revision": "d58408d90542a73282d8bf544c54e0c9bf847b56",
       "publicExports": {
         ".": {
           "types": "./dist/index.d.ts",
@@ -2857,17 +2844,7 @@
         },
         "./build-preview-cli": "./node/build-preview-cli.mjs"
       },
-      "sourceDescriptor": {
-        "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/scenes-full-refs-complete.json",
-        "sha256": "3bc445c72d9effec8a8f3f6fec979f58b3989e01443a7c67c36444c69dbf48a0",
-        "refs": [
-          {
-            "name": "refs/heads/main",
-            "oid": "2ac022d043901e4ad6d3a4cda86f6dc2a5f90f3c"
-          }
-        ]
-      },
-      "fullArchiveFiles": {
+      "files": {
         "LICENSE": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
         "NOTICE": "323da85db96d02ed0cf48db889efa184037f538f002e868aeeff396ebb44a993",
         "styles/panel.css": "1221df4d8e4e8a1b99119e33f260e8e9b703efe5b423795c1029e8cafe9dc433",
@@ -2895,7 +2872,7 @@
         "SOURCE_LINEAGE.json": "7c0a2f13e64dd5507151553528a44d334cc74c71ede1c5171361eaa4cabda0a4",
         "SOURCE_PLAN.json": "c67c93ede6ce03ee8a31c3fce0c8e63fea0293a2c2831b8665ec2adfcf96caa0",
         "SOURCE_PROVENANCE.json": "23b517c053676745bbcddee36ad95f100b5a63ecdf043c80f5d6cc31c9f3ca8a",
-        "SOURCE_RECEIPT.json": "2db42cfb176c47e913f34bcd980f70a4e174a29f0be9912c862d32b22cc63a3e",
+        "SOURCE_RECEIPT.json": "f85208272c32878e8098b96b2022f97bd357bd4a25422e6904cda9f8db2a3745",
         "tsconfig.json": "004b4a9b4c500c3e49b34dcf8b2f5ff03711b76a0aa685abb605bc8a6a72ebd6",
         "dist/browser.d.ts.map": "5a4d2d857e77971284388cd929392fdf74c58bc58f1a502487a3f75077aaf137",
         "dist/browser.js.map": "d8ced508df8c66f921714c37817c6f0451096e7921b02b4c6ac919f581d88e31",
@@ -2980,6 +2957,11 @@
         "dist/validateScene.d.ts": "8fa859bbbf452de44b77fbd45e41b4050b7b8384027be737de519d3f5365e5ee",
         "src/validateScene.ts": "5dd9f61b5f5a2622699931102e4509b06632a9e7a00173b52bfccbaf03134070",
         ".github/workflows/attribution-check.yml": "b9fdfbf4bd61ed727abaef4fd9990b92714a6d2c1388feec600dc16337436b2c"
+      },
+      "qualification": {
+        "publicEvidenceId": "scenes-delivery.json",
+        "sourceReceiptSha256": "f85208272c32878e8098b96b2022f97bd357bd4a25422e6904cda9f8db2a3745",
+        "scope": "Exact sealed split owner; implementation retained or checked as recorded; remote/downstream gates separate"
       }
     },
     {

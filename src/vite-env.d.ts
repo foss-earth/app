@@ -20,4 +20,5 @@ declare global {
   const __BUILD_TIME__: string;
   const __SOURCE_VERSION__: string;
   const __REPOSITORY_SLUG__: string;
+  const __PAGES_REPOSITORY_SLUG__: string;
 }

@@ -191,7 +191,6 @@ export interface GlobeAppOptions {
 /** Pixel offset from the projected sphere centre to the top-right exit button. */
 const POI_EXIT_BTN_OFFSET_PX = 22;
 /** The site's GitHub repository, whose latest deploy About names. */
-const REPOSITORY_SLUG = __REPOSITORY_SLUG__;
 
 export { getAppIdentity, getLoadedBundleName } from "./appIdentity";
 
@@ -849,7 +848,7 @@ export async function createGlobeApp(
     : null;
   // Its own tab, under +, where someone looking for which version runs looks for it.
   const aboutShown = new Set<() => void>();
-  const about = createAboutPanel({ publishedVersion, site: REPOSITORY_SLUG || undefined,
+  const about = createAboutPanel({ publishedVersion, site: typeof __PAGES_REPOSITORY_SLUG__ === "string" ? __PAGES_REPOSITORY_SLUG__ : undefined,
     document, fetch: window.fetch.bind(window), createAbortController: () => new AbortController(),
     externalLinkIcon: () => createExternalLinkIcon(document),
     whenShown(_element, listener) { aboutShown.add(listener); return () => { aboutShown.delete(listener); }; },

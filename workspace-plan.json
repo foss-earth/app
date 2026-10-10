@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "Earth application workspace preparation plan; NOT an executable installer manifest",
-  "status": "SOURCE-ONLY UNRUN, no invented app/source/archive transport pins",
+  "status": "Exact public provider closure recorded in dependency-pins.json; shared installer full-default/source/package/hybrid qualification pending checked replacement and renewed grant",
   "owner": "foss-earth",
   "defaultMode": "source",
   "supportedModesPendingQualification": [
@@ -25,7 +25,7 @@
     "weather",
     "360",
     "scenes",
-    "foss-earth.github.io"
+    "app"
   ],
   "repositories": [
     {
@@ -34,8 +34,8 @@
       "destination": "foss-earth/ui",
       "publicPackage": "@foss-earth/ui",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "55eff46979f9e580ddf98f00adef7a96cb7c8005",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "c4edc5b2186aa96ccc7ea779f836d1641d0fefd7",
+      "currentReleaseRevision": "c4edc5b2186aa96ccc7ea779f836d1641d0fefd7",
       "dependsOn": [],
       "packageDependsOn": [],
       "steps": [
@@ -50,7 +50,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -62,11 +62,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "images",
@@ -74,8 +74,8 @@
       "destination": "foss-earth/images",
       "publicPackage": "@foss-earth/images",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "5b50ff409c72f545408bf1397ec29aae428ade8e",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "669b93b8a7f2e5d671c36a29a84761275265b2f7",
+      "currentReleaseRevision": "669b93b8a7f2e5d671c36a29a84761275265b2f7",
       "dependsOn": [
         "ui"
       ],
@@ -94,7 +94,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -106,11 +106,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "renderer",
@@ -118,8 +118,8 @@
       "destination": "foss-earth/renderer",
       "publicPackage": "@foss-earth/renderer",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "6c8ffc7dcad12a6156a7a7fe13699c45e06f489d",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "9a68115ae240ccb8e9fb28253787572fc09ddcef",
+      "currentReleaseRevision": "9a68115ae240ccb8e9fb28253787572fc09ddcef",
       "dependsOn": [
         "ui"
       ],
@@ -138,7 +138,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -150,11 +150,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "cubemap",
@@ -162,8 +162,8 @@
       "destination": "foss-earth/cubemap",
       "publicPackage": "@foss-earth/cubemap",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "09e28fa28d916ec3d907b6a75fe7f150b8c5155e",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "d061dc53e8ce27eb7902c447aec01144b955f0a5",
+      "currentReleaseRevision": "d061dc53e8ce27eb7902c447aec01144b955f0a5",
       "dependsOn": [
         "images",
         "renderer"
@@ -184,7 +184,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -196,11 +196,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "equirectangular",
@@ -208,8 +208,8 @@
       "destination": "foss-earth/equirectangular",
       "publicPackage": "@foss-earth/equirectangular",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "0873cda1f00cdb1db6271b856112a9b25eefe8e5",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "0bfc0554c8ae924aada57678cc90dc61f56d2dc7",
+      "currentReleaseRevision": "0bfc0554c8ae924aada57678cc90dc61f56d2dc7",
       "dependsOn": [
         "images",
         "renderer"
@@ -230,7 +230,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -242,11 +242,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "tiled-cubemap",
@@ -254,8 +254,8 @@
       "destination": "foss-earth/tiled-cubemap",
       "publicPackage": "@foss-earth/tiled-cubemap",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "be60a481e58b5b340662df00d4719a9f4db7913a",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "987c673ed25c402766c38cdef1d9273970f05427",
+      "currentReleaseRevision": "987c673ed25c402766c38cdef1d9273970f05427",
       "dependsOn": [
         "cubemap",
         "images",
@@ -280,7 +280,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -292,11 +292,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "preview-sheets",
@@ -304,8 +304,8 @@
       "destination": "foss-earth/preview-sheets",
       "publicPackage": "@foss-earth/preview-sheets",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "fd53a2813d3906ff8e33d1ead4f3d77dbcd440e0",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "138939f845c5ab384740773a46eb4350bf2b4066",
+      "currentReleaseRevision": "138939f845c5ab384740773a46eb4350bf2b4066",
       "dependsOn": [
         "cubemap",
         "images",
@@ -328,7 +328,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -340,11 +340,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "sky",
@@ -352,8 +352,8 @@
       "destination": "foss-earth/sky",
       "publicPackage": "@foss-earth/sky",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "b8bd082dfe136da1db84198c05905b39d39bfe30",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "6720abe37543682e118e5cee85dff9243449dd2d",
+      "currentReleaseRevision": "6720abe37543682e118e5cee85dff9243449dd2d",
       "dependsOn": [
         "ui"
       ],
@@ -372,7 +372,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -384,11 +384,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "engine",
@@ -396,8 +396,8 @@
       "destination": "foss-earth/engine",
       "publicPackage": "@foss-earth/engine",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "4dca3d5378e80d340468f12ce3150bc3ad6dbf2d",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "693d48d80911dda364140202413e2d16c08a79ba",
+      "currentReleaseRevision": "693d48d80911dda364140202413e2d16c08a79ba",
       "dependsOn": [
         "images",
         "renderer",
@@ -422,7 +422,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -434,11 +434,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "toolbar",
@@ -446,8 +446,8 @@
       "destination": "foss-earth/toolbar",
       "publicPackage": "@foss-earth/toolbar",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "4d8a871b0cee7f762144ef131717f4d9c761b018",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "6918624c214f1619b80a9ed8d7c90e10b10b9cab",
+      "currentReleaseRevision": "6918624c214f1619b80a9ed8d7c90e10b10b9cab",
       "dependsOn": [
         "ui"
       ],
@@ -466,7 +466,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -478,11 +478,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "about",
@@ -490,8 +490,8 @@
       "destination": "foss-earth/about",
       "publicPackage": "@foss-earth/about",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "19a99a9aa1b35514628df8a0ff5b0dc0f9bdbcb4",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "75277f70092cd8d18679f87a94361f83c779c6ad",
+      "currentReleaseRevision": "75277f70092cd8d18679f87a94361f83c779c6ad",
       "dependsOn": [],
       "packageDependsOn": [],
       "steps": [
@@ -506,7 +506,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -518,11 +518,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "dev",
@@ -530,8 +530,8 @@
       "destination": "foss-earth/dev",
       "publicPackage": "@foss-earth/dev",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "4e4f3bf75a0fab4e2db2e893b1aa1c3d8c4a25c0",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "99c7259c87f20855e2da89557be3ad379c104e84",
+      "currentReleaseRevision": "99c7259c87f20855e2da89557be3ad379c104e84",
       "dependsOn": [],
       "packageDependsOn": [],
       "steps": [
@@ -546,7 +546,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -558,11 +558,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "weather",
@@ -570,8 +570,8 @@
       "destination": "foss-earth/weather",
       "publicPackage": "@foss-earth/weather",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "972e8d9fcea4e7b7a086cfaae6bca84ac6a46774",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "cc19e3f12208d1070df49bfe168a7149e3a75ca6",
+      "currentReleaseRevision": "cc19e3f12208d1070df49bfe168a7149e3a75ca6",
       "dependsOn": [],
       "packageDependsOn": [],
       "steps": [
@@ -586,7 +586,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -598,11 +598,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "360",
@@ -610,8 +610,8 @@
       "destination": "foss-earth/360",
       "publicPackage": "@foss-earth/360",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": "2f2bfae7b55d7b32245829e61f185c64065af85c",
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "bcb2a028dcbe827618402f7b0060e533a659b0e5",
+      "currentReleaseRevision": "bcb2a028dcbe827618402f7b0060e533a659b0e5",
       "dependsOn": [
         "cubemap",
         "equirectangular",
@@ -642,7 +642,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -654,11 +654,11 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
       "id": "scenes",
@@ -666,8 +666,8 @@
       "destination": "foss-earth/scenes",
       "publicPackage": "@foss-earth/scenes",
       "version": "0.1.0",
-      "qualifiedCandidateRevision": null,
-      "currentReleaseRevision": null,
+      "qualifiedCandidateRevision": "d58408d90542a73282d8bf544c54e0c9bf847b56",
+      "currentReleaseRevision": "d58408d90542a73282d8bf544c54e0c9bf847b56",
       "dependsOn": [
         "360",
         "cubemap",
@@ -696,7 +696,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -708,16 +708,16 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.js"
           ]
         }
       ],
-      "installedPackagesState": "full exact archive maps available only for historical candidates; current locks/reseals pending"
+      "installedPackagesState": "Exact current archive/export/file maps in dependency-pins.json and external delivery; source linking and bootstrap not yet qualified"
     },
     {
-      "id": "foss-earth.github.io",
-      "repository": "foss-earth/foss-earth.github.io",
-      "destination": "foss-earth/foss-earth.github.io",
+      "id": "app",
+      "repository": "foss-earth/app",
+      "destination": "foss-earth/app",
       "publicPackage": "foss-earth",
       "version": "0.1.0",
       "qualifiedCandidateRevision": null,
@@ -768,7 +768,7 @@
             "--no-fund"
           ],
           "outputs": [
-            "node_modules"
+            "node_modules/.package-lock.json"
           ]
         },
         {
@@ -780,7 +780,7 @@
             "build"
           ],
           "outputs": [
-            "dist"
+            "dist/index.html"
           ]
         }
       ],

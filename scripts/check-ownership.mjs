@@ -102,4 +102,4 @@ const caller = await read('.github/workflows/attribution-check.yml');
 if (attribution.revision !== release.revision || attribution.policySha256 !== release.policySha256 || !caller.includes(`@${release.revision}`)) problems.push('Common policy/config/caller pins disagree.');
 if (/paths(?:-ignore)?:/.test(caller)) problems.push('Metadata caller must include docs-only changes.');
 if (problems.length) throw new Error(problems.join('\n'));
-process.stdout.write(`${JSON.stringify({ owner: 'foss-earth/foss-earth.github.io', boundaryFiles: sourceFiles.length, imports, metadataIncluded: true, commonRevision: release.revision, status: 'source boundaries passed; runtime and admission require separate evidence' }, null, 2)}\n`);
+process.stdout.write(`${JSON.stringify({ owner: 'foss-earth/app', boundaryFiles: sourceFiles.length, imports, metadataIncluded: true, commonRevision: release.revision, status: 'source boundaries passed; runtime and admission require separate evidence' }, null, 2)}\n`);

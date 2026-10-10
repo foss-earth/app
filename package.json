@@ -35,8 +35,6 @@
     "dev": "vite",
     "build": "npm run typecheck && vite build",
     "ci": "npm run check:conformance && npm run check:implementation",
-    "deploy": "npm run deploy:gh-pages",
-    "deploy:gh-pages": "npm run build && gh-pages -d dist",
     "lint": "eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint/",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.app.json --incremental --tsBuildInfoFile node_modules/.tmp/typecheck.app.tsbuildinfo && tsc -p tsconfig.node.json --incremental --tsBuildInfoFile node_modules/.tmp/typecheck.node.tsbuildinfo",
@@ -50,21 +48,21 @@
     "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
-    "@foss-earth/ui": "file:deps/foss-earth-ui-8a34c3732fdaf3049035c7411a893380ccd1e4b7.tgz",
-    "@foss-earth/renderer": "file:deps/foss-earth-renderer-ee8954c36626453a7454538d6313024385f4de68.tgz",
-    "@foss-earth/engine": "file:deps/foss-earth-engine-030d462f11d086a773eefe247acbe6fecf1fd6c3.tgz",
-    "@foss-earth/toolbar": "file:deps/foss-earth-toolbar-a1b34e52fdab9068fbeab1301ffc0165d445dcae.tgz",
-    "@foss-earth/about": "file:deps/foss-earth-about-d4643e2d465a76d2752947090f9ba3231d062f38.tgz",
-    "@foss-earth/dev": "file:deps/foss-earth-dev-80bc61d66ef829402250ee9365babd421cb20c83.tgz",
-    "@foss-earth/sky": "file:deps/foss-earth-sky-65acb18ae6a6f0fc8f45f6d67c1c683c4fe635a5.tgz",
-    "@foss-earth/weather": "file:deps/foss-earth-weather-aab33d5152271949ec323735742ffd34b19c78d1.tgz",
-    "@foss-earth/images": "file:deps/foss-earth-images-015c4540beb813c079dfa95d29f6483bfecb6cff.tgz",
-    "@foss-earth/360": "file:deps/foss-earth-360-9c0ceb16ed29dd95d14441e3ebdfa654afd45ab2.tgz",
-    "@foss-earth/scenes": "file:deps/foss-earth-scenes-2ac022d043901e4ad6d3a4cda86f6dc2a5f90f3c.tgz",
-    "@foss-earth/cubemap": "file:deps/foss-earth-cubemap-9bba9ad272af8efab04b8daa06ca0c2a4656129e.tgz",
-    "@foss-earth/equirectangular": "file:deps/foss-earth-equirectangular-706d8d5e2eee24bc63bc19016609def2380b863e.tgz",
-    "@foss-earth/tiled-cubemap": "file:deps/foss-earth-tiled-cubemap-7e573b7796d90317d32c1570c31b99816d6c4a7b.tgz",
-    "@foss-earth/preview-sheets": "file:deps/foss-earth-preview-sheets-ddec72474a4ce5ae436f46c347f8648cdbcaa341.tgz",
+    "@foss-earth/ui": "file:deps/foss-earth-ui-c4edc5b2186aa96ccc7ea779f836d1641d0fefd7.tgz",
+    "@foss-earth/renderer": "file:deps/foss-earth-renderer-9a68115ae240ccb8e9fb28253787572fc09ddcef.tgz",
+    "@foss-earth/engine": "file:deps/foss-earth-engine-693d48d80911dda364140202413e2d16c08a79ba.tgz",
+    "@foss-earth/toolbar": "file:deps/foss-earth-toolbar-6918624c214f1619b80a9ed8d7c90e10b10b9cab.tgz",
+    "@foss-earth/about": "file:deps/foss-earth-about-75277f70092cd8d18679f87a94361f83c779c6ad.tgz",
+    "@foss-earth/dev": "file:deps/foss-earth-dev-99c7259c87f20855e2da89557be3ad379c104e84.tgz",
+    "@foss-earth/sky": "file:deps/foss-earth-sky-6720abe37543682e118e5cee85dff9243449dd2d.tgz",
+    "@foss-earth/weather": "file:deps/foss-earth-weather-cc19e3f12208d1070df49bfe168a7149e3a75ca6.tgz",
+    "@foss-earth/images": "file:deps/foss-earth-images-669b93b8a7f2e5d671c36a29a84761275265b2f7.tgz",
+    "@foss-earth/360": "file:deps/foss-earth-360-bcb2a028dcbe827618402f7b0060e533a659b0e5.tgz",
+    "@foss-earth/scenes": "file:deps/foss-earth-scenes-d58408d90542a73282d8bf544c54e0c9bf847b56.tgz",
+    "@foss-earth/cubemap": "file:deps/foss-earth-cubemap-d061dc53e8ce27eb7902c447aec01144b955f0a5.tgz",
+    "@foss-earth/equirectangular": "file:deps/foss-earth-equirectangular-0bfc0554c8ae924aada57678cc90dc61f56d2dc7.tgz",
+    "@foss-earth/tiled-cubemap": "file:deps/foss-earth-tiled-cubemap-987c673ed25c402766c38cdef1d9273970f05427.tgz",
+    "@foss-earth/preview-sheets": "file:deps/foss-earth-preview-sheets-138939f845c5ab384740773a46eb4350bf2b4066.tgz",
     "@felipegalind0/gamepad-tools": "file:deps/felipegalind0-gamepad-tools-6916368e48928e49c7630578a4da3c42aac82a2fe492c1807c033b420a8b8f63.tgz",
     "@babylonjs/core": "8.56.2",
     "@babylonjs/loaders": "8.56.2",
@@ -96,7 +94,7 @@
   "description": "Standalone Earth application and compatibility composition over independent public globe providers.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/foss-earth/foss-earth.github.io.git"
+    "url": "https://github.com/foss-earth/app.git"
   },
   "files": [
     "src",
@@ -135,6 +133,8 @@
     "status": "Independent exact artifact composition under granted verification; bootstrap/source-hybrid/remote gates separate",
     "artifactDependencies": "dependency-pins.json",
     "developmentManifest": "workspace-plan.json (preparation plan; executable exact manifest pending qualification)",
-    "sharedPolicy": "1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e exact installed common input; actual metadata/ref/application qualification separately recorded"
+    "sharedPolicy": "1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e exact installed common input; actual metadata/ref/application qualification separately recorded",
+    "appBase": "/app/",
+    "landingRepository": "foss-earth/foss-earth.github.io"
   }
 }

@@ -60,7 +60,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
   const { renderer, scene } = await bootstrapGlobeRenderer(canvas, {
     force, antialias: settings.get("renderer.antialias") !== false,
     host: createBrowserRendererHost({ window, document }),
-  });
+  }).catch((cause: unknown) => { throw new Error("Renderer device initialization failed", { cause }); });
   let composition: ReturnType<typeof composeEarthRuntime> | undefined;
   let broker: ReturnType<typeof createImageSessionBroker> | undefined;
   let native: ReturnType<typeof createEarthNativeResources> | undefined;
@@ -69,6 +69,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
   let detachRestore: (() => void) | undefined;
   const detachResourcePolicy: (() => void)[] = [];
   let disposed = false;
+  let stage = "browser resource setup";
   const disposeHost = () => {
     if (disposed) return;
     disposed = true;
@@ -147,6 +148,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
       GROUND_LIGHT_LEAST_SINE, MERCATOR_MAX_LAT_DEG, NIGHT_RADIANCE_UNITS, groundLightAt,
     });
     const caps = renderer.engine.getCaps();
+    stage = "world and sky composition";
     composition = composeEarthRuntime({ canvas, renderer, scene, settings, clock,
       frames: { requestFrame: callback => window.requestAnimationFrame(callback), cancelFrame: id => window.cancelAnimationFrame(id) },
       isHidden: () => document.hidden, fatalFramePolicy: "stop", onFrameError: options.onFrameError,
@@ -222,6 +224,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
         },
       },
     });
+    stage = "presentation lifecycle subscription";
     detachRestore = composition.presentation.onDeviceRestored(resources.restoreManagedDevice);
     // Retain live status/camera getters owned by Engine instead of snapshotting them.
     const runtime = Object.create(composition.world) as typeof composition.world;
@@ -233,6 +236,6 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
       // and the scheduler before disposing their borrowed host resources.
       if (composition) composition.destroy(); else disposeHost();
     } catch (cleanup) { throw new AggregateError([error, cleanup], "Earth browser setup failed."); }
-    throw error;
+    throw new Error(`Earth ${stage} failed`, { cause: error });
   }
 }

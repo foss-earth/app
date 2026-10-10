@@ -68,6 +68,13 @@ separately reviewed and checked owner increment; a broad compatibility barrel
 cannot supply a missing implementation. No Flight or Campus implementation
 enters Earth to bridge that gap.
 
+The subsequent [Flight public contract candidate](flight-public-contracts.md)
+prepares Renderer and About Node build adapters and Engine-owned current local
+displayed-surface observation. Renderer, About and Engine now have sealed local releases, checked public Node
+exports, strict installed declarations and current local surface evidence. The
+app consumes those exact releases. This does not establish Flight adoption, GPU
+backend coverage, remote availability or browser acceptance.
+
 ## Remaining delivery gates
 
 The current common input is CI `1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e`,

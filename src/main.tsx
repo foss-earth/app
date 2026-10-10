@@ -1,4 +1,5 @@
 import { mountGlobeApp } from "./app/mountGlobeApp";
+import { startupFailure } from "./app/startupFailure";
 
 const rootElement = document.getElementById("root");
 
@@ -11,6 +12,10 @@ void mountGlobeApp(rootElement).then((globeApp) => {
     window.__fossEarthBench = globeApp;
   }
 }).catch((error: unknown) => {
-  console.error("Failed to bootstrap FOSS Earth Babylon.", error);
-  rootElement.innerHTML = '<div class="boot-error">Failed to initialize FOSS Earth Babylon.</div>';
+  const reason = startupFailure(error);
+  console.error(`Earth application startup failed: ${reason}`);
+  const message = document.createElement("div");
+  message.className = "boot-error";
+  message.textContent = `Earth application startup failed: ${reason}`;
+  rootElement.replaceChildren(message);
 });

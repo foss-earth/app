@@ -6,12 +6,13 @@ also keeps the `foss-earth` application and compatibility exports used while
 Campus and Flight adopt the split providers. Shared implementations live in
 their owning repositories; the old monolith is a read-only recovery input.
 
-Current work is source preparation. The application has not yet passed checks in
-the independent layout and has no qualified split application archive. Fourteen
-runtime provider candidates have prior isolated local qualification; Scenes and
-the application remain delivery gates. Exact pins, export maps and qualification
-scope are in [dependency-pins.json](dependency-pins.json). Public transport and
-remote admission are still pending. See [compatibility and delivery status](docs/split-compatibility.md).
+The standard application lives in `foss-earth/app`. The separate
+[foss-earth.github.io](https://github.com/foss-earth/foss-earth.github.io)
+repository owns the landing page and assembles this application's exact compiled
+artifact at `/app/`. Provider code remains in its independent owner repository.
+Exact local artifacts and public exports are recorded in
+[dependency-pins.json](dependency-pins.json); local qualification receipts and
+remaining publication gates are described in [split status](docs/split-compatibility.md).
 
 ## Development
 
@@ -20,7 +21,7 @@ Use one checkout per source provider, under the same organization directory:
 ```text
 workspace/
   foss-earth/
-    foss-earth.github.io/
+    app/  foss-earth.github.io/
     engine/  renderer/  ui/  toolbar/  sky/
     images/  360/  scenes/
     cubemap/  equirectangular/  tiled-cubemap/  preview-sheets/
@@ -43,12 +44,16 @@ explicit links; source defaults and persistent hybrid choices await Platform's
 replacement qualification. Do not use plain registry versions to substitute
 for the exact archive identities, or copy provider source into this app.
 
+For the exact packaged local checkpoint, run `npm ci --offline --ignore-scripts`
+using the retained cache, then `npm run dev -- --host 127.0.0.1 --port 4180` and
+open `http://127.0.0.1:4180/app/`. Build output is `dist/`.
+
 After reviewed dependencies and the lockfile are prepared, the app's explicit
 commands are `npm run dev`, `npm run typecheck`, `npm run lint`, `npm test`,
 `npm run build` and `npm run ci`. `dev` and `preview` start servers only when
 requested. During migration all execution follows the coordinator's shared
-verification slot. Deploy commands exist for maintainers; this preparation
-does not authorize publication or deployment.
+verification slot. The app builds with `/app/` as its asset and worker base. Pages assembly and
+deployment belong to the landing repository.
 
 ## Application contracts
 

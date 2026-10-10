@@ -3,12 +3,10 @@ import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
 import { appFiles } from './vite/appFiles.ts'
 import { builtFrom } from './vite/builtFrom.ts'
+import { babylonShaderChunks } from '@foss-earth/renderer/vite'
 
-const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1]
-// A `<owner>.github.io` repository is served from the domain root; any other
-// repository is served from `/<repository>/`.
-const isRootPagesSite = repositoryName?.endsWith('.github.io') ?? false
-const base = process.env.GITHUB_ACTIONS && repositoryName && !isRootPagesSite ? `/${repositoryName}/` : '/'
+// Both local development and the compiled artifact use the landing site's app route.
+const base = '/app/'
 
 function getGitOutput(command: string): string | null {
   try {
@@ -24,7 +22,7 @@ function getRepositorySlug(): string {
 
   const remoteUrl = getGitOutput('git config --get remote.origin.url') ?? ''
   const githubMatch = remoteUrl.match(/github\.com[:/]([^/]+\/[^/]+)$/)
-  return githubMatch?.[1].replace(/\.git$/, '') ?? ''
+  return githubMatch?.[1].replace(/\.git$/, '') ?? 'foss-earth/app'
 }
 
 const sourceCommit = getGitOutput('git rev-parse --short=12 HEAD') ?? 'unknown'
@@ -54,8 +52,9 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     __SOURCE_VERSION__: JSON.stringify(sourceVersion),
     __REPOSITORY_SLUG__: JSON.stringify(getRepositorySlug()),
+    __PAGES_REPOSITORY_SLUG__: JSON.stringify('foss-earth/foss-earth.github.io'),
   },
   // The app's own files are kept on the visitor's device by a service worker (docs/app-files.md),
   // and each page says what it is built from, for the About tab.
-  plugins: [react(), appFiles(), builtFrom()],
+  plugins: [react(), babylonShaderChunks(), appFiles(), builtFrom()],
 })
