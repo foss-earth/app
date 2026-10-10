@@ -53,7 +53,7 @@ for (const path of sourceFiles) {
     if (specifier.startsWith('.')) {
       const target = resolve(dirname(path), specifier);
       if (!target.startsWith(`${root}/`)) problems.push(`Relative import escapes app: ${relative(root, path)} -> ${specifier}`);
-      const candidates = [target, `${target}.ts`, `${target}.tsx`, `${target}.css`, `${target}.json`, resolve(target, 'index.ts'), resolve(target, 'index.tsx')];
+      const candidates = [target, `${target}.ts`, `${target}.tsx`, `${target}.d.ts`, `${target}.css`, `${target}.json`, resolve(target, 'index.ts'), resolve(target, 'index.tsx')];
       if (!(await Promise.all(candidates.map(exists))).some(Boolean)) problems.push(`Missing source input: ${relative(root, path)} -> ${specifier}`);
       continue;
     }

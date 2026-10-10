@@ -2313,10 +2313,10 @@
     "Campus and Flight compiled adoption evidence",
     "coordinator actual remote admission/public transport/cutover"
   ],
-  "verifiedAtUtc": "2026-10-10T00:01:38.553645+00:00",
+  "verifiedAtUtc": "2026-10-10T00:03:38.159486+00:00",
   "currentSourceManifest": {
-    "path": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/foss-earth.github.io-r2-sealed-source-files.json",
-    "sha256": "45209ea639a1e65357251e0e31d2df61e31fea785f34fd438d893e8385508775",
+    "path": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/foss-earth.github.io-r3-sealed-source-files.json",
+    "sha256": "6169241f36d23c539f10ad3a8fb340113dcd3f14240961cf1bdea837c997efab",
     "fileCount": 485
   },
   "currentSharedCi": {
@@ -2417,6 +2417,16 @@
     {
       "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-exact-inputs-prepare.json",
       "sha256": "dede9313282f4ab893531ecf25bfc724dbbce09a212f1329267d976ea3116957",
+      "exitCode": 0
+    },
+    {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-finished-ci.json",
+      "sha256": "eb1cd9bb9f12eddc6731b746cd10d208901bc65119079bd515fee14034c011eb",
+      "exitCode": 1
+    },
+    {
+      "receipt": "/Users/felg/gh/foss-earth/foss-earth.github.io/build/repository-split/checks/2026-10-09-granted-verification/site-installed-consumer.json",
+      "sha256": "02da6e2f54cec3788f27849ac006ce4af6afb0f74e0688d9cc5cd34ed33f8d62",
       "exitCode": 0
     },
     {
