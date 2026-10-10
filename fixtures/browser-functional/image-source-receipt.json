@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "owner": "foss-earth/app",
+  "status": "Read-only original input bindings; new scene metadata prepared, no media generation or acceptance execution.",
+  "qualifiedAppSourceRevision": "7335a2a006e94d3f7ced566e8170ce5bde2766de",
+  "attribution": "Generated cardinal and grid test panorama, FOSS Earth",
+  "notice": "NOTICE",
+  "originalScene": "public/examples/panorama-scenes/umn-cardinal.scene.json",
+  "files": [
+    {
+      "path": "public/examples/panorama-scenes/umn-cardinal.scene.json",
+      "sha256": "0767985198227d5bef1769e27a6b56391109a3d57bf3b03be4f73f735bf958bc",
+      "sizeBytes": 4811
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/prepared.json",
+      "sha256": "124b4740d743f0ddd5f6e51539a02cae92bfa3fbdb5a3fa9d2efd57232d7f453",
+      "sizeBytes": 6212
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/asset.fragment.json",
+      "sha256": "08c9079f657cdb6dc5a97e2ed5d377e2bd5fe533babaf5db525baffd3b3e6ee9",
+      "sizeBytes": 3191
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/immersion-1024.jpg",
+      "sha256": "873e50ac8bddaac82fe7ef09f657ab91b799ac8c4eff22d1c8fa6257a473867f",
+      "sizeBytes": 84980
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/preview-256/px.jpg",
+      "sha256": "987efbac121dc055f23a9c80503aa7757a507608551e30ceda42c8343c04dc2f",
+      "sizeBytes": 10549
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/preview-64/px.jpg",
+      "sha256": "be7020ff76da8b4968c5c445a6889da2a0e429a733108c2da5dfac574a8d7bd2",
+      "sizeBytes": 1766
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/preview-64/nx.jpg",
+      "sha256": "b120eceeec89a86703ecab739dd454bdecf5b9b36df59bd9dfb2457f81262ba7",
+      "sizeBytes": 1698
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/preview-64/py.jpg",
+      "sha256": "939d8332acfec1a7e034c9c45f50f2e6d937d57885023f748376c04bf6f0a3c7",
+      "sizeBytes": 1777
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/preview-64/ny.jpg",
+      "sha256": "defbb1c521941892a1abf638094ad558836efddfaa07f33ca4d6ed10cf15d3f0",
+      "sizeBytes": 1680
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/preview-64/pz.jpg",
+      "sha256": "e119b3bd43c721512cdce672ff8e1a328f458cdff76f7fff9104f0e3ad43cf09",
+      "sizeBytes": 2108
+    },
+    {
+      "path": "public/examples/panorama-scenes/media/cardinal-grid/preview-64/nz.jpg",
+      "sha256": "b0e94fd347b9ffa55d810bdf8790e299c34694990e6c17bd396b531e18bb41ce",
+      "sizeBytes": 1463
+    }
+  ]
+}

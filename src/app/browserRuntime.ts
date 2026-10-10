@@ -9,14 +9,14 @@ import {
   bootstrapGlobeRenderer, createBrowserRendererHost, createBrowserRendererPlatform,
   whenMeshesReady, type ImageUploadLimits,
 } from "@foss-earth/renderer/babylon";
-import type { RendererMode, ReadinessPolicy, ReadinessTimers } from "@foss-earth/renderer";
+import { checkUntilSettled, type RendererMode, type ReadinessPolicy, type ReadinessTimers } from "@foss-earth/renderer";
 import { createTerrainTileLoader, ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-earth/engine";
 import {
   createAtlasImageryWorkerBridge, createBoundedAtlasImageryLoader, createMapCache,
   createTerrainImageDecoder, latestResourceTiming, measureMapResponse,
   type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions,
 } from "@foss-earth/engine/browser";
-import { createTerrainLightingAdapter, hasPickablePointAt, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
+import { createBoundedMapTextureLoader, createTerrainLightingAdapter, hasPickablePointAt, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
 import {
   createGlobeRuntimeBudgets, createTerrainImageDecodeLimits,
   loadGlobeAnchorRotationPreference, saveGlobeAnchorRotationPreference,
@@ -148,6 +148,24 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
       GROUND_LIGHT_LEAST_SINE, MERCATOR_MAX_LAT_DEG, NIGHT_RADIANCE_UNITS, groundLightAt,
     });
     const caps = renderer.engine.getCaps();
+    const acquireMapTexture = createBoundedMapTextureLoader({ broker: imageBroker, files, uploader: resources.uploader,
+      maxTextureSide: () => renderer.engine.getCaps().maxTextureSize,
+      whenReady(texture, signal) {
+        signal.throwIfAborted();
+        return new Promise<void>((resolve, reject) => {
+          let stop = () => {};
+          const clear = () => { stop(); signal.removeEventListener("abort", abort); };
+          const abort = () => { clear(); reject(signal.reason); };
+          const settled = () => { clear(); resolve(); };
+          signal.addEventListener("abort", abort, { once: true });
+          try {
+            if (texture.isReady()) settled();
+            else stop = checkUntilSettled(1, () => texture.isReady() ? 0 : 1, settled, timers, options.readinessPolicy);
+            if (signal.aborted) abort();
+          } catch (error) { clear(); reject(error); }
+        });
+      },
+    });
     stage = "world and sky composition";
     composition = composeEarthRuntime({ canvas, renderer, scene, settings, clock,
       frames: { requestFrame: callback => window.requestAnimationFrame(callback), cancelFrame: id => window.cancelAnimationFrame(id) },
@@ -183,6 +201,16 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
         mapPorts: {
           setCacheLimits: limits => cache.setLimits(limits),
           raster: { attachTerrainLighting: material => lighting.createMaterialPlugin(material),
+            asyncMapTextures: {
+              resolve(source, _tile, url) {
+                // Existing providers without a descriptor retain standard 256px
+                // XYZ tiles. MIME and unknown encoded size come from the shared
+                // validated response; neither is guessed from the URL.
+                const dimensions = source.tileSize ?? { width: 256, height: 256 };
+                return { file: { url, ...dimensions }, declaredBytes: 0, priority: options.mapPriority() };
+              },
+              acquire: acquireMapTexture, createAbortController: () => new AbortController(),
+            },
             meshRebuildCpuMs: () => settings.get<number>("map.terrain.meshRebuildTimePerFrame"), log: console,
             imageryPorts: { device: resources.device, managedAtlas: resources.managedAtlas,
               restoreManagedDevice: resources.restoreManagedDevice,

@@ -1,0 +1,99 @@
+{
+  "format": "foss-earth-scene",
+  "version": 1,
+  "id": "earth-browser-cardinal",
+  "revision": "1",
+  "title": "Earth browser cardinal fixture",
+  "requiredExtensions": [],
+  "extensions": {
+    "foss-earth.fixture": {
+      "purpose": "Exercise existing scene/image/navigation lifecycle without external provider data.",
+      "source": "fixtures/browser-functional/README.md"
+    }
+  },
+  "assets": [
+    {
+      "id": "cardinal-grid",
+      "revision": "cbe4eb82f3a6",
+      "type": "panorama-image",
+      "colorSpace": "srgb",
+      "alpha": "opaque",
+      "attribution": {
+        "text": "Generated cardinal and grid test panorama, FOSS Earth"
+      },
+      "representations": [
+        {
+          "id": "preview-64",
+          "role": "preview",
+          "projection": "cube",
+          "faceSize": 64,
+          "mimeType": "image/jpeg",
+          "encodedBytes": 10492,
+          "faces": {
+            "px": "/app/examples/panorama-scenes/media/cardinal-grid/preview-64/px.jpg",
+            "nx": "/app/examples/panorama-scenes/media/cardinal-grid/preview-64/nx.jpg",
+            "py": "/app/examples/panorama-scenes/media/cardinal-grid/preview-64/py.jpg",
+            "ny": "/app/examples/panorama-scenes/media/cardinal-grid/preview-64/ny.jpg",
+            "pz": "/app/examples/panorama-scenes/media/cardinal-grid/preview-64/pz.jpg",
+            "nz": "/app/examples/panorama-scenes/media/cardinal-grid/preview-64/nz.jpg"
+          }
+        },
+        {
+          "id": "whole-1024",
+          "role": "immersion",
+          "projection": "equirectangular",
+          "width": 1024,
+          "height": 512,
+          "mimeType": "image/jpeg",
+          "encodedBytes": 84980,
+          "url": "/app/examples/panorama-scenes/media/cardinal-grid/immersion-1024.jpg"
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "cardinal-orb",
+      "type": "panorama",
+      "assetId": "cardinal-grid",
+      "title": "Cardinal lifecycle fixture",
+      "capture": {
+        "longitudeDeg": -93.235,
+        "latitudeDeg": 44.974,
+        "height": {
+          "meters": 200,
+          "datum": "WGS84-ellipsoid",
+          "source": "Authored synthetic test coordinate; not a surveyed height."
+        }
+      },
+      "imagePose": {
+        "headingDeg": 0,
+        "pitchDeg": 0,
+        "rollDeg": 0,
+        "aligned": false
+      },
+      "marker": {
+        "mode": "capture-relative",
+        "eastM": 0,
+        "northM": 0,
+        "offsetM": 0,
+        "radiusMeters": 2
+      }
+    }
+  ],
+  "overview": {
+    "target": {
+      "longitudeDeg": -93.235,
+      "latitudeDeg": 44.974,
+      "height": {
+        "meters": 200,
+        "datum": "WGS84-ellipsoid",
+        "source": "Authored synthetic test coordinate; not a surveyed height."
+      }
+    },
+    "distanceMeters": 104.403,
+    "headingDeg": 0,
+    "pitchDeg": -16.699244,
+    "verticalFovDeg": 60
+  }
+}

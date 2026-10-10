@@ -2315,10 +2315,10 @@
   ],
   "verifiedAtUtc": "2026-10-10T03:53:20.235541+00:00",
   "currentSourceManifest": {
-    "evidenceId": "app-current-source-files.json",
-    "sha256": "4816579ff369ab1fc594d170f3f00cae3dc5977c775e5fc872186955473b5aa2",
-    "fileCount": 487,
-    "scope": "Private retained documentary evidence, not an artifact path or public URL"
+    "evidenceId": "app-current-source-files-test-routing.json",
+    "sha256": "12403a491decb72f5d79fd6bdb647b471f572e18c7a493af3441cece23cf4d8f",
+    "fileCount": 498,
+    "scope": "Exact App composition and host-owned assertions source; ignored/installed output and receipt excluded. Final revision/archive/build/export checks external."
   },
   "currentSharedCi": {
     "revision": "1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e",
@@ -2453,5 +2453,26 @@
   ],
   "publicationEvidence": {
     "scope": "Documentary private evidence IDs and retained hashes; no public URLs or package paths implied"
+  },
+  "runtimeRepairR7": {
+    "preparedAtUtc": "2026-10-10T16:54:25.583595+00:00",
+    "engineRevision": "e12a82bd121cc4edfb4ca02817ad74bc47868e2a",
+    "engineArchiveSha256": "c5073f59227cbb1f4c64d4639c1df03c969e4fa98bbb7ca49561f411dd47124b",
+    "engineArchiveBytes": 2750838,
+    "scope": "App host composes actual public atlas/legacy ports using the existing single broker/files/uploader/device/scheduler; native readiness uses Renderer public timer helper.",
+    "sourceBase": "7335a2a006e94d3f7ced566e8170ce5bde2766de",
+    "appChecks": "Pending exact installed causal/finished CI and new browser candidate; prior failed runtime evidence preserved",
+    "helperRevision": "d63ca6e46d94dc90635f3da4b9d73a741347f026",
+    "hostContractTests": {
+      "publicWorldManagedAtlas": "PASS with actual installed Engine/Renderer admission and CPU GPU-creation/upload doubles only",
+      "validatedHeaderAcquisition": "PASS using actual common file service/broker and native upload double",
+      "readiness": "PASS explicit Renderer readiness checks/abort/timer cessation; unrelated Sky timers retained",
+      "initialFixtureFailures": "Retained separate attempts: native GPU uploader requires explicit CPU boundary; host profiling parameters registered by real createGlobeApp; assertion measures only its own readiness timer/calls."
+    },
+    "testRoutingCorrection": {
+      "cause": "Vitest discovers newly retained browser-functional.test.mjs, whose unchanged nine assertions use node:test.",
+      "change": "Exact file excluded only from Vitest; existing test:browser-assertions remains a mandatory sequential final-CI step using Node concurrency1. No assertions skipped or modified.",
+      "firstAppFinishedCi": "Retained failed suite;164 actual Vitest tests passed. Final rerun follows."
+    }
   }
 }
