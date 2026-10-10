@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Real installed owners compose over a CPU device boundary. GPU behavior has
  * its separate real-browser receipt; no owner admission is mocked successful. */
-import { NullEngine, Scene, Texture } from "@babylonjs/core";
+import { MeshBuilder, NullEngine, Scene, Texture } from "@babylonjs/core";
 import { createSettingsRegistry } from "@foss-earth/ui/settings";
 import { frameProfilingParameters } from "@foss-earth/renderer/settings";
 import { RASTER_BASE_MAP_SOURCES } from "@foss-earth/engine";
@@ -36,7 +36,7 @@ vi.mock("@foss-earth/engine/babylon", async importOriginal => {
   };
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); observed.worlds = []; observed.maps = []; });
-async function host() {
+async function host(beforeRuntime?: (scene: Scene) => void) {
   const engine = new NullEngine(), scene = new Scene(engine); engine.getCaps().maxTextureSize = 8192;
   observed.bootstrap.mockResolvedValue({ renderer: { engine, mode: "webgl2", requested: "webgl2" }, scene });
   vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
@@ -48,6 +48,7 @@ async function host() {
   settings.register(frameProfilingParameters({ tab: "renderer", section: "performance" }));
   const canvas = document.createElement("canvas"); document.body.append(canvas);
   const policy = createEarthBrowserPolicy(settings), onFrameError = vi.fn();
+  beforeRuntime?.(scene);
   try {
     const session = await createEarthBrowserRuntime(canvas, { ...policy, settings, rendererForce: "webgl2",
       preferGoogleTiles: false, rasterBaseMap: RASTER_BASE_MAP_SOURCES[0], rasterImagery: "atlas", createWorker: () => null, onFrameError,
@@ -56,6 +57,40 @@ async function host() {
   } catch (error) { canvas.remove(); scene.dispose(); engine.dispose(); throw error; }
 }
 describe("Earth browser host over exact installed runtime contracts", () => {
+  it("publishes startup after visible content settles through the actual renderer readiness helper", async () => {
+    vi.useFakeTimers();
+    let ready: ReturnType<typeof vi.spyOn> | undefined;
+    const clear = vi.spyOn(window, "clearTimeout"), schedule = vi.spyOn(window, "setTimeout");
+    const pending = host(scene => {
+      const mesh = MeshBuilder.CreateBox("startup-visible-content", {}, scene);
+      ready = vi.spyOn(mesh, "isReady").mockReturnValue(false);
+    });
+    let published = false; void pending.then(() => { published = true; });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(published).toBe(false); expect(ready).toHaveBeenCalled();
+    const deadline = schedule.mock.results[schedule.mock.calls.findIndex(args => args[1] === 10_000)].value;
+    ready!.mockReturnValue(true); await vi.advanceTimersByTimeAsync(100);
+    const f = await pending;
+    try {
+      expect(published).toBe(true); expect(clear).toHaveBeenCalledWith(deadline);
+      const reads = ready!.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(100);
+      expect(ready).toHaveBeenCalledTimes(reads);
+      expect(f.runtime.scene).toBe(f.scene); expect(f.onFrameError).not.toHaveBeenCalled();
+    } finally { f.dispose(); }
+  });
+  it("bounds initial readiness failure and releases the composed resource graph", async () => {
+    vi.useFakeTimers(); let initialScene: Scene | undefined;
+    const pending = host(scene => {
+      initialScene = scene;
+      const mesh = MeshBuilder.CreateBox("startup-never-ready", {}, scene);
+      vi.spyOn(mesh, "isReady").mockReturnValue(false);
+    });
+    const failure = expect(pending).rejects.toThrow("Earth initial surface and sky readiness failed");
+    await vi.advanceTimersByTimeAsync(10_000); await failure;
+    expect(initialScene!.isDisposed).toBe(true);
+    expect(initialScene!.getEngine().isDisposed).toBe(true);
+  });
   it("admits the actual world/managed atlas using the host's single broker/device/scheduler", async () => {
     const f = await host();
     try {
@@ -95,7 +130,9 @@ describe("Earth browser host over exact installed runtime contracts", () => {
     expect(f.broker.pools.live()).toEqual([]);
   });
   it("settles actual host readiness on demand and removes checks on abort", async () => {
-    vi.useFakeTimers(); const f = await host(); const texture = new Texture(null, f.scene);
+    vi.useFakeTimers();
+    const startup = host(); await vi.advanceTimersByTimeAsync(100);
+    const f = await startup; const texture = new Texture(null, f.scene);
     const ready = vi.spyOn(texture, "isReady").mockReturnValue(false);
     try {
       const controller = new AbortController();

@@ -254,6 +254,20 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     });
     stage = "presentation lifecycle subscription";
     detachRestore = composition.presentation.onDeviceRestored(resources.restoreManagedDevice);
+    stage = "initial surface and sky readiness";
+    // Parallel shader compilation can leave the first frames uniformly clear.
+    // Publish startup only after its visible content can draw; streamed hidden
+    // terrain and imagery keep their existing independent readiness paths.
+    const startup = new AbortController();
+    const cancelStartupDeadline = clock.after(() => {
+      startup.abort(new Error("Initial visible content did not become ready within 10 seconds."));
+    }, 10_000);
+    try {
+      await whenMeshesReady(scene.meshes.filter(mesh => mesh.isEnabled() && mesh.isVisible), {
+        signal: startup.signal, timers, readinessPolicy: options.readinessPolicy,
+      });
+    } finally { cancelStartupDeadline(); }
+    composition.scheduler.requestRender();
     // Retain live status/camera getters owned by Engine instead of snapshotting them.
     const runtime = Object.create(composition.world) as typeof composition.world;
     Object.defineProperty(runtime, "destroy", { value: () => composition!.destroy() });

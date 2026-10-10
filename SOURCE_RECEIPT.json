@@ -2315,10 +2315,10 @@
   ],
   "verifiedAtUtc": "2026-10-10T03:53:20.235541+00:00",
   "currentSourceManifest": {
-    "evidenceId": "app-current-source-files-test-routing.json",
-    "sha256": "12403a491decb72f5d79fd6bdb647b471f572e18c7a493af3441cece23cf4d8f",
+    "evidenceId": "app-current-source-files-startup-readiness.json",
+    "sha256": "8d99307ef88139e1ed59e0129889e3572beb5c3ede61ab104c0a1be0a97535ca",
     "fileCount": 498,
-    "scope": "Exact App composition and host-owned assertions source; ignored/installed output and receipt excluded. Final revision/archive/build/export checks external."
+    "scope": "Current exact App source after bounded initial visible-material readiness. Includes exact dependency archives; excludes receipt and ignored/installed/compiled evidence. Historical original source maps retained."
   },
   "currentSharedCi": {
     "revision": "1db73d1ddb342e348a2c9e8387f7bbc7ebb3225e",
@@ -2473,6 +2473,13 @@
       "cause": "Vitest discovers newly retained browser-functional.test.mjs, whose unchanged nine assertions use node:test.",
       "change": "Exact file excluded only from Vitest; existing test:browser-assertions remains a mandatory sequential final-CI step using Node concurrency1. No assertions skipped or modified.",
       "firstAppFinishedCi": "Retained failed suite;164 actual Vitest tests passed. Final rerun follows."
+    },
+    "initialReadiness": {
+      "preparedAtUtc": "2026-10-10T17:24:05.125879+00:00",
+      "previousCheckedAppRevision": "06500a8b584f27ccd1367c1497831beed676db50",
+      "cause": "Diagnostic retained first rendered frame3 uniform despite active fallback; later same-scheduler frame18 had396colors/235range. Startup promise previously published while visible materials compiled.",
+      "behavior": "Bound initial visible surface/sky readiness through unchanged Renderer public helper and host timers; exclude hidden streaming content; retain one scheduler and cleanup graph.",
+      "qualification": "Pending causal tests/full App CI/new clean artifact/consumer/site/browser checks; no diagnostic injection accepted."
     }
   }
 }
