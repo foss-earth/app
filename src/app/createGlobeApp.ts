@@ -367,7 +367,7 @@ export async function createGlobeApp(
   cleanup.push(() => logElement.remove());
   const log = createGameLog(settings, browserGameLogPorts(logElement, window, {
     onSize: detail => window.dispatchEvent(new CustomEvent(GAME_LOG_SIZE_EVENT, { detail })),
-    isCentered: () => document.documentElement.dataset.dockLayout !== "single",
+    isCentered: () => document.documentElement.dataset.dockLayout === "dual",
   }));
 
   // Every line of the log is a step of the visit's trail, which Settings → Diagnostics copies as a report.

@@ -306,6 +306,27 @@ beforeEach(() => {
 });
 
 describe("createGlobeApp smoke behavior", () => {
+  it("resizes the log from one edge except while centered between two docks", async () => {
+    await createAppUnderTest();
+    const log = document.getElementById("app-log")!;
+    const grip = log.querySelector<HTMLElement>(".game-log__resize")!;
+    const originalMode = document.documentElement.dataset.dockLayout;
+    log.getBoundingClientRect = () => ({ left: 12, top: 12, width: 240, height: 140, right: 252, bottom: 152, x: 12, y: 12, toJSON() {} });
+    try {
+      for (const [mode, expectedWidth] of [["dual", 320], ["single", 280], ["stacked", 280], [undefined, 280]] as const) {
+        if (mode === undefined) delete document.documentElement.dataset.dockLayout;
+        else document.documentElement.dataset.dockLayout = mode;
+        grip.dispatchEvent(new PointerEvent("pointerdown", { button: 0, clientX: 252, clientY: 152, pointerId: 1 }));
+        grip.dispatchEvent(new PointerEvent("pointermove", { button: 0, clientX: 292, clientY: 152, pointerId: 1 }));
+        grip.dispatchEvent(new PointerEvent("pointerup", { button: 0, clientX: 292, clientY: 152, pointerId: 1 }));
+        expect(log.style.width).toBe(`${expectedWidth}px`);
+      }
+    } finally {
+      if (originalMode === undefined) delete document.documentElement.dataset.dockLayout;
+      else document.documentElement.dataset.dockLayout = originalMode;
+    }
+  });
+
   it("gives Bug report one tab and a toolbar toggle while Diagnostics retains only its report tools", async () => {
     const overlay = fakeOverlay();
     const { app, root } = await createAppUnderTest({ overlayApiRef: overlay, issueReporter: { repository: "foss-earth/foss-earth.github.io" } });
