@@ -307,7 +307,7 @@ beforeEach(() => {
 });
 
 describe("createGlobeApp smoke behavior", () => {
-  it("resizes the log from one edge except while centered between two docks", async () => {
+  it("resizes the log from one edge, both while centered between two docks, and keeps its preferred width on a phone", async () => {
     await createAppUnderTest();
     const log = document.getElementById("app-log")!;
     const grip = log.querySelector<HTMLElement>(".game-log__resize")!;

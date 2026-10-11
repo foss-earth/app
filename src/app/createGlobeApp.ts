@@ -368,6 +368,8 @@ export async function createGlobeApp(
   const log = createGameLog(settings, browserGameLogPorts(logElement, window, {
     onSize: detail => window.dispatchEvent(new CustomEvent(GAME_LOG_SIZE_EVENT, { detail })),
     isCentered: () => document.documentElement.dataset.dockLayout === "dual",
+    resizesWidth: () => document.documentElement.dataset.dockLayout !== "stacked",
+    isRightAligned: () => document.documentElement.dataset.dockLayout === "single" && document.documentElement.dataset.dockSide === "left",
   }));
 
   // Every line of the log is a step of the visit's trail, which Settings → Diagnostics copies as a report.

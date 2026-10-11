@@ -56,5 +56,7 @@ export function createGameLog(settings: SettingsRegistry = getAppSettings()) {
   return ui.createGameLog(settings, ui.browserGameLogPorts(element, window, {
     onSize: detail => window.dispatchEvent(new CustomEvent(ui.GAME_LOG_SIZE_EVENT, { detail })),
     isCentered: () => document.documentElement.dataset.dockLayout === "dual",
+    resizesWidth: () => document.documentElement.dataset.dockLayout !== "stacked",
+    isRightAligned: () => document.documentElement.dataset.dockLayout === "single" && document.documentElement.dataset.dockSide === "left",
   }));
 }
