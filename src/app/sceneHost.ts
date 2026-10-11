@@ -3,9 +3,10 @@ import { bindEarthSceneMedia } from "./cacheCompatibility";
 import type { BaseTexture } from "@babylonjs/core";
 import {
   createBuiltInRepresentations, createViewerSelection, validateViewerAsset,
-  type PublishedImageViewer, type ViewerImageInput,
+  type SettledPublishedImageViewer, type ViewerImageInput,
 } from "@foss-earth/360";
 import { createImageViewer, type ViewerSettings } from "@foss-earth/360/viewer";
+import { createGlobeViewerProjection, createViewerSceneDescription } from "@foss-earth/360/globe";
 import { createPanoramaRenderer } from "@foss-earth/360/babylon";
 import { createViewerResources, type ComposedImageSource } from "@foss-earth/360/resources";
 import { createViewerTabs } from "@foss-earth/360/panels";
@@ -20,14 +21,14 @@ import {
 } from "@foss-earth/images/browser";
 import { createPreviewSheetSources } from "@foss-earth/preview-sheets/browser";
 import { createPreviewSheetsExtensionHook } from "@foss-earth/preview-sheets/scene-extension";
-import { tiledCubeTileCount, tileAtlasLayout, type TiledCubeRepresentationRecord } from "@foss-earth/tiled-cubemap";
+import { type TiledCubeRepresentationRecord } from "@foss-earth/tiled-cubemap";
 import {
   createBrowserSceneHistory, createSceneController, createSavedImagesSection, loadScene,
   type SceneExample, type SceneFailure,
 } from "@foss-earth/scenes/browser";
 import { createScenesPanel, createSceneHotspots } from "@foss-earth/scenes/panel";
 import { NAVIGATION_PRESENTATION_LAYER } from "@foss-earth/engine/babylon";
-import { ecef, enuFrame, presentationFromView } from "@foss-earth/engine";
+import { ecef } from "@foss-earth/engine";
 import { checkUntilSettled, type ReadinessPolicy } from "@foss-earth/renderer";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import type { createEarthBrowserRuntime } from "./browserRuntime";
@@ -90,9 +91,6 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   };
   const estimate = (representation: ImageRepresentation): ImageEstimate => owner(representation).hooks.estimate(representation as never, { maxTextureSide: maxTextureSide() });
   const density = (representation: ImageRepresentation) => owner(representation).faceTexels(representation as never);
-  const displayedGpuBytes = (representation: ImageRepresentation): number => representation.projection === "tiled-cube"
-    ? tileAtlasLayout(representation as TiledCubeRepresentationRecord, n("tileMemoryMiB") * MIB, maxTextureSide())?.gpuBytes ?? 0
-    : owner(representation).hooks.estimate(representation as never, { maxTextureSide: Infinity }).sourceGpu;
   const imageName = (representation: ImageRepresentation) => representation.projection === "tiled-cube"
     ? `The ${(representation as TiledCubeRepresentationRecord).warp === "equi-angular" ? "equi-angular cube tiles" : "cube tiles"}`
     : representation.projection === "cube" ? `The ${density(representation)} px ${representation.role === "preview" ? "preview " : ""}cube`
@@ -100,7 +98,8 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const cleanup: (() => void)[] = [];
   let disposed = false;
   let failure: ((event: SceneFailure) => void) | null = null;
-  let viewer: PublishedImageViewer;
+  let viewer: SettledPublishedImageViewer;
+  const retirementErrors: unknown[] = [];
   const report = (input: ViewerImageInput | null, kind: SceneFailure["kind"], error: unknown) => {
     const cause = error instanceof Error ? error.message : String(error);
     failure?.({ kind, panorama: input ? { id: input.id, title: input.title } : null,
@@ -218,6 +217,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
             marginDeg: n("tileMarginDeg") };
         }, outlines: () => settings.get("scene.panorama.tileOutlines") === true },
     });
+    cleanup.push(() => resources.retire());
     const experiments = () => ({ bookkeeping: settings.get(VIEWER_EXPERIMENT_IDS.panoramaBookkeeping) === true,
       opaqueImmersion: settings.get(VIEWER_EXPERIMENT_IDS.opaqueImmersion) === true,
       shaders: settings.get(VIEWER_EXPERIMENT_IDS.panoramaShaders) === true });
@@ -233,6 +233,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     viewer = createImageViewer({ renderer, resources, world: earthViewerMath, poses: earthViewerPoses, navigation, input: input.input,
       settings: viewerSettings, now: browser.clock.nowMs, devicePixelsPerCss,
       createAbortController: () => new AbortController(), requestRender: runtime.requestRender,
+      signal: browser.signal, onRetirementError: error => report(null, "image", error),
       holdRendering() { runtime.beginContinuous(); let released = false; return () => { if (!released) { released = true; runtime.endContinuous(); } }; },
       isOccluded: (eye, direction, distance) => runtime.surface.raycast(ecef(eye), ecef(direction), distance) !== null,
       failure: (image, kind, error) => report(image, kind, error) });
@@ -258,23 +259,9 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
             get assets() { return Math.round(settings.get<number>("scene.assetLimit")); },
             get links() { return Math.round(settings.get<number>("scene.linkLimit")); } },
           markerRadiusMeters: () => n("markerRadiusMeters"),
-          projectLink(direction) {
-            const active = viewer.status().active, image = active ? viewer.describeImage?.(active) : null, capture = image?.details?.capture;
-            if (!capture) return null;
-            const frame = renderer.cameraFrame(runtime.getPresentationView());
-            if (!frame) return null;
-            const presented = presentationFromView(enuFrame(capture.longitudeDeg, capture.latitudeDeg), [0, 0, 0], { ...direction, rollDeg: 0, verticalFovDeg: 60 });
-            return renderer.project([presented.forward.x, presented.forward.y, presented.forward.z], frame);
-          },
-          describeImage(id) {
-            const image = viewer.describeImage?.(id);
-            return { previewDetail: viewer.describeResources(id).previewDetail, images: image?.asset.representations.map(record => ({
-              id: record.id, role: record.role, projection: record.projection, width: density(record) * (record.projection === "equirectangular" ? 4 : 1),
-              height: density(record) * (record.projection === "equirectangular" ? 2 : 1), aroundPx: density(record) * 4,
-              encodedBytes: record.encodedBytes, gpuBytes: displayedGpuBytes(record),
-              ...(record.projection === "tiled-cube" ? { warp: (record as TiledCubeRepresentationRecord).warp, tiles: tiledCubeTileCount(record as TiledCubeRepresentationRecord) } : {}),
-            })).sort((a, b) => a.aroundPx - b.aroundPx || a.gpuBytes - b.gpuBytes) ?? [] };
-          },
+          projectLink: createGlobeViewerProjection({ viewer, renderer, runtime }),
+          describeImage: createViewerSceneDescription(viewer, { representations,
+            tileMemoryBytes: () => n("tileMemoryMiB") * MIB, maxTextureSide }),
         });
       },
     });
@@ -311,9 +298,14 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     });
     cleanup.push(offSettings);
     return { controller, panel, tabs, viewer, renderer, media: saved, isCurrent: () => !disposed,
-      async whenSettled() { await controller.whenSettled(); await saved.settled(); },
+      async whenSettled() {
+        const results = await Promise.allSettled([controller.whenSettled(), viewer.whenSettled(), resources.whenSettled(), sceneWorld.whenSettled(), saved.settled()]);
+        const failures = [...retirementErrors, ...results.flatMap(result => result.status === "rejected" ? [result.reason] : [])];
+        if (failures.length) throw new AggregateError(failures, "Earth scene retirement failed.");
+      },
       dispose() { if (disposed) return; disposed = true; failure = null;
-        attemptEarthCleanup([...cleanup].reverse().concat(() => services.clear()), "Earth scene composition cleanup failed."); },
+        try { attemptEarthCleanup([...cleanup].reverse().concat(() => services.clear()), "Earth scene composition cleanup failed."); }
+        catch (error) { retirementErrors.push(error); throw error; } },
     };
   } catch (error) {
     disposed = true;

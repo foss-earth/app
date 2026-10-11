@@ -11,6 +11,7 @@
  * touched it, once for each published version; after that, and where
  * Reload an older page by itself is off, the log says so with a button.
  */
+import { askPublishedVersion as askSharedPublishedVersion, createPublishedVersionWatcher } from "@foss-earth/ui/browser";
 import type { GameLog, GameLogEntry, GameLogLine } from "@foss-earth/ui/browser";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import { buildMinute } from "./appIdentity";
@@ -74,6 +75,7 @@ export interface PublishedVersionWatch {
   /** Reloads the page, to use the published version. */
   reload(): void;
   now(): number;
+  whenSettled(): Promise<void>;
   dispose(): void;
 }
 
@@ -180,28 +182,13 @@ function named(one: string, other: string): [string, string] {
   return minutes[0] === minutes[1] ? [one, other] : minutes;
 }
 
-function reasonOf(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error);
-  return text.replace(/[.\s]+$/, "") || "the request failed";
+/** Stamps and deployment address stay with the App; shared UI only compares supplied values. */
+function sharedReadPorts(environment: Pick<PublishedVersionEnvironment, "build" | "readPage" | "now" | "setTimer" | "clearTimer">) {
+  return { ...environment, parseStamp: buildStampOf, compareStamps: compareBuildStamps,
+    createAbortController: () => new AbortController() };
 }
-
-/** Asks the site once which version it publishes, and says how this page compares. Nothing is done about the answer. */
-export async function askPublishedVersion(environment: Pick<PublishedVersionEnvironment, "build" | "readPage" | "now" | "setTimer" | "clearTimer">): Promise<PublishedVersion> {
-  const { build } = environment;
-  if (!build) return { kind: "unstamped" };
-  const abort = new AbortController();
-  const wait = environment.setTimer(() => abort.abort(), ANSWER_WAIT_MS);
-  try {
-    const published = buildStampOf(await environment.readPage(abort.signal));
-    const at = environment.now();
-    if (!published) return { kind: "unanswered", build, why: "the page it answered with does not say which build it is", at };
-    const order = compareBuildStamps(build, published);
-    return order === "same" ? { kind: "published", build, at } : order === "newer" ? { kind: "older", build, published, at } : { kind: "ahead", build, published, at };
-  } catch (error) {
-    return { kind: "unanswered", build, why: abort.signal.aborted ? "it did not answer in time" : reasonOf(error), at: environment.now() };
-  } finally {
-    environment.clearTimer(wait);
-  }
+export function askPublishedVersion(environment: Pick<PublishedVersionEnvironment, "build" | "readPage" | "now" | "setTimer" | "clearTimer">): Promise<PublishedVersion> {
+  return askSharedPublishedVersion(sharedReadPorts(environment), { timeoutMs: ANSWER_WAIT_MS });
 }
 
 /** The same question for a page that only reports, as `?report` does: asked once where the setting allows it, and never acted on. */
@@ -225,9 +212,6 @@ export function watchPublishedVersion(options: PublishedVersionOptions): Publish
   let state: PublishedVersion = !build ? { kind: "unstamped" } : enabled() ? { kind: "not-asked", build } : { kind: "off", build };
   let disposed = false;
   let touched = false;
-  let asking: Promise<PublishedVersion> | null = null;
-  let askedAt: number | null = null;
-  let timer: unknown = null;
   /** The log's line saying this page is older, and the published version it names. */
   let notice: GameLogLine | null = null;
   let noticedFor: string | null = null;
@@ -296,32 +280,18 @@ export function watchPublishedVersion(options: PublishedVersionOptions): Publish
     say({ text: `This page is an older version of the app, built ${mine}: the published one was built ${theirs}. Reload to use it.`, tone: "warning", actions: [reloadAction] });
   };
 
-  const schedule = (): void => {
-    if (timer !== null) environment.clearTimer(timer);
-    timer = null;
-    if (!build || disposed || !enabled()) return;
-    timer = environment.setTimer(() => {
-      timer = null;
-      // A hidden page asks when it is shown again.
-      if (environment.shown()) void ask();
-    }, everyMs());
-  };
-
-  const ask = (): Promise<PublishedVersion> => {
-    if (!build || disposed || !enabled()) return Promise.resolve(state);
-    asking ??= (async () => {
-      askedAt = environment.now();
-      const next = await askPublishedVersion(environment);
-      asking = null;
-      // Turned off, or the app gone, while the site was being asked: the answer is not used.
-      if (disposed || !enabled()) return state;
-      set(next);
-      act();
-      schedule();
-      return state;
-    })();
-    return asking;
-  };
+  // The shared watcher reports only. Earth explicitly retains its existing
+  // unattended-reload policy, touched guard, tab record and notices above.
+  const watch = createPublishedVersionWatcher({
+    environment: { ...sharedReadPorts(environment), shown: () => environment.shown(),
+      onReturn: listener => environment.onReturn(listener), reload: () => environment.reload() },
+    policy: { enabled, intervalMs: everyMs,
+      watchEnabled: listener => settings.watch(CHECK_PUBLISHED, listener),
+      watchInterval: listener => settings.watch(CHECK_PUBLISHED_EVERY, listener) },
+    timeoutMs: ANSWER_WAIT_MS,
+  });
+  stops.push(watch.subscribe(next => { if (!disposed) { set(next); act(); } }));
+  const ask = () => watch.ask();
 
   if (build) {
     // The page a reload gave: the published one, or the browser's old copy again.
@@ -342,22 +312,7 @@ export function watchPublishedVersion(options: PublishedVersionOptions): Publish
     }
 
     stops.push(environment.onTouched(() => { touched = true; }));
-    stops.push(environment.onReturn(() => {
-      if (!enabled() || !environment.shown()) return;
-      // No more often than the setting says, unless the last question got no answer.
-      if (askedAt === null || state.kind === "unanswered" || environment.now() - askedAt >= everyMs()) void ask();
-    }));
-    stops.push(settings.watch(CHECK_PUBLISHED, () => {
-      if (enabled()) {
-        if (state.kind === "off") set({ kind: "not-asked", build });
-        void ask();
-      } else {
-        set({ kind: "off", build });
-        schedule();
-      }
-    }));
-    stops.push(settings.watch(CHECK_PUBLISHED_EVERY, schedule));
-    if (enabled()) void ask();
+
   }
 
   return {
@@ -369,12 +324,14 @@ export function watchPublishedVersion(options: PublishedVersionOptions): Publish
     ask,
     reload: () => reload(false),
     now: () => environment.now(),
+    whenSettled: () => watch.whenSettled(),
     dispose() {
       disposed = true;
-      if (timer !== null) environment.clearTimer(timer);
-      timer = null;
-      for (const stop of stops.splice(0)) stop();
-      listeners.clear();
+      const failures: unknown[] = [];
+      for (const stop of [...stops.splice(0), () => watch.dispose(), () => listeners.clear()]) {
+        try { stop(); } catch (error) { failures.push(error); }
+      }
+      if (failures.length) throw new AggregateError(failures, "Earth version policy cleanup failed.");
     },
   };
 }

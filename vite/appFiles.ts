@@ -20,26 +20,20 @@
  * device runs.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
+import { appFiles as sharedAppFiles, appFilesWorker as sharedAppFilesWorker } from "@foss-earth/ui/vite";
 import { definedString, buildStamp } from "@foss-earth/about/vite";
 export { definedString, buildStamp } from "@foss-earth/about/vite";
 import { BUILD_STAMP_META } from "../src/app/buildStamp.ts";
 
 /** The worker's file, at the build's root beside its pages. */
 export const APP_FILES_WORKER = "foss-earth-sw.js";
-/** A built file whose name carries its content's hash, as Vite names them: `index-BTEeolEJ.js`. */
-const HASHED = /-[\w-]{8}\.[a-z0-9]+$/i;
-
-/** The worker for a build of `fileNames`, as the bundle names them. Only names with a content hash are kept; the others are returned too. */
-export function appFilesWorker(fileNames: readonly string[]): { source: string; kept: string[]; unhashed: string[] } {
-  const files = fileNames.filter(name => !name.endsWith(".html") && !name.endsWith(".map") && name !== APP_FILES_WORKER);
-  const kept = files.filter(name => HASHED.test(name)).sort();
-  const unhashed = files.filter(name => !HASHED.test(name)).sort();
-  const worker = readFileSync(new URL("./appFilesWorker.js", import.meta.url), "utf8");
-  return { source: `"use strict";\n${worker}\ninstall(self, ${JSON.stringify(kept)});\n`, kept, unhashed };
+/** Earth explicitly retains its original current-only activation policy. */
+export function appFilesWorker(fileNames: readonly string[]) {
+  return sharedAppFilesWorker(fileNames, { retention: "current-only", cacheNamespace: "foss-earth-app-files" });
 }
 
 /** The names of the page's other two stamps: the app's own commit, and FOSS Earth's. */
@@ -77,29 +71,19 @@ export function fossEarthSource(root: string = FOSS_EARTH_ROOT): string {
 }
 
 export function appFiles(): Plugin {
-  /** Empty while developing: a page that is not a build has no version to compare. */
-  let stamp = "";
-  let appSource: string | null = null;
   let fossEarth = "";
-  return {
-    name: "foss-earth-app-files",
-    // Where the app finds the worker: none while developing, where nothing is hashed.
-    config(config, env) {
-      stamp = env.command === "build" ? buildStamp(config.define) : "";
-      appSource = definedString(config.define, "__SOURCE_VERSION__");
-      // FOSS Earth's own app is built from its own repository: its source is the app's.
-      const own = real(config.root ?? process.cwd()) === real(FOSS_EARTH_ROOT);
+  const producer = sharedAppFiles({ retention: "current-only", cacheNamespace: "foss-earth-app-files",
+    stamps(config, env) {
+      const stamp = env.command === "build" ? buildStamp(config.define) : "";
+      const own = real(typeof config.root === "string" ? config.root : process.cwd()) === real(FOSS_EARTH_ROOT);
       fossEarth = own ? "" : fossEarthSource();
-      return { define: { __FOSS_EARTH_APP_FILES__: JSON.stringify(env.command === "build" ? APP_FILES_WORKER : ""), __FOSS_EARTH_SOURCE__: JSON.stringify(fossEarth) } };
+      return { [BUILD_STAMP_META]: stamp, [APP_SOURCE_META]: definedString(config.define, "__SOURCE_VERSION__"), [FOSS_EARTH_SOURCE_META]: fossEarth };
     },
-    // Every page of the build says which build wrote it, and from which commits.
-    transformIndexHtml: () => (stamp ? Object.entries({ [BUILD_STAMP_META]: stamp, [APP_SOURCE_META]: appSource, [FOSS_EARTH_SOURCE_META]: fossEarth })
-      .flatMap(([name, content]) => (content ? [{ tag: "meta", attrs: { name, content }, injectTo: "head" as const }] : [])) : []),
-    generateBundle(_options, bundle) {
-      const { source, unhashed } = appFilesWorker(Object.keys(bundle));
-      // Kept forever under a name that does not change with it, such a file would go stale: it is left to the browser's cache.
-      if (unhashed.length) this.warn(`${unhashed.length} built file(s) have no content hash in their names, so the app's worker does not keep them: ${unhashed.slice(0, 5).join(", ")}`);
-      this.emitFile({ type: "asset", fileName: APP_FILES_WORKER, source });
+  });
+  return { ...producer,
+    config(config, env) {
+      const result = producer.config({ base: config.base, define: config.define, root: config.root }, env);
+      return { define: { ...result.define, __FOSS_EARTH_SOURCE__: JSON.stringify(fossEarth) } };
     },
-  };
+  } as Plugin;
 }

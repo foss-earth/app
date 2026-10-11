@@ -4,16 +4,13 @@
  * build's appFiles plugin (vite/appFiles.ts) wrote, or unregisters it and
  * deletes what it kept.
  */
+import { createKeptFilesClient } from "@foss-earth/ui/browser";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 
 /** Set by the appFiles Vite plugin: the worker's file at the build's root, or "" where there is none to keep files. */
 declare const __FOSS_EARTH_APP_FILES__: string | undefined;
 
 export const KEEP_APP_FILES = "app.keepFiles";
-/** What the page tells the worker: the files it loaded before the worker controlled it, or to stop keeping any. */
-const KEEP_MESSAGE = "foss-earth-keep";
-const FORGET_MESSAGE = "foss-earth-forget";
-
 export interface AppFilesStatus {
   /** Why nothing can be kept here, or null. */
   unavailable: string | null;
@@ -47,8 +44,6 @@ export interface AppFilesKeeper {
   settled(): Promise<void>;
   dispose(): void;
 }
-
-const cacheNameOf = (workerUrl: string): string => `foss-earth-app-files ${new URL(workerUrl).pathname}`;
 
 export function browserAppFilesEnvironment(): AppFilesEnvironment {
   const file = typeof __FOSS_EARTH_APP_FILES__ === "string" ? __FOSS_EARTH_APP_FILES__ : "";
@@ -90,91 +85,10 @@ export function browserAppFilesEnvironment(): AppFilesEnvironment {
 }
 
 export function keepAppFiles(settings: SettingsRegistry, environment: AppFilesEnvironment = browserAppFilesEnvironment()): AppFilesKeeper {
-  const { container, caches: storage, scope } = environment;
-  const workerUrl = "url" in environment.worker ? environment.worker.url : null;
-  const unavailable = "unavailable" in environment.worker ? environment.worker.unavailable : null;
-  const cacheName = workerUrl ? cacheNameOf(workerUrl) : null;
-  let disposed = false;
-  let started = false;
-  let stopObserving = (): void => {};
-  let stopLoaded = (): void => {};
-  // One change at a time, in the order the setting asked for them.
-  let queue: Promise<void> = Promise.resolve();
-
-  const ours = (registration: ServiceWorkerRegistration | undefined): registration is ServiceWorkerRegistration => {
-    const script = registration?.active ?? registration?.waiting ?? registration?.installing;
-    return Boolean(registration) && (!script || script.scriptURL === workerUrl);
-  };
-
-  async function keep(): Promise<void> {
-    await container!.register(workerUrl!, { scope, updateViaCache: "none" });
-    const ready = await container!.ready;
-    if (disposed || settings.get(KEEP_APP_FILES) !== true) return;
-    // What the page loaded before the worker controlled it, or around it, is in the browser's cache: the worker keeps it from there.
-    stopObserving();
-    const observe = (): void => {
-      stopLoaded();
-      stopLoaded = environment.observeLoaded(urls => ready.active?.postMessage({ type: KEEP_MESSAGE, urls }));
-    };
-    observe();
-    // After a new version, the page loads the new files while the old worker still controls it, which does not list them; when the new one takes over, they are named again to it.
-    const stopChanges = environment.onControllerChange(observe);
-    stopObserving = () => {
-      stopLoaded();
-      stopLoaded = () => {};
-      stopChanges();
-    };
-  }
-
-  async function forget(): Promise<void> {
-    stopObserving();
-    stopObserving = () => {};
-    const registration = await container!.getRegistration(scope);
-    if (!ours(registration)) return;
-    // It goes when this page closes; until then it still sees the page's requests, and passes them by.
-    registration.active?.postMessage({ type: FORGET_MESSAGE });
-    await registration.unregister();
-    await storage!.delete(cacheName!);
-  }
-
-  const apply = (): void => {
-    if (!started || disposed || !workerUrl || !container || !storage) return;
-    const wanted = settings.get(KEEP_APP_FILES) === true;
-    queue = queue.then(() => (wanted ? keep() : forget())).catch(error => {
-      console.warn("The app's files could not be kept as Settings → App files asks.", error);
-    });
-  };
-
-  // After the page has loaded, so installing the worker does not compete with starting the app.
-  environment.afterLoad(() => {
-    started = true;
-    apply();
+  const client = createKeptFilesClient({ environment, cacheNamespace: "foss-earth-app-files",
+    policy: { enabled: () => settings.get(KEEP_APP_FILES) === true,
+      subscribe: listener => settings.watch(KEEP_APP_FILES, listener) },
+    onError: error => console.warn("The app's files could not be kept as Settings → App files asks.", error),
   });
-  const offWatch = settings.watch(KEEP_APP_FILES, apply);
-
-  return {
-    async status() {
-      if (unavailable || !container || !storage || !cacheName) {
-        return { unavailable: unavailable ?? "This browser cannot keep the app's files for this page.", installed: false, controlling: false, files: 0, bytes: 0 };
-      }
-      const registration = await container.getRegistration(scope);
-      let files = 0;
-      let bytes = 0;
-      if (await storage.has(cacheName)) {
-        const cache = await storage.open(cacheName);
-        for (const request of await cache.keys()) {
-          const response = await cache.match(request);
-          files += 1;
-          bytes += response ? (await response.blob()).size : 0;
-        }
-      }
-      return { unavailable: null, installed: ours(registration) && Boolean(registration.active), controlling: container.controller?.scriptURL === workerUrl, files, bytes };
-    },
-    settled: () => queue,
-    dispose() {
-      disposed = true;
-      offWatch();
-      stopObserving();
-    },
-  };
+  return { status: client.status, settled: client.settled, dispose: client.dispose };
 }

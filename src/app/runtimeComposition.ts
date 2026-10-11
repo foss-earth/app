@@ -5,11 +5,12 @@
 import {
   createGlobeRuntime,
   NAVIGATION_PRESENTATION_LAYER,
-  type GlobeRuntime,
+  NativeMapStartupError,
+  type SettledGlobeRuntime,
   type GlobeRuntimeOptions,
 } from "@foss-earth/engine/babylon";
 import {
-  createRenderScheduler,
+  createRenderScheduler, createBorrowedFrameClosure,
   type WorkRenderScheduler,
   type RenderSchedulerOptions,
 } from "@foss-earth/renderer";
@@ -52,16 +53,20 @@ export interface EarthRuntimeCompositionOptions extends Pick<GlobeRuntimeOptions
   resourceWork?: { prepare(nowMs: number): void };
   /** Host-owned scene/device/broker cleanup runs after owner cleanup and frame closure. */
   disposeHost?(): void;
+  whenHostSettled?(): Promise<void>;
+  /** A failed constructor may still own a nonabortable model parser. */
+  onWorldStartupRetirement?(drain: Promise<void>): void;
 }
 
 export interface EarthRuntimeComposition {
-  readonly world: GlobeRuntime;
+  readonly world: SettledGlobeRuntime;
   readonly sky: SkyRuntime;
   readonly scheduler: WorkRenderScheduler;
   readonly presentation: BabylonRendererLifecycle;
   readonly profile: FrameProfileSession;
   /** Releases owners, then invokes disposeHost when supplied; ownership remains explicit. */
   destroy(): void;
+  whenSettled(): Promise<void>;
 }
 
 /** One host-created scheduler/profile/lifecycle/Sky over the existing scene/device. */
@@ -72,94 +77,34 @@ export function composeEarthRuntime(options: EarthRuntimeCompositionOptions): Ea
   if (options.fatalFramePolicy !== "stop" || typeof options.presentation.onDeviceLost !== "function") {
     throw new TypeError("Earth composition requires stop-on-frame-error and host device-loss cancellation.");
   }
-  let released = false;
-  let cleaned = false;
-  let inHostFrame = false;
-  const cancelledFrame = new Error("Earth composition disposed during frame preparation.");
   // Owners may forward these methods as callbacks; preserve the supplied receiver once.
   const clock: GlobeRuntimeOptions["clock"] = {
     nowMs: () => options.clock.nowMs(),
     after: (callback, delayMs) => options.clock.after(callback, delayMs),
   };
-  let frameAt = 0;
-  let world: GlobeRuntime | undefined;
+  let world: SettledGlobeRuntime | undefined;
   let sky: SkyRuntime | undefined;
   let scheduler: WorkRenderScheduler | undefined;
   let presentation: BabylonRendererLifecycle | undefined;
   let profile: FrameProfileSession | undefined;
   let detachProfile: (() => void) | undefined;
   let detachSky: (() => void) | undefined;
-  const release = (): void => {
-    if (cleaned) return;
-    released = true;
-    // Leave borrowed frame resources alive until begin/end and world bookkeeping close.
-    if (inHostFrame) return;
-    cleaned = true;
-    const failures: unknown[] = [];
-    for (const action of [
-      () => world?.destroy(),
-      () => { const stop = detachSky; detachSky = undefined; stop?.(); },
-      () => sky?.dispose(),
-      () => presentation?.dispose(),
+  let startupRetirement: Promise<void> | undefined;
+  const closure = createBorrowedFrameClosure({
+    presentation: () => presentation,
+    prepareFrame: time => { world?.prepareFrame(time); }, afterFrame: (time, rendered) => { world?.afterFrame(time, rendered); },
+    shouldKeepRendering: () => world?.shouldKeepRendering() ?? false,
+    minFrameIntervalMs: () => world?.minFrameIntervalMs() ?? 0,
+    stopScheduler: () => scheduler?.stop(), onFrameError: options.onFrameError, resourceWork: options.resourceWork,
+    cleanup: [() => world?.destroy(), () => { const stop = detachSky; detachSky = undefined; stop?.(); },
+      () => sky?.dispose(), () => presentation?.dispose(),
       () => { const stop = detachProfile; detachProfile = undefined; stop?.(); },
-      () => profile?.dispose(),
-      () => scheduler?.stop(),
-      () => options.disposeHost?.(),
-    ]) {
-      try { action(); } catch (error) { failures.push(error); }
-    }
-    if (failures.length) throw new AggregateError(failures, "Earth composition cleanup failed.");
-  };
+      () => profile?.dispose(), () => scheduler?.stop(), () => options.disposeHost?.()],
+    whenOwnersSettled: [async () => { await world?.whenSettled(); await startupRetirement; }, ...(options.whenHostSettled ? [options.whenHostSettled] : [])],
+  });
+  const release = () => closure.dispose();
   try {
-    scheduler = createRenderScheduler({
-      requestFrame(callback) {
-        return options.frames.requestFrame(time => {
-          // The scheduler and engine consume the same host RAF timestamp.
-          frameAt = time;
-          callback(time);
-        });
-      },
-      cancelFrame: handle => options.frames.cancelFrame(handle),
-      work(timeMs) {
-        if (released || !options.resourceWork) return;
-        inHostFrame = true;
-        const failures: unknown[] = [];
-        try { options.resourceWork.prepare(timeMs); } catch (error) { failures.push(error); }
-        finally {
-          inHostFrame = false;
-          if (released) { try { release(); } catch (error) { failures.push(error); } }
-        }
-        if (failures.length) {
-          try { scheduler!.stop(); } catch (error) { failures.push(error); }
-          options.onFrameError(failures.length === 1 ? failures[0] : new AggregateError(failures, "Earth resource work failed."));
-        }
-      },
-      shouldKeepRendering: () => !released && (world?.shouldKeepRendering() ?? false),
-      minFrameIntervalMs: () => world?.minFrameIntervalMs() ?? 0,
-      tick() {
-        if (released || !world || !presentation) return;
-        inHostFrame = true;
-        let rendered = false;
-        const failures: unknown[] = [];
-        try {
-          presentation.renderFrame(() => {
-            world!.prepareFrame(frameAt);
-            // Renderer will close its begun frame without rendering disposed features.
-            if (released) throw cancelledFrame;
-          }, () => { rendered = true; });
-        } catch (error) { if (error !== cancelledFrame) failures.push(error); }
-        try { world.afterFrame(frameAt, rendered); } catch (error) { failures.push(error); }
-        finally {
-          inHostFrame = false;
-          if (released) { try { release(); } catch (error) { failures.push(error); } }
-        }
-        if (failures.length) {
-          // End continuous/inertia retry authority before calling any supplied reporter.
-          if (options.fatalFramePolicy === "stop") { try { scheduler!.stop(); } catch (error) { failures.push(error); } }
-          options.onFrameError(failures.length === 1 ? failures[0] : new AggregateError(failures, "Earth frame and bookkeeping failed."));
-        }
-      },
-    });
+    scheduler = createRenderScheduler(closure.schedulerOptions(options.frames));
     profile = createFrameProfileSession({
       scene: options.scene,
       engine: options.renderer.engine,
@@ -221,11 +166,18 @@ export function composeEarthRuntime(options: EarthRuntimeCompositionOptions): Ea
     scheduler.setPaused(options.isHidden());
     // Initial content asks for the same scheduler's first frame.
     scheduler.requestRender();
-    return { world, sky, scheduler, presentation, profile, destroy: release };
+    return { world, sky, scheduler, presentation, profile, destroy: release, whenSettled: () => closure.whenSettled() };
   } catch (error) {
-    try { release(); } catch (cleanup) {
-      throw new AggregateError([error, cleanup], "Earth composition setup and cleanup failed.");
+    const failures: unknown[] = [error];
+    // Register this proof before release invokes the host's asynchronous drain.
+    // The proof covers the failed world, not this closure's host settlement.
+    if (error instanceof NativeMapStartupError) {
+      startupRetirement = error.whenSettled();
+      void startupRetirement.catch(() => {});
+      try { options.onWorldStartupRetirement?.(startupRetirement); } catch (cleanup) { failures.push(cleanup); }
     }
+    try { release(); } catch (cleanup) { failures.push(cleanup); }
+    if (failures.length > 1) throw new AggregateError(failures, "Earth composition setup and cleanup failed.");
     throw error;
   }
 }

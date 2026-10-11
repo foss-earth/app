@@ -1,4 +1,5 @@
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { BABYLON_SHADER_GROUPS as ownerGroups, babylonShaderChunks as ownerShaderChunks } from "@foss-earth/renderer/vite";
 import { buildStamp as ownerBuildStamp, definedString as ownerDefinedString, type BuildReader } from "@foss-earth/about/vite";
@@ -56,4 +57,11 @@ describe("site Node build compatibility forwards public owners", () => {
     expect(describeBuild({ ...input, appSource: head }).app.dirty).toBeUndefined();
     expect(describeBuild({ ...input, appSource: `${head}-dirty` }).app.dirty).toBe(true);
   });
+});
+
+it("forwards worker production to UI while preserving explicit Earth cache and stamp policy", () => {
+  const source = readFileSync(new URL("./appFiles.ts", import.meta.url), "utf8");
+  expect(source).toContain('from "@foss-earth/ui/vite"');
+  expect(source).toContain('retention: "current-only"');
+  expect(source).not.toContain('readFileSync');
 });

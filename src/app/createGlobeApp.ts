@@ -54,7 +54,7 @@ import { MAX_PITCH_DEG } from "@foss-earth/engine";
 import { ecefToGeodetic, RAD_TO_DEG } from "@foss-earth/engine";
 import { createStatusHud, type CameraAltitude, type StatusHudHandle } from "@foss-earth/toolbar/browser";
 import { surfaceHeightDatum } from "@foss-earth/engine";
-import { PERFORMANCE_METRIC_DEFINITIONS, type PerformanceMetricId } from "@foss-earth/toolbar";
+import { PERFORMANCE_METRIC_DEFINITIONS, MAP_SOURCE_HUD_LAYOUT_ID, type PerformanceMetricId } from "@foss-earth/toolbar";
 import { createNorthButton, type NorthButtonHandle } from "@foss-earth/toolbar/browser";
 import { createHelpModal, type HelpModalHandle } from "@foss-earth/toolbar/browser";
 import { HUD_BUTTON_IDS, hudButtonParameterId, type HudButtonId } from "@foss-earth/toolbar";
@@ -338,7 +338,7 @@ export async function createGlobeApp(
       { kind: "button", id: "bugReportButton", title: "Show or close the Bug report tab", ariaLabel: "Bug report", text: "🐞" },
       { kind: "button", id: "fullscreenButton", title: "Enter fullscreen", ariaLabel: "Enter fullscreen", text: "⛶" },
       { kind: "button", id: "hudStatus", appearance: "chip", className: "hud-chip-button hud-status-text", ariaLive: "polite", ariaLabel: "Camera position", title: "Latitude and longitude of the point looked at, the camera's altitude, heading, pitch and zoom distance. Click to show or hide the Location tab." },
-      { kind: "slot", id: "mapSourceSlot", className: "map-source-hud-slot" },
+      { kind: "slot", id: "mapSourceSlot", className: "hud-bar-end map-source-hud-slot" },
     ],
   });
 
@@ -531,6 +531,7 @@ export async function createGlobeApp(
   const mapSourceSlot = rootElement.querySelector<HTMLElement>("#mapSourceSlot");
   const mapSourceHud = mapSourceSlot
     ? createMapSourceHud(mapSourceSlot, {
+        layout: settings.get(MAP_SOURCE_HUD_LAYOUT_ID) === "expanded" ? "expanded" : "compact",
         document, ui: { createExternalLinkIcon, attachMapDownloadSpeed, setMapSourceLabel, attachTileStreamingActivity },
         activity: runtime,
         onProviderClick: () => toggleTab("map"),
@@ -648,6 +649,7 @@ export async function createGlobeApp(
   };
   applyHudButtonVisibility();
   const fittingIds = new Set([
+    MAP_SOURCE_HUD_LAYOUT_ID,
     TOOLBAR_EDIT_PRIORITIES_ID,
     ...HUD_BUTTON_IDS.map(hudButtonParameterId),
     ...PERFORMANCE_HUD_METRICS.map(([metric]) => `interface.performanceHud.${metric}`),
@@ -687,6 +689,10 @@ export async function createGlobeApp(
   const retainSettingsRelease = (release: () => void): void => { stopWatchingSettings.push(release); };
     // What automatic adjustment did, and why, goes in the log as it happens.
   retainSettingsRelease(connectMapDetailLog(runtime, gameLog));
+  retainSettingsRelease(settings.watch(MAP_SOURCE_HUD_LAYOUT_ID, value => {
+    mapSourceHud?.setLayout(value === "expanded" ? "expanded" : "compact");
+    hudFit?.update();
+  }));
   retainSettingsRelease(settings.subscribe(changed => {
       if (![...changed].some(id => fittingIds.has(id))) return;
       // On pins the chip, Auto fits it by priority, and Off removes it.

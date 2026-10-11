@@ -2,10 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BabylonRuntime } from "@foss-earth/engine/babylon";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
-import { attachLookInput } from "@foss-earth/360/input";
 import { createEarthSceneWorld, createEarthViewerInput } from "./sceneWorld";
 
-vi.mock("@foss-earth/360/input", () => ({ attachLookInput: vi.fn() }));
 vi.mock("@foss-earth/engine/browser", async original => ({
   ...await original<typeof import("@foss-earth/engine/browser")>(),
   watchWheelGestures: () => ({ lastEventMs: () => null, begins: () => true, dispose: vi.fn() }),
@@ -49,11 +47,10 @@ describe("Earth geographic scene lifecycle", () => {
   });
   it("preserves the input registration failure when look detachment also fails", () => {
     const primary = new Error("intent registration"), release = new Error("look detach");
-    vi.mocked(attachLookInput).mockReturnValue({ applyIntents() {}, detach() { throw release; } } as never);
     const canvas = document.createElement("canvas");
     const host = createEarthViewerInput({ setNavigationIntentHandler() { throw primary; } } as unknown as BabylonRuntime, canvas, () => ({}) as never, () => 0);
     let caught: unknown;
-    try { host.input.attach({ model: {}, lease: {}, requestFrame() {}, userInput() {}, exit() {} } as never); } catch (error) { caught = error; }
+    try { host.input.attach({ model: { setRates() {}, cancelInertia() { throw release; } }, lease: {}, requestFrame() {}, userInput() {}, exit() {} } as never); } catch (error) { caught = error; }
     expect(caught).toBeInstanceOf(AggregateError);
     expect((caught as AggregateError).errors).toEqual([primary, release]);
     host.dispose();

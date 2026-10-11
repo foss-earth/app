@@ -84,7 +84,8 @@ describe("the app files worker", () => {
     const { kept, unhashed, source } = appFilesWorker(BUNDLE);
     expect(kept).toEqual([LAZY, STYLE, SCRIPT].sort());
     expect(unhashed).toEqual(["assets/logo.svg"]);
-    expect(source).toContain(`install(self, ${JSON.stringify(kept)});`);
+    expect(source).toContain('"retention":"current-only"');
+    expect(source).toContain(`"url":"/${SCRIPT}"`);
   });
 
   it("keeps a listed file the first time the app asks for it, and answers it from the device after that", async () => {

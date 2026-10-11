@@ -82,6 +82,63 @@ export function assertRenderedGlobe(observed, backend = 'webgl2') {
   }
 }
 
+/** Real CSS-pixel geometry, never inferred from DOM order or class names. */
+export function assertMapHudLayout(observed, expected = 'compact') {
+  if (!['compact', 'expanded'].includes(expected) || observed?.layout !== expected) throw new Error('The map HUD did not use the requested layout.');
+  const boxes = [observed.bar, observed.slot, observed.group, observed.rail, observed.chip];
+  for (const box of boxes) {
+    if (!box || ['left', 'right', 'top', 'bottom', 'width', 'height'].some(key => !Number.isFinite(box[key])) || box.width <= 0 || box.height <= 0) throw new Error('The map HUD has no visible finite geometry.');
+    if (box.left < -1 || box.right > observed.viewport.width + 1 || box.top < -1 || box.bottom > observed.viewport.height + 1) throw new Error('Map controls are clipped outside the viewport.');
+  }
+  if (Math.abs(observed.slot.right - observed.bar.right) > 1.25 || Math.abs(observed.slot.bottom - observed.bar.bottom) > 1.25) throw new Error('The map controls are not at the bottom-right end.');
+  if (expected === 'compact') {
+    const centre = box => (box.top + box.bottom) / 2;
+    if (observed.direction !== 'row' || observed.rail.right > observed.chip.left + 1 || Math.abs(centre(observed.rail) - centre(observed.chip)) > 1.25 || Math.abs(observed.rail.width - 41) > 1.25) throw new Error('Default map controls must use the small horizontal rail before the provider.');
+  } else {
+    if (observed.direction !== 'column' || observed.rail.bottom > observed.chip.top + 1 || observed.rail.width <= 82 || observed.rail.width > observed.group.width + 1.25) throw new Error('Expanded map controls must use a wider rail above the provider.');
+  }
+}
+
+/** Catch a provider button falling back to the browser's unstyled typography. */
+export function assertMapSourceTypography(observed) {
+  const { chip, provider, label } = observed?.typography ?? {};
+  if (!chip || !provider || !label || observed.providerDisplay !== 'inline-flex' || !observed.labelText?.trim()) {
+    throw new Error('The basemap indicator is missing its styled provider text.');
+  }
+  if (!chip.family.includes('monospace') || Math.abs(chip.size - 11) > 0.25) {
+    throw new Error('The basemap indicator lost the standard HUD typography.');
+  }
+  for (const text of [provider, label]) {
+    if (text.family !== chip.family || text.size !== chip.size || text.lineHeight !== chip.lineHeight || text.colour !== chip.colour) {
+      throw new Error('The basemap provider text did not inherit the chip font and colour.');
+    }
+  }
+}
+
+/** This function is serialized to the real page by the public page helper. */
+export function observeMapHudLayout() {
+  const box = element => {
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
+  };
+  const group = document.querySelector('.map-source-hud');
+  const chip = group?.querySelector('.map-source-hud__chip');
+  const provider = group?.querySelector('.map-source-hud__provider');
+  const label = group?.querySelector('.map-source-label');
+  const font = element => {
+    if (!element) return null;
+    const style = getComputedStyle(element);
+    return { family: style.fontFamily, size: Number.parseFloat(style.fontSize), lineHeight: style.lineHeight, colour: style.color };
+  };
+  return { viewport: { width: innerWidth, height: innerHeight },
+    layout: group?.dataset.mapHudLayout ?? null, direction: group ? getComputedStyle(group).flexDirection : null,
+    typography: { chip: font(chip), provider: font(provider), label: font(label) },
+    providerDisplay: provider ? getComputedStyle(provider).display : null, labelText: label?.textContent ?? null,
+    bar: box(document.querySelector('.hud-bar')), slot: box(document.querySelector('#mapSourceSlot')),
+    group: box(group), rail: box(group?.querySelector('.map-detail-control')), chip: box(chip) };
+}
+
 export function assertMenu(observed, dev) {
   const required = ['Location', 'Controls', 'Interface', 'Settings', 'Map', 'Renderer', 'Sky', 'Date and time', 'Scenes', 'About', 'Bug report'];
   for (const label of required) if (!observed.labels.includes(label)) throw new Error(`The standard app is missing its ${label} tab.`);
@@ -103,6 +160,13 @@ export function sanitizeText(value) {
 export function assertGracefulExit(result, evidence) {
   if (!result || result.code !== 0 || result.signal !== null || evidence?.lifecycle?.some(item => ['signal', 'graceful-close-timeout', 'forced-close'].includes(item.event))) {
     throw new Error('The browser did not provide a clean observed graceful exit. Forced cleanup is retained as a failed acceptance result.');
+  }
+}
+
+export function assertLiveGoogleActivation(observed) {
+  if (!observed?.initiallyMissing || !observed.savedKeyAvailable || observed.mode !== 'google-tiles' ||
+      !observed.sameRuntime || !observed.sameScene || !observed.sameEngine || !observed.sameDocument || observed.canvases !== 1) {
+    throw new Error('Saving a previously absent key and selecting Google must activate its tile session in the existing app without a reload.');
   }
 }
 
@@ -196,6 +260,39 @@ export async function runEarthSuite(options, injected = {}) {
     const driver = JSON.stringify(initial.info ?? {});
     report.graphics = { driver: initial.info, software: /SwiftShader|llvmpipe|software raster/i.test(driver) ? true : 'unknown', hardwareGpuConfirmed: false, gpuTiming: 'not measured' };
     check('One actual rendered globe', initial, value => assertRenderedGlobe(value, options.backend)); await screenshot('app-startup');
+    const initialMapHud = await evaluate(`(${observeMapHudLayout.toString()})()`);
+    check('Default map controls: actual compact geometry', initialMapHud, value => assertMapHudLayout(value, 'compact'));
+    check('Basemap provider: actual styled text', initialMapHud, assertMapSourceTypography);
+
+    // Exercise the actual Map controls before unrelated navigation assertions.
+    // The external proxy remains closed: this proves session activation and
+    // lifecycle reuse, not successful requests with a valid Google credential.
+    await menu(false); await openTab('Map');
+    const liveGoogle = await evaluate(`(() => {
+      const runtime = ${TEST}.runtime, scene = runtime.scene, engine = runtime.engine;
+      const origin = performance.timeOrigin, root = document.querySelector('#root');
+      const initiallyMissing = !runtime.status.googleApiKeyProvided;
+      const row = document.querySelector('[data-parameter="map.source.googleKey"]');
+      const input = row?.querySelector('input[type="password"]');
+      const save = [...(row?.querySelectorAll('button') ?? [])].find(button => button.textContent === 'Save');
+      const google = document.querySelector('input[name="foss-earth-map-source"][value="google"]');
+      if (!input || !save || !google || input.disabled || save.disabled || google.disabled) throw new Error('Missing or disabled Google key/source controls.');
+      input.value = 'earth-browser-synthetic-key'; save.click();
+      const savedKeyAvailable = runtime.status.googleApiKeyProvided;
+      google.click();
+      return { initiallyMissing, savedKeyAvailable, mode: runtime.status.mode, sameRuntime: ${TEST}.runtime === runtime,
+        sameScene: ${TEST}.runtime.scene === scene, sameEngine: ${TEST}.runtime.engine === engine,
+        sameDocument: performance.timeOrigin === origin && document.querySelector('#root') === root,
+        canvases: document.querySelectorAll('#root canvas.globe-canvas').length };
+    })()`);
+    check('Google key save and selection activate without reload', liveGoogle, assertLiveGoogleActivation);
+    await evaluate(`(() => {
+      document.querySelector('input[name="foss-earth-map-source"][value="usgs-imagery-topo"]').click();
+      const row = document.querySelector('[data-parameter="map.source.googleKey"]');
+      [...row.querySelectorAll('button')].find(button => button.textContent === 'Clear').click();
+      return true;
+    })()`);
+    check('Synthetic Google credential cleared', await evaluate(`!${TEST}.runtime.status.googleApiKeyProvided`), value => { if (!value) throw new Error('The synthetic Google credential was not cleared.'); });
     const before = initial.view;
     await evaluate(`${APP}.setViewState({ latDeg: 44.9, lonDeg: -93.1, headingDeg: 35, pitchDeg: 30, zoomMeters: 8000000 }); true`);
     const after = await until(`(() => { const view = ${APP}.getViewState(); return view && Math.abs(view.headingDeg - 35) < 0.1 && view.zoomMeters > 7000000 ? view : null; })()`, 'public application camera navigation');
@@ -222,6 +319,33 @@ export async function runEarthSuite(options, injected = {}) {
     const reloaded = await startup(options.appUrl);
     check('Reload still renders the globe', reloaded, value => assertRenderedGlobe(value, options.backend));
     check('Saved theme survives reload', await evaluate(`document.documentElement.dataset.theme`), value => { if (value !== theme.visible) throw new Error('Reload lost the theme.'); });
+
+    const mapLayout = async expected => {
+      const observed = await until(`(() => { const value = (${observeMapHudLayout.toString()})(); return value.layout === ${JSON.stringify(expected)} ? value : null; })()`, `map HUD ${expected} layout`);
+      check(`Map controls: ${expected} geometry and bottom-right placement`, observed, value => assertMapHudLayout(value, expected));
+      check(`Basemap text: ${expected} layout`, observed, assertMapSourceTypography);
+    };
+    const chooseMapLayout = async choice => {
+      await menu(false); await openTab('Interface');
+      await evaluate(`(() => {
+        const input = document.querySelector('[data-parameter="interface.mapHud.layout"] input[value="${choice}"]');
+        if (!input) throw new Error('Missing map-control layout setting.');
+        const section = input.closest('details.foss-earth-panel-section');
+        if (section && !section.open) section.querySelector('summary').click();
+        return true;
+      })()`);
+      await until(`(() => { const input = document.querySelector('[data-parameter="interface.mapHud.layout"] input[value="${choice}"]'); return input && input.getBoundingClientRect().width > 0; })()`, 'visible map-control layout choice');
+      await evaluate(`document.querySelector('[data-parameter="interface.mapHud.layout"] input[value="${choice}"]').click(); true`);
+      await mapLayout(choice);
+    };
+    await chooseMapLayout('expanded'); await screenshot('map-controls-expanded');
+    const expandedReload = await startup(options.appUrl);
+    check('Expanded reload retains one globe', expandedReload, value => assertRenderedGlobe(value, options.backend));
+    await mapLayout('expanded');
+    await chooseMapLayout('compact'); await screenshot('map-controls-compact');
+    const compactReload = await startup(options.appUrl);
+    check('Compact reload retains one globe', compactReload, value => assertRenderedGlobe(value, options.backend));
+    await mapLayout('compact');
 
     // This source is test metadata over the existing generated JPEG; no second runtime or local image implementation.
     await evaluate(`(() => { const runtime = ${TEST}.runtime;

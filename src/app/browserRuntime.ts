@@ -1,26 +1,18 @@
 /** Earth browser composition. Providers own all world, device and image algorithms. */
 import { bindEarthMapCache } from "./cacheCompatibility";
-import { TilesRenderer } from "3d-tiles-renderer/babylonjs";
-import { GoogleCloudAuthPlugin } from "3d-tiles-renderer/core/plugins";
 import { TransformNode } from "@babylonjs/core";
 import { createImageSessionBroker, type ImageSessionLimits } from "@foss-earth/images";
-import { createCanvasRgbaSurface, type ImageTransferLimits } from "@foss-earth/images/browser";
+import { type ImageTransferLimits } from "@foss-earth/images/browser";
 import {
   bootstrapGlobeRenderer, createBrowserRendererHost, createBrowserRendererPlatform,
-  whenMeshesReady, type ImageUploadLimits,
+  whenMeshesReady, whenBorrowedDeviceSettled, type ImageUploadLimits,
 } from "@foss-earth/renderer/babylon";
-import { checkUntilSettled, type RendererMode, type ReadinessPolicy, type ReadinessTimers } from "@foss-earth/renderer";
-import { createTerrainTileLoader, ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-earth/engine";
-import {
-  createAtlasImageryWorkerBridge, createBoundedAtlasImageryLoader, createMapCache,
-  createTerrainImageDecoder, latestResourceTiming, measureMapResponse,
-  type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions,
-} from "@foss-earth/engine/browser";
-import { createBoundedMapTextureLoader, createTerrainLightingAdapter, hasPickablePointAt, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
-import {
-  createGlobeRuntimeBudgets, createTerrainImageDecodeLimits,
-  loadGlobeAnchorRotationPreference, saveGlobeAnchorRotationPreference,
-} from "@foss-earth/engine/settings";
+import { type RendererMode, type ReadinessPolicy, type ReadinessTimers } from "@foss-earth/renderer";
+import { ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-earth/engine";
+import { createMapCache, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions } from "@foss-earth/engine/browser";
+import { createBrowserGlobeBindings, loadBrowserGlobeGoogleProviders } from "@foss-earth/engine/browser-globe";
+import { createTerrainLightingAdapter, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
+import { createGlobeRuntimeBudgets } from "@foss-earth/engine/settings";
 import {
   GROUND_LIGHT_TABLE, GROUND_LIGHT_SAMPLES, GROUND_LIGHT_LEAST_SINE,
   MERCATOR_MAX_LAT_DEG, NIGHT_RADIANCE_UNITS, groundLightAt,
@@ -51,6 +43,7 @@ export interface EarthBrowserRuntimeOptions extends EarthSelections {
   createWorker(): AtlasImageryWorkerPort | null;
   framePreparation?: GlobeRuntimeOptions["framePreparation"];
   onFrameError(error: unknown): void;
+  signal?: AbortSignal;
 }
 
 export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, options: EarthBrowserRuntimeOptions) {
@@ -64,27 +57,45 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
   let composition: ReturnType<typeof composeEarthRuntime> | undefined;
   let broker: ReturnType<typeof createImageSessionBroker> | undefined;
   let native: ReturnType<typeof createEarthNativeResources> | undefined;
-  let worker: ReturnType<typeof createAtlasImageryWorkerBridge> | undefined;
-  let loader: ReturnType<typeof createBoundedAtlasImageryLoader> | undefined;
+  let bindings: ReturnType<typeof createBrowserGlobeBindings> | undefined;
+  let hostRetirement: Promise<void> | undefined;
   let detachRestore: (() => void) | undefined;
   const detachResourcePolicy: (() => void)[] = [];
+  const startupRetirements = new Set<Promise<void>>();
   let disposed = false;
   let stage = "browser resource setup";
+  const cancellation = new AbortController();
+  const abortHost = () => { cancellation.abort(options.signal?.reason); composition?.destroy(); };
+  options.signal?.addEventListener("abort", abortHost, { once: true });
+  if (options.signal?.aborted) cancellation.abort(options.signal.reason);
   const disposeHost = () => {
     if (disposed) return;
     disposed = true;
-    attemptEarthCleanup([
-      ...detachResourcePolicy,
-      () => detachRestore?.(), () => loader?.dispose(), () => worker?.dispose(),
-      () => {
-        const releaseDevice = () => attemptEarthCleanup([
-          () => broker?.dispose(), () => scene.dispose(), () => renderer.engine.dispose(),
-        ], "Earth borrowed device cleanup failed.");
-        if (native) native.dispose(releaseDevice); else releaseDevice();
-      },
-    ], "Earth browser host cleanup failed.");
+    const failures: unknown[] = [];
+    for (const release of [() => cancellation.abort(new DOMException("Earth host retired.", "AbortError")), ...detachResourcePolicy, () => detachRestore?.(),
+      () => bindings?.retire(), () => native?.retire(),
+      () => options.signal?.removeEventListener("abort", abortHost)]) {
+      try { release(); } catch (error) { failures.push(error); }
+    }
+    hostRetirement = (async () => {
+      const results = await Promise.allSettled([composition?.world.whenSettled(), bindings?.whenSettled(), native?.whenSettled(), ...startupRetirements]);
+      for (const result of results) if (result.status === "rejected") failures.push(result.reason);
+      // Owner decoders/model parsers completed before a final native marker.
+      // This also covers commands submitted by Babylon rather than our uploader.
+      try { await whenBorrowedDeviceSettled({ scene, observeDeviceLoss(listener) {
+        const observer = renderer.engine.onContextLostObservable.add(listener);
+        return () => { renderer.engine.onContextLostObservable.remove(observer); };
+      }, onError: options.onFrameError }); } catch (error) { failures.push(error); }
+      // Both real native drains completed. Every release is attempted after them.
+      for (const release of [() => broker?.dispose(), () => scene.dispose(), () => renderer.engine.dispose()]) {
+        try { release(); } catch (error) { failures.push(error); }
+      }
+      if (failures.length) throw new AggregateError(failures, "Earth browser retirement failed.");
+    })();
+    void hostRetirement.catch(error => { try { options.onFrameError(error); } catch { /* whenSettled retains the original failure. */ } });
   };
   try {
+    cancellation.signal.throwIfAborted();
     settings.setDeviceContext({ rendererMode: renderer.mode,
       maxTextureSize: renderer.engine.getCaps().maxTextureSize,
       rendererDevicePixels: renderer.devicePixels ?? null,
@@ -102,8 +113,6 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     };
     const cache = createMapCache({ storage: () => window.caches, fetcher: window.fetch.bind(window), now: Date.now, Response, Request, Headers });
     detachResourcePolicy.push(bindEarthMapCache(cache));
-    const mapFetch: typeof fetch = (input, init) => typeof input === "string" ? cache.fetch(input, init)
-      : input instanceof URL ? cache.fetch(input.href, init) : window.fetch(input, init);
     const imageBroker = broker = createImageSessionBroker(options.imageSessionLimits());
     const resources = native = createEarthNativeResources({ broker: imageBroker, scene,
       limits: options.imageUploadLimits, createCanvas, wakeWork: () => composition?.scheduler.requestWork(),
@@ -112,7 +121,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
         const observer = renderer.engine.onContextLostObservable.add(listener);
         return () => { renderer.engine.onContextLostObservable.remove(observer); };
       },
-      onRetirementError: options.onFrameError,
+      signal: cancellation.signal, onRetirementError: options.onFrameError,
       invalidatePublishedSource(failure) { imageBroker.invalidate(); options.onFrameError(failure.error); },
     });
     const updateResources = () => {
@@ -129,48 +138,31 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
       if (!settings.has(id)) throw new Error(`Resource policy parameter ${id} is not registered.`);
       detachResourcePolicy.push(settings.watch(id, updateResources));
     }
-    const bridge = worker = createAtlasImageryWorkerBridge({ broker: imageBroker,
-      createWorker: options.createWorker,
-      decode: (bytes, mimeType) => createImageBitmap(new Blob([
+    const lighting = createTerrainLightingAdapter({ GROUND_LIGHT_TABLE, GROUND_LIGHT_SAMPLES,
+      GROUND_LIGHT_LEAST_SINE, MERCATOR_MAX_LAT_DEG, NIGHT_RADIANCE_UNITS, groundLightAt });
+    stage = "Google native provider acquisition";
+    const googleProviders = await loadBrowserGlobeGoogleProviders();
+    cancellation.signal.throwIfAborted();
+    bindings = createBrowserGlobeBindings({
+      renderer, scene, broker: imageBroker, native: resources, settings, clock, timers, googleProviders,
+      readinessPolicy: options.readinessPolicy, cache, lighting,
+      realm: { window, document, AbortController, AbortSignal, DOMException, Blob, URL, Response, TransformStream,
+        Node, Element, HTMLInputElement, WheelEvent, Event, performance },
+      imageTransferLimits: options.imageTransferLimits, terrainLoaderLimits: options.terrainLoaderLimits,
+      describeMapTransfer: options.describeMapTransfer, mapPriority: options.mapPriority, createWorker: options.createWorker,
+      createCanvas, decode: (bytes, mimeType) => createImageBitmap(new Blob([
         new Uint8Array(bytes.buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength),
       ], { type: mimeType }), { colorSpaceConversion: "default", premultiplyAlpha: "none" }),
-      onError: options.onFrameError,
+      signal: cancellation.signal, onError: options.onFrameError, log: console, managedAtlas: resources.managedAtlas,
     });
-    const files = bridge.createFileService({ limits: options.imageTransferLimits,
-      priority: options.mapPriority, fetch: mapFetch, cache: null,
-    });
-    const imageryLoader = loader = createBoundedAtlasImageryLoader({ broker: imageBroker, files, worker: bridge,
-      describe: options.describeMapTransfer, priority: options.mapPriority,
-      createSurface: (width, height) => createCanvasRgbaSurface({ width, height, createCanvas }),
-      onCleanupFailure: options.onFrameError,
-    });
-    const lighting = createTerrainLightingAdapter({ GROUND_LIGHT_TABLE, GROUND_LIGHT_SAMPLES,
-      GROUND_LIGHT_LEAST_SINE, MERCATOR_MAX_LAT_DEG, NIGHT_RADIANCE_UNITS, groundLightAt,
-    });
-    const caps = renderer.engine.getCaps();
-    const acquireMapTexture = createBoundedMapTextureLoader({ broker: imageBroker, files, uploader: resources.uploader,
-      maxTextureSide: () => renderer.engine.getCaps().maxTextureSize,
-      whenReady(texture, signal) {
-        signal.throwIfAborted();
-        return new Promise<void>((resolve, reject) => {
-          let stop = () => {};
-          const clear = () => { stop(); signal.removeEventListener("abort", abort); };
-          const abort = () => { clear(); reject(signal.reason); };
-          const settled = () => { clear(); resolve(); };
-          signal.addEventListener("abort", abort, { once: true });
-          try {
-            if (texture.isReady()) settled();
-            else stop = checkUntilSettled(1, () => texture.isReady() ? 0 : 1, settled, timers, options.readinessPolicy);
-            if (signal.aborted) abort();
-          } catch (error) { clear(); reject(error); }
-        });
-      },
-    });
+    cancellation.signal.throwIfAborted();
+    const ports = bindings;
     stage = "world and sky composition";
     composition = composeEarthRuntime({ canvas, renderer, scene, settings, clock,
       frames: { requestFrame: callback => window.requestAnimationFrame(callback), cancelFrame: id => window.cancelAnimationFrame(id) },
       isHidden: () => document.hidden, fatalFramePolicy: "stop", onFrameError: options.onFrameError,
-      resourceWork: resources.resourceWork, disposeHost,
+      resourceWork: resources.resourceWork, disposeHost, whenHostSettled: async () => { await hostRetirement; },
+      onWorldStartupRetirement(drain) { startupRetirements.add(drain); },
       presentation: { platform: createBrowserRendererPlatform({ window, document }), timers,
         readinessPolicy: options.readinessPolicy, onDeviceLost: resources.observedDeviceLoss,
       },
@@ -182,74 +174,13 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
         observations: options.observations, framePreparation: options.framePreparation,
         external: options.simMode ? { worldRoot: new TransformNode("sim-world-root", scene) } : undefined,
         terrainPreparation: options.terrainPreparation, budgets: createGlobeRuntimeBudgets(settings), log: console,
-        platform: {
-          abortError: message => new DOMException(message, "AbortError"),
-          input: { realm: { document, window, userAgent: navigator.userAgent,
-            hasGestureEvent: "GestureEvent" in window, nowMs: clock.nowMs },
-            loadGlobeAnchorRotationPreference: () => loadGlobeAnchorRotationPreference(settings),
-            saveGlobeAnchorRotationPreference: enabled => saveGlobeAnchorRotationPreference(settings, enabled),
-          },
-          passToWorld: { realm: { window, Node, Element, HTMLInputElement, WheelEvent, Event,
-            getComputedStyle: element => window.getComputedStyle(element), userAgent: navigator.userAgent,
-            hasGestureEvent: "GestureEvent" in window, nowMs: clock.nowMs,
-          } },
-          hasPickablePointAt,
-          navigation: { focusReturn: () => document.activeElement, createAbortController: () => new AbortController(),
-            abortReason: reason => new DOMException(reason, "AbortError"),
-          },
-        },
-        mapPorts: {
-          setCacheLimits: limits => cache.setLimits(limits),
-          raster: { attachTerrainLighting: material => lighting.createMaterialPlugin(material),
-            asyncMapTextures: {
-              resolve(source, _tile, url) {
-                // Existing providers without a descriptor retain standard 256px
-                // XYZ tiles. MIME and unknown encoded size come from the shared
-                // validated response; neither is guessed from the URL.
-                const dimensions = source.tileSize ?? { width: 256, height: 256 };
-                return { file: { url, ...dimensions }, declaredBytes: 0, priority: options.mapPriority() };
-              },
-              acquire: acquireMapTexture, createAbortController: () => new AbortController(),
-            },
-            meshRebuildCpuMs: () => settings.get<number>("map.terrain.meshRebuildTimePerFrame"), log: console,
-            imageryPorts: { device: resources.device, managedAtlas: resources.managedAtlas,
-              restoreManagedDevice: resources.restoreManagedDevice,
-              capabilities: { backend: renderer.mode, maxTextureSize: caps.maxTextureSize,
-                explicitGradients: renderer.mode !== "webgl" || Boolean(caps.textureLOD && caps.standardDerivatives) },
-              loader: imageryLoader, createAbortController: () => new AbortController(),
-            },
-            createTerrainLoader(source, onBytes, trackMemory, onPreparationMs) {
-              return createTerrainTileLoader<Blob, AbortSignal>({ source, onBytes, trackMemory,
-                limits: options.terrainLoaderLimits,
-                decode: createTerrainImageDecoder({ createImageBitmap: (blob, decodeOptions) => createImageBitmap(blob, decodeOptions),
-                  createCanvas, nowMs: clock.nowMs, limits: createTerrainImageDecodeLimits(settings), onDecodeCpu: onPreparationMs,
-                }),
-                ports: { createAbortController: () => new AbortController(),
-                  requestSignal: (signal, timeoutMs) => AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
-                  fetchTile: (url, signal) => cache.fetch(url, { signal, mode: "cors" }), byteLength: blob => blob.size,
-                },
-              });
-            },
-          },
-          google: { createTilesRenderer: (url, borrowedScene) => new TilesRenderer(url, borrowedScene),
-            createAuthPlugin: authOptions => new GoogleCloudAuthPlugin(authOptions),
-            createAbortController: () => new AbortController(), combineSignals: signals => AbortSignal.any([...signals]),
-            whenMeshesReady: (meshes, readyOptions = {}) => whenMeshesReady(meshes, { ...readyOptions, timers, readinessPolicy: options.readinessPolicy }),
-            lighting, responseRealm: { Response, TransformStream }, recordMapRequest: url => cache.recordBrowserRequest(url),
-            resourceTiming: url => latestResourceTiming(url, performance.getEntriesByType("resource")),
-            online: () => navigator.onLine, origin: () => location.origin, log: console,
-          },
-        },
+        platform: ports.platform,
+        mapPorts: ports.mapPorts,
       },
       sky: { ecefToGeodetic, now: Date.now,
         timers: { set: (callback, delayMs) => window.setTimeout(callback, delayMs), clear: id => window.clearTimeout(id) },
-        terrain: { setLighting: value => lighting.setTerrainLighting(scene, value),
-          setLocalLights: value => { lighting.setTerrainLocalLights(scene, value); },
-        },
-        nightTilePorts: { fetchTile: (url, init) => cache.fetch(url, init),
-          measureResponse: (response, onBytes) => measureMapResponse(response, onBytes, { Response, TransformStream }),
-          retryDelayMs, setNightLightMap: value => lighting.setTerrainNightLightMap(scene, value),
-        },
+        terrain: ports.skyTerrain,
+        nightTilePorts: { ...ports.nightTilePorts, retryDelayMs },
       },
     });
     stage = "presentation lifecycle subscription";
@@ -264,19 +195,21 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     }, 10_000);
     try {
       await whenMeshesReady(scene.meshes.filter(mesh => mesh.isEnabled() && mesh.isVisible), {
-        signal: startup.signal, timers, readinessPolicy: options.readinessPolicy,
+        signal: AbortSignal.any([startup.signal, cancellation.signal]), timers, readinessPolicy: options.readinessPolicy,
       });
     } finally { cancelStartupDeadline(); }
     composition.scheduler.requestRender();
     // Retain live status/camera getters owned by Engine instead of snapshotting them.
     const runtime = Object.create(composition.world) as typeof composition.world;
     Object.defineProperty(runtime, "destroy", { value: () => composition!.destroy() });
-    return { runtime, composition, broker: imageBroker, native: resources, files, cache, clock, timers };
+    return { runtime, composition, broker: imageBroker, native: resources, files: ports.files, cache, clock, timers,
+      bindings: ports, signal: cancellation.signal, async whenSettled() { await composition!.whenSettled(); await hostRetirement; } };
   } catch (error) {
     try {
       // A post-composition subscription can fail too: release owner callbacks
       // and the scheduler before disposing their borrowed host resources.
       if (composition) composition.destroy(); else disposeHost();
+      await hostRetirement;
     } catch (cleanup) { throw new AggregateError([error, cleanup], "Earth browser setup failed."); }
     throw new Error(`Earth ${stage} failed`, { cause: error });
   }

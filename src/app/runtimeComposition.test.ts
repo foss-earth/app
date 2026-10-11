@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
+import { NativeMapStartupError } from "@foss-earth/engine/babylon";
 import type { RenderSchedulerOptions } from "@foss-earth/renderer";
 import { composeEarthRuntime, type EarthRuntimeCompositionOptions } from "./runtimeComposition";
 
@@ -7,10 +8,13 @@ const owner = vi.hoisted(() => ({
   globe: vi.fn(), scheduler: vi.fn(), profile: vi.fn(), presentation: vi.fn(),
   bindProfile: vi.fn(), sky: vi.fn(), bindSky: vi.fn(),
 }));
-vi.mock("@foss-earth/engine/babylon", () => ({
+vi.mock("@foss-earth/engine/babylon", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/engine/babylon")>(),
   createGlobeRuntime: owner.globe, NAVIGATION_PRESENTATION_LAYER: 16,
 }));
-vi.mock("@foss-earth/renderer", () => ({ createRenderScheduler: owner.scheduler }));
+vi.mock("@foss-earth/renderer", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/renderer")>(), createRenderScheduler: owner.scheduler,
+}));
 vi.mock("@foss-earth/renderer/babylon", () => ({
   createBabylonRendererLifecycle: owner.presentation, createFrameProfileSession: owner.profile,
   bindFrameProfileSettings: owner.bindProfile,
@@ -37,6 +41,7 @@ function session() {
     afterFrame: vi.fn(() => { order.push("after"); }),
     shouldKeepRendering: () => false, minFrameIntervalMs: () => 0, isPreparingFrame: () => false,
     destroy: vi.fn(() => { order.push("world"); }),
+    async whenSettled() { /* This wiring double starts no native work. */ },
   };
   const presentation = {
     renderFrame: vi.fn((prepare: () => void, rendered: () => void) => {
@@ -179,6 +184,21 @@ describe("Earth runtime assembly over public owners", () => {
     });
     expect(() => composeEarthRuntime(fixture.options)).toThrow(failure);
     expect(fixture.order).toEqual(["detachSky", "sky", "presentation", "detachProfile", "profile", "scheduler", "host"]);
+  });
+
+  it("registers a failed world's actual parser drain before host cleanup starts", async () => {
+    const fixture = session();
+    let complete!: () => void;
+    const parser = new Promise<void>(resolve => { complete = resolve; });
+    let registered: Promise<void> | undefined, finished = false;
+    fixture.options.onWorldStartupRetirement = drain => { registered = drain; fixture.order.push("registered"); };
+    fixture.disposeHost.mockImplementation(() => { expect(registered).toBe(parser); fixture.order.push("host"); });
+    owner.globe.mockImplementation(() => { throw new NativeMapStartupError([new Error("partial world")], "partial world", () => parser); });
+    expect(() => composeEarthRuntime(fixture.options)).toThrow("partial world");
+    const proof = registered!.then(() => { finished = true; });
+    await Promise.resolve(); expect(finished).toBe(false);
+    expect(fixture.order[0]).toBe("registered"); expect(fixture.order.at(-1)).toBe("host");
+    complete(); await proof; expect(finished).toBe(true);
   });
 
   it("rejects a second renderer before acquiring any owner resources", () => {

@@ -16,7 +16,7 @@ const FLIGHT: BuiltFrom = {
   built: "2026-10-07T18:20:00.000Z",
   app: {
     name: "osfs",
-    version: "26.10.7.3",
+    version: "26.10.07.#3",
     from: "app",
     commit: APP,
     repository: "https://github.com/0SFS/0SFS.github.io",
@@ -27,11 +27,11 @@ const FLIGHT: BuiltFrom = {
       { hash: EARLIER, at: "2026-10-07T09:00:00-05:00", subject: "Correct F135 particle optics" },
     ],
     parts: [
-      { name: "@felipegalind0/gamepad-tools", version: "26.10.7.1", from: "checkout", commit: PADS, repository: "https://github.com/Felipegalind0/gamepad-tools", built: "2026-10-07T18:10:34.467Z",
+      { name: "@felipegalind0/gamepad-tools", version: "26.10.07.#1", from: "checkout", commit: PADS, repository: "https://github.com/Felipegalind0/gamepad-tools", built: "2026-10-07T18:10:34.467Z",
         history: [{ hash: PADS, at: "2026-10-05T01:58:11-05:00", subject: "Size the dropdowns to their own text" }] },
-      { name: "foss-earth", version: "26.10.7.4", from: "checkout", commit: EARTH, repository: "https://github.com/foss-earth/foss-earth.github.io",
+      { name: "foss-earth", version: "26.10.07.#4", from: "checkout", commit: EARTH, repository: "https://github.com/foss-earth/foss-earth.github.io",
         history: [{ hash: EARTH, at: "2026-10-07T11:00:39-05:00", subject: "Draw rotations as arcs" }],
-        parts: [{ name: "@felipegalind0/gamepad-tools", version: "26.10.7.1", from: "checkout", listedAbove: true }] },
+        parts: [{ name: "@felipegalind0/gamepad-tools", version: "26.10.07.#1", from: "checkout", listedAbove: true }] },
       { name: "react", version: "19.2.6", from: "registry", repository: "https://github.com/facebook/react" },
       // A packed build that names its commit, and nothing else of it.
       { name: "@felipegalind0/jsbsim", version: "1.2.4-fork.16", from: "file", commit: ENGINE, repository: "https://github.com/Felipegalind0/jsbsim" },
@@ -51,18 +51,18 @@ describe("createAboutPanel", () => {
     const about = createAboutPanel({ builtFrom: FLIGHT, identity: IDENTITY, title: "0SFS" });
     document.body.append(about.element);
     expect(about.element.querySelector("h2")?.textContent).toBe("0SFS");
-    expect(lines(about.element)).toEqual(["Version 26.10.7.3, built 2026-10-07 18:20 UTC.", "Bundle: index-AbCd1234.js"]);
+    expect(lines(about.element)).toEqual(["Version 26.10.07.#3, built 2026-10-07 18:20 UTC.", "Bundle: index-AbCd1234.js"]);
 
     const app = about.element.querySelector<HTMLDetailsElement>(".foss-earth-about__tree > li > details")!;
     // The app opens on its parts, each a line; a part opens on request.
     expect(app.open).toBe(true);
     // The version stands beside the name, where the commit's hash stood: the commit is the first of the list inside.
-    expect(app.querySelector("summary")?.textContent).toBe("osfs26.10.7.3changes not committednot pushed when built");
+    expect(app.querySelector("summary")?.textContent).toBe("osfs26.10.07.#3changes not committednot pushed when built");
     expect(app.querySelector("summary code")).toBeNull();
     const parts = [...app.querySelectorAll(":scope > .foss-earth-about__body > .foss-earth-about__parts > li")];
     expect(parts.map(part => part.querySelector(".foss-earth-about__row")?.textContent)).toEqual([
-      "@felipegalind0/gamepad-tools26.10.7.1",
-      "foss-earth26.10.7.4",
+      "@felipegalind0/gamepad-tools26.10.07.#1",
+      "foss-earth26.10.07.#4",
       "react19.2.6",
       "@felipegalind0/jsbsim1.2.4-fork.16",
     ]);
@@ -125,7 +125,7 @@ describe("createAboutPanel", () => {
     const about = createAboutPanel({ builtFrom: FLIGHT, identity: IDENTITY });
     document.body.append(about.element);
     const above = about.element.querySelector<HTMLButtonElement>(".foss-earth-about__above")!;
-    expect(above.closest(".foss-earth-about__row")?.textContent).toBe("@felipegalind0/gamepad-tools26.10.7.1same copy as above");
+    expect(above.closest(".foss-earth-about__row")?.textContent).toBe("@felipegalind0/gamepad-tools26.10.07.#1same copy as above");
     const full = about.element.querySelectorAll<HTMLDetailsElement>("details")[1];
     expect(full.open).toBe(false);
     above.click();
@@ -135,7 +135,7 @@ describe("createAboutPanel", () => {
 
   it("says when a dev server served the page, and that its list is declared", () => {
     const about = createAboutPanel({ builtFrom: { ...FLIGHT, built: "", dev: true }, identity: { ...IDENTITY, bundle: "dev" } });
-    expect(lines(about.element)[0]).toBe("Version 26.10.7.3, served by a development server, started 2026-10-07 18:20 UTC: not a build.");
+    expect(lines(about.element)[0]).toBe("Version 26.10.07.#3, served by a development server, started 2026-10-07 18:20 UTC: not a build.");
     expect(about.element.querySelector(".foss-earth-about__note")?.textContent).toContain("a development server has no bundle to list");
   });
 

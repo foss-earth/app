@@ -485,7 +485,31 @@ describe("createGlobeApp smoke behavior", () => {
     ]);
   });
 
-  it("ends the bar at the bottom right with the detail rail, then the speed and basemap, then its credit link", async () => {
+  it("saves a previously absent Google key through the Map tab without rebuilding the host", async () => {
+    const { app } = await createAppUnderTest();
+    document.body.append(app.mapTab);
+    const { getAppSettings } = await import("../settings/appSettings");
+    const settings = getAppSettings();
+    expect(settings.get("map.source.googleKey")).toBe("");
+    const row = app.mapTab.querySelector<HTMLElement>('[data-parameter="map.source.googleKey"]')!;
+    const input = row.querySelector<HTMLInputElement>('input[type="password"]')!;
+    input.value = "  saved-fixture-key  ";
+    [...row.querySelectorAll("button")].find(button => button.textContent === "Save")!.click();
+
+    expect(settings.get("map.source.googleKey")).toBe("saved-fixture-key");
+    expect(row.textContent).not.toContain("Applies when the app next starts");
+    expect(input.value).toBe("");
+    const google = app.mapTab.querySelector<HTMLInputElement>('input[name="foss-earth-map-source"][value="google"]')!;
+    google.click();
+    expect(settings.get("map.source.basemap")).toBe("google");
+    expect(window.location.search).toBe("?mapSource=google");
+    expect(mockState.createEarthBrowserRuntime).toHaveBeenCalledOnce();
+    expect(mockState.runtimeDestroy).not.toHaveBeenCalled();
+    // The Engine owner tests the real credential/source activation; this
+    // fixture replaces world construction and proves only host UI composition.
+  });
+
+  it("mounts the map detail rail, provider and attribution in the bar end slot", async () => {
     const { root } = await createAppUnderTest();
     const bar = root.querySelector(".hud-bar")!;
     const end = bar.lastElementChild!;
@@ -505,6 +529,28 @@ describe("createGlobeApp smoke behavior", () => {
     // The rail stays still while the renderer reports no raster detail.
     expect(rail.querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
     expect(root.textContent).not.toContain("Terrain attribution");
+  });
+
+  it("keeps map controls compact until the user opts into the expanded layout", async () => {
+    const { app, root } = await createAppUnderTest();
+    const { getAppSettings } = await import("../settings/appSettings");
+    const settings = getAppSettings();
+    const id = "interface.mapHud.layout";
+    const group = root.querySelector<HTMLElement>(".map-source-hud")!;
+    const slot = root.querySelector<HTMLElement>("#mapSourceSlot")!;
+    const input = group.querySelector<HTMLInputElement>(".map-detail-control__slider")!;
+    const originalValue = input.value;
+    expect(settings.get(id)).toBe("compact");
+    expect(group.dataset.mapHudLayout).toBe("compact");
+    expect(slot.classList.contains("hud-bar-end")).toBe(true);
+    expect(sectionElement(app.interfaceSections, "toolbar").querySelectorAll(`[data-parameter="${id}"]`)).toHaveLength(1);
+    expect(app.mapTab.querySelector(`[data-parameter="${id}"]`)).toBeNull();
+    settings.set(id, "expanded");
+    expect(group.dataset.mapHudLayout).toBe("expanded");
+    expect(group.querySelector(".map-detail-control__slider")).toBe(input);
+    expect(input.value).toBe(originalValue);
+    settings.reset(id);
+    expect(group.dataset.mapHudLayout).toBe("compact");
   });
 
   it("offers the renderer choice in a Renderer tab, and nowhere else", async () => {

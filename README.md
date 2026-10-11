@@ -10,50 +10,57 @@ The standard application lives in `foss-earth/app`. The separate
 [foss-earth.github.io](https://github.com/foss-earth/foss-earth.github.io)
 repository owns the landing page and assembles this application's exact compiled
 artifact at `/app/`. Provider code remains in its independent owner repository.
-Exact local artifacts and public exports are recorded in
-[dependency-pins.json](dependency-pins.json); local qualification receipts and
-remaining publication gates are described in [split status](docs/split-compatibility.md).
+Known application UX follow-ups are recorded in [the TODO list](docs/todo.md).
 
 ## Development
 
-Use one checkout per source provider, under the same organization directory:
+Clone the Earth repositories side by side in a `foss-earth` folder, with
+`gamepad-tools` in a `Felipegalind0` folder next to it:
 
 ```text
-workspace/
-  foss-earth/
-    app/  foss-earth.github.io/
-    engine/  renderer/  ui/  toolbar/  sky/
-    images/  360/  scenes/
-    cubemap/  equirectangular/  tiled-cubemap/  preview-sheets/
-    about/  dev/  weather/  ci/  dev_installer/
-  Felipegalind0/gamepad-tools/
+foss-earth/
+  app/  ui/  images/  weather/  about/  dev/  renderer/  sky/  toolbar/
+  cubemap/  equirectangular/  tiled-cubemap/  preview-sheets/  engine/  360/
+  scenes/  browser-testing/
+Felipegalind0/
+  gamepad-tools/
 ```
 
-The group directory itself is not a Git repository. The shared installer owns
-source links, exact package mode and persistent hybrid choices. Source changes
-must reach every selected consumer through the provider's public exports, with
-one Babylon and React identity. [workspace-plan.json](workspace-plan.json)
-records the intended closure and build order. It is explicitly a preparation
-plan, not an executable manifest with invented application or release pins.
+Then, in `app/`:
 
-`scripts/setup.mjs` calls the installed shared installer after verifying all
-sealed executable inputs. Until Earth delivers a qualified default bootstrap,
-pass an externally reviewed `--manifest`/`--manifest-sha256` or `--bootstrap` and
-an explicit `--root`. The currently sealed installer supports exact mode and
-explicit links; source defaults and persistent hybrid choices await Platform's
-replacement qualification. Do not use plain registry versions to substitute
-for the exact archive identities, or copy provider source into this app.
+```sh
+npm install
+npm run dev
+```
 
-For the exact packaged local checkpoint, run `npm ci --offline --ignore-scripts`
-using the retained cache, then `npm run dev -- --host 127.0.0.1 --port 4180` and
-open `http://127.0.0.1:4180/app/`. Build output is `dist/`.
+and open `http://localhost:5173/app/`. The other commands are `npm run typecheck`,
+`npm run lint`, `npm test`, `npm run build` (output in `dist/`, built for the
+`/app/` route) and `npm run preview`. Pages assembly and deployment belong to the
+landing repository.
 
-After reviewed dependencies and the lockfile are prepared, the app's explicit
-commands are `npm run dev`, `npm run typecheck`, `npm run lint`, `npm test`,
-`npm run build` and `npm run ci`. `dev` and `preview` start servers only when
-requested. During migration all execution follows the coordinator's shared
-verification slot. The app builds with `/app/` as its asset and worker base. Pages assembly and
-deployment belong to the landing repository.
+### Local source
+
+The app uses every Earth library straight from its checkout. `package.json` links
+each one (`file:../ui`), and Vite compiles their TypeScript, so a change in
+`../ui/src` shows up in the running app without building or installing anything
+in `ui/`. Only `app/` has a `node_modules`: the libraries' imports of Babylon,
+React and the rest resolve from it, so there is one copy of each.
+
+- Each library's `package.json` exports have a `source` condition that points at
+  its TypeScript entry.
+- `vite.config.ts` and the tsconfigs select that condition and keep linked paths
+  (`preserveSymlinks`), which is what makes library imports resolve from this
+  app's `node_modules`.
+- `.npmrc` passes the same condition to Node, which loads the libraries' Vite
+  plugins from source; `vite/sourceImports.mjs` lets their `.js` import names find
+  the `.ts` files.
+
+A library's own tests and build don't run on their own yet: the libraries still
+name each other by version, and those versions are not published. Linking them
+to their siblings the same way is the next step. If a library has its own
+`node_modules`, that copy wins for its imports in the app, so keep libraries
+without one. Using pinned releases or GitHub-hosted builds of the libraries
+instead of local source is planned but not available yet.
 
 ## Application contracts
 
@@ -80,10 +87,10 @@ for the complete ownership/tab/image specifications and UI/rendering guidance.
 
 ## Project policies
 
-- [Code of conduct](CODE_OF_CONDUCT.md)
-- [Contributing](CONTRIBUTING.md)
+- [Code of conduct](https://github.com/foss-earth/.github/blob/main/CODE_OF_CONDUCT.md)
+- [Contributing](https://github.com/foss-earth/.github/blob/main/CONTRIBUTING.md)
 - [AGPL-3.0 license](LICENSE)
-- [Security](SECURITY.md)
+- [Security](https://github.com/foss-earth/.github/blob/main/SECURITY.md)
 
 Keep [NOTICE](NOTICE), [commercial licensing](COMMERCIAL_LICENSE.md) and
 asset-specific provenance with the original materials. The application's

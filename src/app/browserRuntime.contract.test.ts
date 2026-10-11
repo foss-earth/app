@@ -11,33 +11,71 @@ import { FOSS_EARTH_PARAMETERS } from "../settings/catalogue";
 import { createEarthBrowserPolicy } from "./browserPolicy";
 import { createEarthBrowserRuntime } from "./browserRuntime";
 
-const observed = vi.hoisted(() => ({ bootstrap: vi.fn(), worlds: [] as GlobeRuntimeOptions[], maps: [] as BoundedMapTexturePorts[] }));
-vi.mock("@foss-earth/renderer/babylon", async importOriginal => ({
-  ...await importOriginal<typeof import("@foss-earth/renderer/babylon")>(),
+const observed = vi.hoisted(() => {
+  // The shared settings catalogue is imported by setup before these host mocks.
+  vi.resetModules();
+  return { bootstrap: vi.fn(), worlds: [] as GlobeRuntimeOptions[], maps: [] as BoundedMapTexturePorts[] };
+});
+vi.mock("@foss-earth/renderer/babylon", async importOriginal => {
+  const actual = await importOriginal<typeof import("@foss-earth/renderer/babylon")>();
+  return { ...actual,
   // Only replace actual GPU creation; native services/lifecycle remain public owners.
   bootstrapGlobeRenderer: observed.bootstrap,
-  // NullEngine cannot perform GPU image uploads. This native boundary double
-  // does no work until a test replaces upload; broker/file/admission stay real.
-  createImageTextureUploader: () => ({
-    upload: vi.fn(async () => { throw new Error("CPU contract needs an explicit native upload double."); }),
-    pump: () => 0, busy: () => false, setLimits() {}, cancelAll() {},
-    stats: () => ({ outstandingBytes: 0 }),
-  }),
-}));
+  whenBorrowedDeviceSettled(options: Parameters<typeof actual.whenBorrowedDeviceSettled>[0]) {
+    // NullEngine submits no native commands. Supply its completion boundary only
+    // after all actual owner drains, retaining the real marker implementation.
+    const engine = options.scene.getEngine();
+    const previous = Object.getOwnPropertyDescriptor(engine, "_gl");
+    Object.defineProperty(engine, "_gl", { value: { finish: vi.fn() }, configurable: true });
+    try { return actual.whenBorrowedDeviceSettled(options); }
+    finally {
+      if (previous) Object.defineProperty(engine, "_gl", previous);
+      else Reflect.deleteProperty(engine, "_gl");
+    }
+  },
+  createNativeImageResources(options: Parameters<typeof import("@foss-earth/renderer/babylon")["createNativeImageResources"]>[0]) {
+    return actual.createNativeImageResources({ ...options, createUploader: () => ({
+      // NullEngine has no native image commands; tests supply this CPU boundary.
+      upload: vi.fn(async () => { throw new Error("CPU contract needs an explicit native upload double."); }),
+      pump: () => 0, busy: () => false, setLimits() {}, cancelAll() {},
+      stats: () => ({ queuedJobs: 0, outstandingBytes: 0, lastFrameBytes: 0, uploadedBytes: 0,
+        publishedCompletionFailures: 0, lastPublishedCompletionFailure: null }),
+      async whenSettled() { /* No native work exists at this CPU boundary. */ },
+    }) });
+  },
+}; });
 vi.mock("@foss-earth/engine/babylon", async importOriginal => {
   const actual = await importOriginal<typeof import("@foss-earth/engine/babylon")>();
   return { ...actual,
     createGlobeRuntime(canvas: HTMLCanvasElement, options: GlobeRuntimeOptions) {
       observed.worlds.push(options); return actual.createGlobeRuntime(canvas, options);
     },
-    createBoundedMapTextureLoader(ports: BoundedMapTexturePorts) {
-      observed.maps.push(ports); return actual.createBoundedMapTextureLoader(ports);
-    },
+
   };
+});
+vi.mock("@foss-earth/engine/browser-globe", async importOriginal => {
+  const actual = await importOriginal<typeof import("@foss-earth/engine/browser-globe")>();
+  return { ...actual,
+    async loadBrowserGlobeGoogleProviders() {
+      return { createTilesRenderer() { throw new Error("CPU fixture must supply Google native work explicitly."); },
+        createAuthPlugin() { throw new Error("CPU fixture must supply Google authentication explicitly."); } };
+    },
+    createBrowserGlobeBindings(options: Parameters<typeof actual.createBrowserGlobeBindings>[0]) {
+    const binding = actual.createBrowserGlobeBindings(options);
+    observed.maps.push({ broker: options.broker, files: binding.files, uploader: options.native.uploader,
+      maxTextureSide: () => options.renderer.engine.getCaps().maxTextureSize, whenReady: binding.whenReady });
+    return binding;
+  } };
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); observed.worlds = []; observed.maps = []; });
 async function host(beforeRuntime?: (scene: Scene) => void) {
   const engine = new NullEngine(), scene = new Scene(engine); engine.getCaps().maxTextureSize = 8192;
+  // NullEngine stores no GPU data and leaves raw textures unready by default.
+  // The CPU native boundary completes those allocations explicitly.
+  const createRawTexture = engine.createRawTexture.bind(engine);
+  vi.spyOn(engine, "createRawTexture").mockImplementation((...args) => {
+    const texture = createRawTexture(...args); texture.isReady = true; return texture;
+  });
   observed.bootstrap.mockResolvedValue({ renderer: { engine, mode: "webgl2", requested: "webgl2" }, scene });
   vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
   vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
@@ -50,10 +88,14 @@ async function host(beforeRuntime?: (scene: Scene) => void) {
   const policy = createEarthBrowserPolicy(settings), onFrameError = vi.fn();
   beforeRuntime?.(scene);
   try {
-    const session = await createEarthBrowserRuntime(canvas, { ...policy, settings, rendererForce: "webgl2",
+    const preparing = createEarthBrowserRuntime(canvas, { ...policy, settings, rendererForce: "webgl2",
       preferGoogleTiles: false, rasterBaseMap: RASTER_BASE_MAP_SOURCES[0], rasterImagery: "atlas", createWorker: () => null, onFrameError,
     });
-    return { ...session, engine, scene, canvas, settings, onFrameError, dispose() { session.runtime.destroy(); canvas.remove(); } };
+    const session = await preparing;
+    return { ...session, engine, scene, canvas, settings, onFrameError, async dispose() {
+      session.runtime.destroy();
+      await session.whenSettled(); canvas.remove();
+    } };
   } catch (error) { canvas.remove(); scene.dispose(); engine.dispose(); throw error; }
 }
 describe("Earth browser host over exact installed runtime contracts", () => {
@@ -77,7 +119,7 @@ describe("Earth browser host over exact installed runtime contracts", () => {
       await vi.advanceTimersByTimeAsync(100);
       expect(ready).toHaveBeenCalledTimes(reads);
       expect(f.runtime.scene).toBe(f.scene); expect(f.onFrameError).not.toHaveBeenCalled();
-    } finally { f.dispose(); }
+    } finally { await f.dispose(); }
   });
   it("bounds initial readiness failure and releases the composed resource graph", async () => {
     vi.useFakeTimers(); let initialScene: Scene | undefined;
@@ -104,7 +146,7 @@ describe("Earth browser host over exact installed runtime contracts", () => {
       f.runtime.prepareFrame(0);
       expect(f.runtime.getRasterDetailFeedback()?.support).toBe("ready");
       expect(f.onFrameError).not.toHaveBeenCalled();
-    } finally { f.dispose(); }
+    } finally { await f.dispose(); }
     expect(f.broker.pools.live()).toEqual([]); expect(f.engine.isDisposed).toBe(true);
   });
   it("uses reviewed dimensions and actual validated headers through the same bounded common services", async () => {
@@ -126,7 +168,7 @@ describe("Earth browser host over exact installed runtime contracts", () => {
       expect(upload).toHaveBeenCalledOnce(); expect(loaded.isCurrent()).toBe(true);
       expect(f.broker.pools.stats().sourceGpu.reserved).toBe(baseline + 12);
       loaded.dispose(); expect(f.broker.pools.stats().sourceGpu.reserved).toBe(baseline);
-    } finally { loaded?.dispose(); f.dispose(); }
+    } finally { loaded?.dispose(); await f.dispose(); }
     expect(f.broker.pools.live()).toEqual([]);
   });
   it("settles actual host readiness on demand and removes checks on abort", async () => {
@@ -152,6 +194,6 @@ describe("Earth browser host over exact installed runtime contracts", () => {
       const settledReads = ready.mock.calls.length;
       await vi.advanceTimersByTimeAsync(100);
       expect(ready).toHaveBeenCalledTimes(settledReads);
-    } finally { texture.dispose(); f.dispose(); }
+    } finally { texture.dispose(); await f.dispose(); }
   });
 });

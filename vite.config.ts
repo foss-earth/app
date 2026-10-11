@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
+import { defaultClientConditions, defaultServerConditions } from 'vite'
 import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
 import { appFiles } from './vite/appFiles.ts'
@@ -39,12 +40,21 @@ export default defineConfig({
     // it gamepad-tools' imports found the Babylon it installs for itself, and the build
     // held a second Babylon in the controller viewer's chunks.
     dedupe: ['@babylonjs/core', '@babylonjs/loaders', '3d-tiles-renderer', 'react', 'react-dom'],
+    // Earth libraries are linked from their sibling checkouts and used from source
+    // (README, "Local source"): "source" selects their TypeScript entry points, and
+    // keeping the linked paths makes their own imports resolve from this app's node_modules.
+    conditions: ['source', ...defaultClientConditions],
+    preserveSymlinks: true,
   },
+  ssr: { resolve: { conditions: ['source', ...defaultServerConditions] } },
+  // build/ holds local scratch such as test browser profiles; changes there are not the app's.
+  server: { watch: { ignored: ['**/build/**'] } },
   test: {
     setupFiles: ['./src/test/setup.ts'],
     // The real adapter's Babylon imports omit .js; resolve them as the app's
     // bundler does so LOD integration tests exercise the installed renderer.
-    server: { deps: { inline: [/3d-tiles-renderer\//] } },
+    // Linked libraries are TypeScript source, so they go through the transform too.
+    server: { deps: { inline: [/3d-tiles-renderer\//, /@foss-earth\//, /@felipegalind0\//] } },
     // Scratch and app-managed worktrees hold other checkouts, whose tests are not this tree's.
     exclude: [...configDefaults.exclude, 'build/**', '.delta/**'],
   },

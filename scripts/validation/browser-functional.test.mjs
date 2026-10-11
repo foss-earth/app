@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { assertGracefulExit, assertMenu, assertRenderedGlobe, canonicalUrl, parseOptions, runEarthSuite, sanitizeText } from './browser-functional.mjs';
+import { assertGracefulExit, assertLiveGoogleActivation, assertMapHudLayout, assertMapSourceTypography, assertMenu, assertRenderedGlobe, canonicalUrl, parseOptions, runEarthSuite, sanitizeText } from './browser-functional.mjs';
 import { checkedRelative, verifyCompiled } from '../../fixtures/browser-functional/serve.mjs';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -18,6 +18,47 @@ test('a shell, boot error, blank buffer and sky-only draw cannot qualify a worki
   for (const change of [{ bootError: 'renderer creation failed' }, { pixels: { samples: 4096, distinct: 1, range: 200, nontransparent: 4096 } },
     { mapMeshes: [] }, { camera: false }, { frameId: 0 }, { canvases: 2 }, { mode: 'webgl', webGLVersion: 1 }]) {
     assert.throws(() => assertRenderedGlobe({ ...actualShape, ...change }));
+  }
+});
+
+test('Google activation rejects storage-only saves, missing source activation and host recreation', () => {
+  const observed = { initiallyMissing: true, savedKeyAvailable: true, mode: 'google-tiles', sameRuntime: true, sameScene: true,
+    sameEngine: true, sameDocument: true, canvases: 1 };
+  assert.doesNotThrow(() => assertLiveGoogleActivation(observed));
+  for (const change of [{ initiallyMissing: false }, { savedKeyAvailable: false }, { mode: 'fallback' }, { sameRuntime: false },
+    { sameScene: false }, { sameEngine: false }, { sameDocument: false }, { canvases: 2 }]) {
+    assert.throws(() => assertLiveGoogleActivation({ ...observed, ...change }));
+  }
+});
+
+test('actual map HUD geometry rejects misplaced, stretched, stacked and clipped defaults', () => {
+  // Synthetic predicate controls, not a real browser receipt.
+  const box = (left, top, width, height) => ({ left, top, width, height, right: left + width, bottom: top + height });
+  const observed = { layout: 'compact', direction: 'row', viewport: { width: 1100, height: 560 },
+    bar: box(16, 516, 1068, 28), slot: box(868, 516, 216, 28), group: box(868, 516, 216, 28),
+    rail: box(872, 516, 41, 28), chip: box(920, 516, 164, 28) };
+  assert.doesNotThrow(() => assertMapHudLayout(observed));
+  for (const change of [{ slot: box(16, 516, 216, 28) }, { direction: 'column' },
+    { rail: box(872, 486, 208, 28) }, { rail: box(872, 516, 120, 28) }, { chip: box(920, 516, 200, 28) }]) {
+    assert.throws(() => assertMapHudLayout({ ...observed, ...change }));
+  }
+  const expanded = { ...observed, layout: 'expanded', direction: 'column', bar: box(16, 485, 1068, 59),
+    slot: box(796, 485, 288, 59), group: box(796, 485, 288, 59), rail: box(800, 485, 280, 28), chip: box(796, 516, 288, 28) };
+  assert.doesNotThrow(() => assertMapHudLayout(expanded, 'expanded'));
+  assert.throws(() => assertMapHudLayout(expanded));
+  assert.throws(() => assertMapHudLayout({ ...expanded, rail: box(800, 485, 41, 28) }, 'expanded'));
+});
+
+test('basemap typography rejects missing styles and browser-default button text', () => {
+  // Synthetic negative controls; real computed styles are read by the browser suite.
+  const font = { family: 'Menlo, monospace', size: 11, lineHeight: '12.1px', colour: 'rgb(239, 246, 255)' };
+  const observed = { typography: { chip: font, provider: { ...font }, label: { ...font } }, providerDisplay: 'inline-flex', labelText: 'World imagery' };
+  assert.doesNotThrow(() => assertMapSourceTypography(observed));
+  assert.throws(() => assertMapSourceTypography({ ...observed, providerDisplay: 'inline-block' }));
+  assert.throws(() => assertMapSourceTypography({ ...observed, labelText: '' }));
+  for (const change of [{ family: 'Arial' }, { size: 13.333 }, { lineHeight: 'normal' }, { colour: 'rgb(0, 0, 0)' }]) {
+    assert.throws(() => assertMapSourceTypography({ ...observed, typography: { ...observed.typography, provider: { ...font, ...change } } }));
+    assert.throws(() => assertMapSourceTypography({ ...observed, typography: { ...observed.typography, label: { ...font, ...change } } }));
   }
 });
 
