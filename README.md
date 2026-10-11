@@ -47,19 +47,29 @@ React and the rest resolve from it, so there is one copy of each.
 
 - Each library's `package.json` exports have a `source` condition that points at
   its TypeScript entry.
-- `vite.config.ts` and the tsconfigs select that condition and keep linked paths
-  (`preserveSymlinks`), which is what makes library imports resolve from this
-  app's `node_modules`.
+- `vite.config.ts` and the tsconfigs select that condition. During development,
+  the `localSource()` Vite plugin resolves linked packages to their actual
+  checkout files, so Vite watches edits and serves them without a cached
+  dependency bundle. It still resolves their dependencies through this app's
+  `node_modules`. Public CSS exports also resolve to their source stylesheets,
+  in development and production builds, including nested CSS `@import`s that
+  otherwise select built files.
 - `.npmrc` passes the same condition to Node, which loads the libraries' Vite
   plugins from source; `vite/sourceImports.mjs` lets their `.js` import names find
   the `.ts` files.
 
+Apps using the linked `foss-earth` checkout should import `localSource` from
+`foss-earth/vite` and add `localSource()` to their Vite plugins too. Selecting
+the `source` condition alone does not prevent Vite from caching linked packages
+under `node_modules`.
+
 A library's own tests and build don't run on their own yet: the libraries still
 name each other by version, and those versions are not published. Linking them
 to their siblings the same way is the next step. If a library has its own
-`node_modules`, that copy wins for its imports in the app, so keep libraries
-without one. Using pinned releases or GitHub-hosted builds of the libraries
-instead of local source is planned but not available yet.
+`node_modules`, its own tests and build use that installation; `localSource()`
+keeps the development app on its shared installation. Using pinned releases or
+GitHub-hosted builds of the libraries instead of local source is planned but not
+available yet.
 
 ## Application contracts
 
