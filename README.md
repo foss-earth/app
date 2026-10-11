@@ -1,16 +1,15 @@
 # FOSS Earth
 
-The standalone Earth application composes independent globe, rendering, UI,
-toolbar, scene and image providers through their public packages. This checkout
-also keeps the `foss-earth` application and compatibility exports used while
-Campus and Flight adopt the split providers. Shared implementations live in
-their owning repositories; the old monolith is a read-only recovery input.
+The standalone Earth application. It composes independent globe, rendering, UI,
+toolbar, scene and image libraries through their public packages. This repository
+also keeps the `foss-earth` application and compatibility exports used by Campus
+and Flight while they adopt the split libraries. Shared implementations live in
+their own repositories.
 
-The standard application lives in `foss-earth/app`. The separate
-[foss-earth.github.io](https://github.com/foss-earth/foss-earth.github.io)
-repository owns the landing page and assembles this application's exact compiled
-artifact at `/app/`. Provider code remains in its independent owner repository.
-Known application UX follow-ups are recorded in [the TODO list](docs/todo.md).
+The landing page is in
+[foss-earth.github.io](https://github.com/foss-earth/foss-earth.github.io), which
+assembles this application's compiled build at `/app/`. Known application UX
+follow-ups are in [the TODO list](docs/todo.md).
 
 ## Development
 
@@ -65,25 +64,28 @@ instead of local source is planned but not available yet.
 ## Application contracts
 
 `mountGlobeApp` creates the app and composes the shared overlay. `createGlobeApp`
-exposes the existing host integration handle. `foss-earth/runtime`, `/shell`,
-`/scenes`, `/settings`, `/input`, `/diagnostics` and `/vite` remain compatibility
-surfaces; new integrations use the owning package and explicit host ports.
-Vite plugins preserve app-file caching and build descriptions. The compatibility
-source exports require a TypeScript-aware bundler; they are not native Node
-JavaScript entries.
+exposes the host integration handle. The `foss-earth/runtime`, `/shell`,
+`/scenes`, `/settings`, `/input`, `/diagnostics` and `/vite` exports are
+compatibility surfaces; new integrations should use the owning package and
+explicit host ports. The Vite plugins keep app-file caching and build
+descriptions. The compatibility source exports need a TypeScript-aware bundler;
+they are not native Node JavaScript entries.
 
-The app owns URL/saved-setting policy, page identity, browser ports, example
-content and feature composition. Engine owns Map, Location and globe input;
-Renderer owns its presentation/lifecycle; Sky owns Sky and Date and time;
-Scenes owns scene documents/placements; 360 owns panorama viewing. Image
-structures and preview preparation retain their distinct owners. About and
-Dev receive application data and contributions. `?dev=1` enables Dev.
+The app owns URL and saved-setting policy, page identity, browser ports, example
+content and feature composition. The libraries own the rest:
 
-Weather currently delivers the extracted manual wind behavior. Forecast,
-provider, cloud and additional turbulence capabilities are not implemented by
-that release. Preserved research or dirty recovery source is not a release
-claim. Follow [the owner documentation](https://github.com/foss-earth/docs/blob/main/README.md)
-for the complete ownership/tab/image specifications and UI/rendering guidance.
+- Engine: Map, Location and globe input.
+- Renderer: presentation and lifecycle.
+- Sky: Sky and Date and time.
+- Scenes: scene documents and placements.
+- 360: panorama viewing.
+- Image structures and preview preparation each have their own library.
+- About and Dev receive application data and contributions. `?dev=1` enables Dev.
+
+Weather currently provides manual wind only. Forecast, provider, cloud and extra
+turbulence features are not implemented. For the full ownership, tab and image
+specifications and the UI and rendering guidance, see
+[the documentation repository](https://github.com/foss-earth/docs/blob/main/README.md).
 
 ## Project policies
 
