@@ -2,6 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GlobeViewState } from "@foss-earth/engine";
+import type { SceneStatus } from "@foss-earth/scenes/browser";
 import { createFrameProfileSession } from "@foss-earth/renderer/babylon";
 import { PERFORMANCE_METRIC_DEFINITIONS } from "@foss-earth/toolbar";
 
@@ -428,6 +429,59 @@ describe("createGlobeApp smoke behavior", () => {
     expect(fps?.getAttribute("aria-label")).toBe("FPS: 45");
     expect(observer.takeRecords()).toHaveLength(0);
     observer.disconnect();
+  });
+
+  it("shows a picture's fixed capture and live look, then restores globe readings on exit", async () => {
+    const overlay = fakeOverlay();
+    const { root, app } = await createAppUnderTest({ overlayApiRef: overlay });
+    const controllerState = app.scenes.state();
+    const entry = {
+      id: "picture", title: "Picture", description: null, supported: true, message: null,
+      placement: "placed", preview: "ready", marker: null,
+      capture: { latitudeDeg: 45, longitudeDeg: -94, heightMeters: 275, horizontalAccuracyMeters: null },
+      pose: null, attribution: null, previewDetail: null, images: [], links: [],
+    } satisfies SceneStatus["entries"][number];
+    let status: SceneStatus | null = {
+      sceneId: "fixture", revision: "1", title: "Fixture", generation: 1, hovered: null,
+      phase: "immersive", active: entry.id, target: null,
+      view: { headingDeg: 350, pitchDeg: -12, verticalFovDeg: 75 },
+      entries: [entry], groups: [], credits: [], overview: "none", warnings: [],
+      renderingAvailable: true, unavailableReason: null, lastError: null,
+    };
+    vi.spyOn(app.scenes, "state").mockImplementation(() => ({ ...controllerState, status }));
+    const hud = root.querySelector<HTMLElement>("#hudStatus")!;
+    mockState.frameCallback?.();
+    expect(hud.textContent).toBe("45.0000°N 94.0000°W 275m ASL h350° p-12° FOV 75°");
+    expect(hud.hidden).toBe(false);
+    expect(hud.getAttribute("aria-label")).toBe("Picture position and view");
+    expect(hud.title).toContain("vertical field of view");
+    hud.click();
+    expect(overlay.current.openOrSelectTab).toHaveBeenCalledWith("panorama");
+    expect(overlay.current.toggleTab).not.toHaveBeenCalled();
+
+    // The orbit camera moves too, but is unrelated to the picture's readout.
+    mockState.getViewState.mockReturnValue({ ...viewState, latDeg: 10, lonDeg: 20, headingDeg: 80, pitchDeg: 40, zoomMeters: 2000 });
+    status = { ...status, view: { headingDeg: 25, pitchDeg: 8, verticalFovDeg: 42 } };
+    mockState.frameCallback?.();
+    expect(hud.textContent).toBe("45.0000°N 94.0000°W 275m ASL h025° p08° FOV 42°");
+    mockState.getViewState.mockReturnValue(null);
+    mockState.frameCallback?.();
+    expect(hud.textContent).toBe("45.0000°N 94.0000°W 275m ASL h025° p08° FOV 42°");
+
+    // Missing capture height stays unknown even with a valid orbit-camera eye.
+    status = { ...status, entries: [{ ...entry, capture: { ...entry.capture, heightMeters: null } }] };
+    mockState.frameCallback?.();
+    expect(hud.textContent).toBe("45.0000°N 94.0000°W —m ASL h025° p08° FOV 42°");
+    expect(hud.querySelector<HTMLElement>("[data-position-part=altitude]")?.title).toBe("Height is unknown.");
+
+    status = null;
+    mockState.getViewState.mockReturnValue(viewState);
+    mockState.frameCallback?.();
+    expect(hud.textContent).toBe("44.9778°N 93.2650°W 600m ASL h017° p71° z600m");
+    expect(hud.getAttribute("aria-label")).toBe("Camera position");
+    expect(hud.title).toContain("Location tab");
+    hud.click();
+    expect(overlay.current.toggleTab).toHaveBeenCalledWith("location");
   });
 
   it("toggles hidden performance metrics from settings", async () => {

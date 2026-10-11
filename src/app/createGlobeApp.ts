@@ -565,6 +565,17 @@ export async function createGlobeApp(
   cleanup.push(() => positionSeaLevel.dispose());
   const statusHud: StatusHudHandle | null = hudStatusEl ? createStatusHud(hudStatusEl, settings, { document, seaLevel: positionSeaLevel }) : null;
   cleanup.push(() => statusHud?.destroy());
+  const globePositionTitle = hudStatusEl?.title ?? "";
+  let showingPanoramaPosition = false;
+  const showPositionContext = (inside: boolean): void => {
+    if (inside === showingPanoramaPosition) return;
+    showingPanoramaPosition = inside;
+    if (!hudStatusEl) return;
+    hudStatusEl.setAttribute("aria-label", inside ? "Picture position and view" : "Camera position");
+    hudStatusEl.title = inside
+      ? "The picture's latitude, longitude and capture height, current heading, pitch and vertical field of view. Click to show the panorama tab."
+      : globePositionTitle;
+  };
   // The readout's altitude is the camera's own, not the height of what it looks at.
   const cameraAltitude = (): CameraAltitude | null => {
     const eye = runtime.geospatialCamera?.position;
@@ -619,7 +630,10 @@ export async function createGlobeApp(
 
   const onRendererPillClick = (): void => toggleTab("renderer");
   cleanup.push(() => inputModeHud?.destroy());
-  const onStatusClick = (): void => toggleTab("location");
+  const onStatusClick = (): void => {
+    if (showingPanoramaPosition) options.overlayApiRef?.current?.openOrSelectTab("panorama");
+    else toggleTab("location");
+  };
   const onBugReportClick = (): void => toggleTab("bug-report");
   rendererModePill?.addEventListener("click", onRendererPillClick);
   hudStatusEl?.addEventListener("click", onStatusClick);
@@ -936,7 +950,7 @@ export async function createGlobeApp(
   cleanup.push(offSceneTrail);
   const panoramaTabs = sceneHost.tabs;
   // While a panorama is entered, its credit takes the map's place at the bar's right end.
-  const sceneHud = mapSourceSlot ? createSceneHud({ controller: scenes, container: mapSourceSlot, mapSource: mapSourceHud?.element, mapOnly: hudStatusEl ? [hudStatusEl] : [], createExternalLinkIcon }) : null;
+  const sceneHud = mapSourceSlot ? createSceneHud({ controller: scenes, container: mapSourceSlot, mapSource: mapSourceHud?.element, createExternalLinkIcon }) : null;
   const requestedScene = params.get("scene") ?? options.initialScene;
   cleanup.push(() => sceneHud?.destroy());
   if (requestedScene) void scenes.load(requestedScene, { exampleId: true });
@@ -1011,7 +1025,27 @@ export async function createGlobeApp(
   hudObserver = runtime.scene.onBeforeRenderObservable.add(() => {
     const state = runtime.getViewState();
     mapSourceHud?.update(runtime.status);
-    if (state) {
+    const sceneStatus = scenes.state().status;
+    const capture = sceneStatus?.active && sceneStatus.view
+      ? sceneStatus.entries.find(entry => entry.id === sceneStatus.active)?.capture
+      : null;
+    showPositionContext(Boolean(capture));
+    if (capture && sceneStatus?.view) {
+      // Capture coordinates stay fixed while the viewer's geographic look changes.
+      // Marker placement is only a displayed orb position, not a capture height.
+      statusHud?.update({
+        latDeg: capture.latitudeDeg,
+        lonDeg: capture.longitudeDeg,
+        ...sceneStatus.view,
+      }, {
+        altitudeMeters: capture.heightMeters,
+        groundHeightMeters: capture.heightMeters !== null && statusHud.needsGroundHeight()
+          ? resolveSurfaceHeightMeters(capture.latitudeDeg, capture.longitudeDeg) : null,
+        heightDatum: "ellipsoid",
+        groundHeightDatum: surfaceHeightDatum(runtime.status.mode),
+      });
+      northButton?.update(sceneStatus.view.headingDeg);
+    } else if (state) {
       statusHud?.update(state, cameraAltitude());
       northButton?.update(state.headingDeg);
     }

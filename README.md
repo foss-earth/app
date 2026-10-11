@@ -92,6 +92,11 @@ content and feature composition. The libraries own the rest:
 - Image structures and preview preparation each have their own library.
 - About and Dev receive application data and contributions. `?dev=1` enables Dev.
 
+Inside a panorama, the position readout uses the picture's capture coordinates
+and height, with live heading, pitch and vertical FOV in degrees. Unknown capture
+height shows a dash. Clicking the readout opens the picture's tab; leaving the
+picture restores the globe's position, camera altitude and zoom distance.
+
 Weather currently provides manual wind only. Forecast, provider, cloud and extra
 turbulence features are not implemented. For the full ownership, tab and image
 specifications and the UI and rendering guidance, see
