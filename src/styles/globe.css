@@ -9,9 +9,11 @@
 @import "@foss-earth/renderer/frame-budget.css";
 @import "@foss-earth/engine/map.css";
 @import "@foss-earth/engine/map-cache.css";
+@import "@foss-earth/engine/location.css";
 @import "@foss-earth/engine/input-mode.css";
 @import "@foss-earth/engine/visualization-tuners.css";
 @import "@foss-earth/sky/styles.css";
 @import "@foss-earth/scenes/panel.css";
 @import "@foss-earth/about/panel.css";
 @import "@foss-earth/dev/panel.css";
+@import "./panorama.css";

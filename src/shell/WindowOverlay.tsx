@@ -14,7 +14,7 @@ import type { ViewerTabs as PanoramaTabs, ViewerTabsSnapshot as PanoramaTabsSnap
 type SectionTabId = "controls" | "interface" | "settings";
 type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "about" | "bug-report" | "panorama" | "panorama-settings";
 type BuiltInTabId = "location" | SectionTabId | ElementTabId;
-const HIDDEN_IN_PANORAMA: ReadonlySet<string> = new Set(["location", "map", "sky", "time"]);
+const HIDDEN_IN_PANORAMA: ReadonlySet<string> = new Set(["map", "sky", "time"]);
 const PANORAMA_ONLY: ReadonlySet<string> = new Set(["panorama", "panorama-settings"]);
 const OUTSIDE_PANORAMA: PanoramaTabsSnapshot = { title: null, onScreen: false };
 const DEFAULT_LOCATION: GeodeticLocation = { latDeg: 44.977753, lonDeg: -93.265011 };
@@ -25,6 +25,22 @@ function currentLocation(getViewState: () => GeodeticLocation | null): GeodeticL
 }
 function browserStorage(): SettingsStorage | null {
   try { return typeof localStorage === "undefined" ? null : localStorage; } catch { return null; }
+}
+/** Fit the photograph; the optional sections stay available in the scrollable body. */
+function measurePanoramaPhotograph(body: HTMLElement): number | null {
+  const photograph = body.querySelector<HTMLElement>(".foss-earth-panorama-photograph");
+  const wrapper = photograph?.closest<HTMLElement>(".foss-earth-element-tab");
+  if (!photograph || !wrapper) return null;
+  const rect = photograph.getBoundingClientRect();
+  if (rect.width <= 0) return null;
+  const style = getComputedStyle(wrapper);
+  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+  const photographHeight = rect.bottom - body.getBoundingClientRect().top + body.scrollTop + paddingBottom;
+  // Even an empty description needs enough scrolling space to show an optional section's heading.
+  const summary = body.querySelector<HTMLElement>(".foss-earth-panorama-tab .foss-earth-panel-section__title");
+  const minimumHeight = (summary?.getBoundingClientRect().height ?? 0) + paddingTop + paddingBottom;
+  return Math.max(photographHeight, minimumHeight);
 }
 export interface WindowOverlayHandle<TabId extends string = never> {
   openOrSelectTab(tabId: BuiltInTabId | TabId): void;
@@ -164,14 +180,14 @@ export function WindowOverlay<TabId extends string = never>({
       return () => window.removeEventListener(GAME_LOG_SIZE_EVENT, onSize);
     },
   }), []);
-  return <SharedWindowOverlay<OverlayTabId>
+  return <><SharedWindowOverlay<OverlayTabId>
     tabDefinitions={tabDefinitions}
     storage={storage}
     geometry={geometry}
     logSize={logSize}
     layoutPort={layout}
     restorableTabs={restorable}
-    context={{ active: panorama.title !== null, ready: panorama.onScreen, baseOnlyTabs: HIDDEN_IN_PANORAMA as ReadonlySet<OverlayTabId>, contextOnlyTabs: PANORAMA_ONLY as ReadonlySet<OverlayTabId>, entryTabId: "panorama" }}
+    context={{ active: panorama.title !== null, ready: panorama.onScreen, baseOnlyTabs: HIDDEN_IN_PANORAMA as ReadonlySet<OverlayTabId>, contextOnlyTabs: PANORAMA_ONLY as ReadonlySet<OverlayTabId>, entryTabId: "panorama", measureEntry: measurePanoramaPhotograph }}
     overlayApiRef={overlayApiRef}
     onBeforeCloseTab={onBeforeCloseTab}
     focus={{ onClose(tabId) { if (tabId === "panorama") panoramaTabs?.leave(); } }}
@@ -187,5 +203,7 @@ export function WindowOverlay<TabId extends string = never>({
         hostDataCodec={locationHostDataCodec} contribution={locationContribution} createAbortController={() => new AbortController()}
         searchAttribution={<span>Places: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>; airports: <a href="https://www.freeairportdb.com/" target="_blank" rel="noreferrer">FreeAirportDB</a></span>} />;
     }}
-  />;
+  />
+    {panorama.onScreen && <button type="button" className="hud-chip hud-chip-button foss-earth-panorama-return" onClick={() => panoramaTabs?.leave()}>Return to map</button>}
+  </>;
 }

@@ -1,0 +1,16 @@
+.foss-earth-panorama-return {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--foss-hud-bottom) + var(--foss-hud-bar-height, 28px) + 12px);
+  transform: translateX(-50%);
+  z-index: 10;
+  min-height: 48px;
+  padding: 12px 24px;
+  font: 600 16px/1.2 system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.foss-earth-panorama-tab {
+  display: grid;
+  gap: 4px;
+}
