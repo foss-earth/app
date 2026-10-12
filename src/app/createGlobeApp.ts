@@ -385,13 +385,20 @@ export async function createGlobeApp(
   const publishedVersion = watchPublishedVersion({ settings, log: gameLog });
   cleanup.push(() => publishedVersion.dispose());
   diagnostics.addState(() => `Published: ${describePublishedVersion(publishedVersion.state(), publishedVersion.now())}`);
-  let lastLoggedStatus = "";
+  let lastLoggedStatus: string | null = null;
   const statusLines = new Map<string, GameLogLine>();
-  const logStatus = (text: string, tone: GameLogTone): void => {
+  /** The map's trouble now, or null for none: a line stays only while its trouble does. */
+  const logStatus = (text: string | null, tone: GameLogTone = "warning"): void => {
     if (text === lastLoggedStatus) return;
     lastLoggedStatus = text;
     // The same trouble with another tile's address is the same line with its latest wording, not a line for every tile.
-    const kind = `${tone} ${stepKind(text)}`;
+    const kind = text === null ? null : `${tone} ${stepKind(text)}`;
+    for (const [other, line] of statusLines) {
+      if (other === kind) continue;
+      line.remove();
+      statusLines.delete(other);
+    }
+    if (text === null || kind === null) return;
     const line = statusLines.get(kind);
     if (line) line.update({ text, tone });
     else statusLines.set(kind, gameLog.print({ text, tone }));
@@ -400,17 +407,11 @@ export async function createGlobeApp(
   let onMapStatus: ((status: BabylonRuntime["status"]) => void) | null = null;
   const applyRuntimeStatus = (status: BabylonRuntime["status"]): void => {
     onMapStatus?.(status);
-    if (status.mode === "fallback") {
-      logStatus(getFallbackNoticeMessage(status), "warning");
-      return;
-    }
-    if (status.mode === "raster-basemap" && status.lastError) {
-      logStatus(getRasterWarningMessage(status), "warning");
-      return;
-    }
-    if (status.lastError) {
-      logStatus(getGoogleWarningMessage(status), "warning");
-    }
+    // With a 2D basemap, the runtime starts in fallback mode only until that map is up.
+    if (status.mode === "fallback" && (!status.rasterBaseMap || status.lastError)) logStatus(getFallbackNoticeMessage(status));
+    else if (status.mode === "raster-basemap" && status.lastError) logStatus(getRasterWarningMessage(status));
+    else if (status.mode !== "raster-basemap" && status.lastError) logStatus(getGoogleWarningMessage(status));
+    else logStatus(null);
   };
 
   const mapConfig = resolveMapRuntimeConfig({

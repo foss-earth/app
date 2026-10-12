@@ -678,6 +678,27 @@ describe("createGlobeApp smoke behavior", () => {
     expect(text()).toContain("2D imagery is limited by the page tables: 16 available, 20 needed by visible patches. 4 patches draw one coarser page instead.");
     report({ limits: [], constraints: [] });
     expect(text()).toContain("2D imagery is no longer limited by the page tables.");
+    // The limit's own line says so: the warning is gone.
+    expect(text()).not.toContain("20 needed by visible patches");
+  });
+
+  it("says what is wrong with the map only while it is, and nothing about a 2D basemap still starting", async () => {
+    const { app } = await createAppUnderTest();
+    const logged = () => [...document.querySelectorAll(".game-log__line")].map(line => line.textContent ?? "").join("\n");
+    const onStatusChange = mockState.createEarthBrowserRuntime.mock.calls[0][1].onStatusChange as (status: typeof app.runtime.status) => void;
+    const ready = app.runtime.status;
+    // Until the 2D basemap is up, the runtime reports fallback mode.
+    onStatusChange({ ...ready, mode: "fallback", message: "Fallback mode active.", googleApiKeyProvided: true });
+    expect(logged()).not.toContain("Fallback mode active");
+    onStatusChange({ ...ready, lastError: "HTTP 503 (https://tile.example/1/2/3.png)" });
+    expect(logged()).toContain("USGS Imagery Topo is active, but some tiles failed to load: HTTP 503");
+    onStatusChange({ ...ready, lastError: null });
+    expect(logged()).not.toContain("some tiles failed to load");
+    // Without a 2D basemap, fallback mode is the map there is.
+    onStatusChange({ ...ready, mode: "fallback", rasterBaseMap: null, googleApiKeyProvided: true });
+    expect(logged()).toContain("Fallback mode active.");
+    onStatusChange(ready);
+    expect(logged()).not.toContain("Fallback mode active");
   });
 
   it("splits its sections between the Controls, Interface, Renderer and Settings tabs, with About a tab of its own", async () => {

@@ -11,7 +11,8 @@ const LOADED = ["https://tour.test/assets/twinCities-SkvAwjjw.js", "https://tour
 function browser(worker: AppFilesEnvironment["worker"] = { url: WORKER }) {
   const posted: unknown[] = [];
   const registered: { url: string; options: RegistrationOptions | undefined }[] = [];
-  const active = { scriptURL: WORKER, postMessage: (message: unknown) => { posted.push(message); } };
+  const active = Object.assign(new EventTarget(), { state: "activated" as ServiceWorkerState,
+    scriptURL: WORKER, postMessage: (message: unknown) => { posted.push(message); } });
   let registration: { active: typeof active; unregister(): Promise<boolean> } | undefined;
   const stores = new Map<string, Map<string, Blob>>();
   let finishLoading: (() => void) | null = null;
