@@ -9,7 +9,7 @@ import { BindingRuntime, createProfileStore, DEFAULT_BINDING_TRANSFORM } from "@
 import { mountBindingEditor, type BindingEditorHandle } from "@felipegalind0/gamepad-tools/ui";
 import "@felipegalind0/gamepad-tools/styles.css";
 import { Matrix, Vector3 } from "@babylonjs/core";
-import type { BabylonRuntime } from "@foss-earth/engine/babylon";
+import { attachWorldOcclusion, type BabylonRuntime } from "@foss-earth/engine/babylon";
 import { createEarthBrowserRuntime } from "./browserRuntime";
 import { createEarthBrowserPolicy } from "./browserPolicy";
 import { createEarthFeatureFramePreparation } from "./framePreparation";
@@ -75,6 +75,7 @@ import { createAnchorHeightResolver } from "@foss-earth/engine/babylon";
 import { createPoiSpriteSizeTuner } from "@foss-earth/engine/visualization-tuners";
 import { createCompassScaleTuner } from "@foss-earth/engine/visualization-tuners";
 import { createInputModeHud, type InputModeHudHandle } from "@foss-earth/engine/panels";
+import { createNavigationAnchorPinSection } from "@foss-earth/engine/panels";
 import { loadInputSensitivityPreference } from "@foss-earth/engine/settings";
 import {
   createGlobeGamepadAdapter,
@@ -128,8 +129,10 @@ export interface GlobeAppHandle extends GlobeHandle {
   openControllerBindings(): void;
   /** The globe's input and controller settings, for the host's Controls tab. */
   controlsSections: readonly PanelSection[];
-  /** The toolbar and theme, for the host's Interface tab. */
+  /** Toolbar, position and log, for the host's Interface tab. Theme and window controls are interfaceLead. */
   interfaceSections: readonly PanelSection[];
+  /** Theme and window controls, above the Interface tab's sections. */
+  interfaceLead: HTMLElement;
   /** Place-lookup limits, shown at the bottom of the Location tab. */
   locationSearchSection: PanelSection;
   /** Presets, saved settings, the app's files and diagnostics, for the host's Settings tab. */
@@ -471,6 +474,8 @@ export async function createGlobeApp(
   });
   const runtime = browser.runtime;
   cleanup.push(() => runtime.destroy());
+  const worldOcclusion = attachWorldOcclusion(runtime.scene, canvas);
+  cleanup.push(() => worldOcclusion.dispose());
   const afterFrameUi = runtime.scene.onAfterRenderObservable.add(ui.emit);
   cleanup.push(() => { runtime.scene.onAfterRenderObservable.remove(afterFrameUi); });
   const offResourceUi = browser.broker.pools.subscribeAvailable(ui.emit);
@@ -486,6 +491,9 @@ export async function createGlobeApp(
   };
   const poiTracking = createPoiTracking(runtime.scene, () => runtime.geospatialCamera, {
     dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
+    // Tracking eases the view onto a point at the pace a glide slows by, drawing each frame until it is there.
+    entryKeepPerFrame: () => runtime.getCameraHandling().glideKeepPerFrame,
+    requestRender: () => runtime.requestRender(),
   });
   cleanup.push(() => poiTracking.destroy());
   const culling = createHemisphereCulling(() => runtime.geospatialCamera?.globalPosition ?? null);
@@ -928,12 +936,15 @@ export async function createGlobeApp(
   });
   // The input-method button lands here, so its section starts open.
   cleanup.push(() => about.dispose(), () => aboutShown.clear());
+  // The session's pinned point, with Pick point, Pin compass target and Clear pin.
+  const pinSection = runtime.navigationAnchors ? createNavigationAnchorPinSection({ document, anchors: runtime.navigationAnchors }) : null;
+  if (pinSection) cleanup.push(() => pinSection.destroy());
   const controlsSections: PanelSection[] = [
     ...(inputMethodElement ? [{ id: "input-method", title: "Input method", element: inputMethodElement, defaultOpen: true }] : []),
     { id: "camera", title: settings.getSectionTitle("controls", "camera"), element: sectionOf("controls", "camera", {
       footer: note("Tilt: 0\u00B0 looks at the horizon, 90\u00B0 straight down."),
     }), defaultOpen: false },
-    { id: "orbit", title: settings.getSectionTitle("controls", "orbit"), element: sectionOf("controls", "orbit"), defaultOpen: false },
+    { id: "orbit", title: settings.getSectionTitle("controls", "orbit"), element: sectionOf("controls", "orbit", pinSection ? { footer: pinSection.element } : {}), defaultOpen: false },
     { id: "mouse", title: settings.getSectionTitle("controls", "mouse"), element: sectionOf("controls", "mouse"), defaultOpen: false },
     { id: "touch", title: settings.getSectionTitle("controls", "touch"), element: sectionOf("controls", "touch"), defaultOpen: false },
     { id: "controller", title: settings.getSectionTitle("controls", "controller"),
@@ -941,13 +952,16 @@ export async function createGlobeApp(
   ];
   const themeControl = createThemeControl(settings, document);
   parameterControls.push(themeControl);
-  const themeSection = sectionOf("interface", "theme", { main: themeControl.element, covers: ["interface.theme"] });
+  const interfaceLead = document.createElement("div");
+  interfaceLead.append(
+    sectionOf("interface", "theme", { main: themeControl.element, covers: ["interface.theme"] }),
+    sectionOf("interface", "windows"),
+  );
   const toolbarSection = createToolbarInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection });
   parameterSections.push(toolbarSection);
   const positionSection = createPositionInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection });
   parameterSections.push(positionSection);
   const interfaceSections: PanelSection[] = [
-    { id: "theme", title: settings.getSectionTitle("interface", "theme"), element: themeSection, defaultOpen: true },
     { id: "toolbar", title: settings.getSectionTitle("interface", "toolbar"), element: toolbarSection.element, defaultOpen: false },
     { id: "position", title: settings.getSectionTitle("interface", "position"), element: positionSection.element, defaultOpen: false },
     { id: "log", title: settings.getSectionTitle("interface", "log"), element: sectionOf("interface", "log"), defaultOpen: false },
@@ -1176,6 +1190,7 @@ export async function createGlobeApp(
     openControllerBindings,
     controlsSections,
     interfaceSections,
+    interfaceLead,
     locationSearchSection,
     settingsSections,
     aboutTab: about.element,

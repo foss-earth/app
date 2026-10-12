@@ -10,6 +10,10 @@
   pointer-events: auto;
 }
 
+html[data-world-presentation="split"] .foss-earth-panorama-return {
+  bottom: calc(12px + max(var(--foss-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)));
+}
+
 .foss-earth-panorama-tab {
   display: grid;
   gap: 4px;

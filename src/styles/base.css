@@ -22,6 +22,15 @@
   touch-action: none;
 }
 
+/* The phone band owns the top of the screen, so the drawing buffer is only the world under it. */
+html[data-world-presentation="split"] .globe-canvas {
+  position: absolute;
+  top: var(--foss-canvas-top, var(--foss-world-top, 0px));
+  left: 0;
+  width: 100%;
+  height: calc(100% - var(--foss-canvas-top, var(--foss-world-top, 0px)));
+}
+
 .foss-earth-overlay-root {
   position: absolute;
   inset: 0;

@@ -64,6 +64,7 @@ export async function mountGlobeApp(rootElement: HTMLElement, options: Omit<Glob
         }}
         controlsSections={app.controlsSections}
         interfaceSections={app.interfaceSections}
+        interfaceLead={app.interfaceLead}
         locationSearchSection={app.locationSearchSection}
         settingsSections={app.settingsSections}
         mapTab={app.mapTab}

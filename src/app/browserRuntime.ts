@@ -163,7 +163,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
       isHidden: () => document.hidden, fatalFramePolicy: "stop", onFrameError: options.onFrameError,
       resourceWork: resources.resourceWork, disposeHost, whenHostSettled: async () => { await hostRetirement; },
       onWorldStartupRetirement(drain) { startupRetirements.add(drain); },
-      presentation: { platform: createBrowserRendererPlatform({ window, document }), timers,
+      presentation: { platform: createBrowserRendererPlatform({ window, document, canvas }), timers,
         readinessPolicy: options.readinessPolicy, onDeviceLost: resources.observedDeviceLoss,
       },
       world: {

@@ -72,7 +72,15 @@ export function localSource(options: { root?: string } = {}): Plugin {
       const resolved = await this.resolve(id, packageFile, { ...resolveOptions, skipSelf: true });
       if (!resolved || resolved.external || !path.isAbsolute(resolved.id)) return resolved;
       const [file] = resolved.id.split(/[?#]/, 1);
-      const canonical = normalizePath(realpathSync(file));
+      // The optimizer names a dependency before it writes the file. realpath on
+      // that path throws, and Vite prints it once for every importing module.
+      let canonical: string;
+      try {
+        canonical = normalizePath(realpathSync(file));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        return resolved;
+      }
       if (!sourceFile(canonical)) return resolved;
       return { ...resolved, id: canonical + resolved.id.slice(file.length) };
     },

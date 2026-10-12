@@ -66,7 +66,13 @@ it("serves linked source live across hosts and resolves its dependencies from Ea
     resolve: { conditions: ["source", ...defaultClientConditions], preserveSymlinks: true, dedupe: ["react"] },
     optimizeDeps: { noDiscovery: true },
     server: { middlewareMode: true, hmr: false, fs: { allow: [host] }, watch: { usePolling: true, interval: 40 } },
-    plugins: [localSource({ root: earth })],
+    plugins: [
+      localSource({ root: earth }),
+      { name: "pending-optimizer-file", resolveId(id) {
+        if (id !== "pending-dep") return null;
+        return path.join(host, "node_modules/.vite/deps/pending-dep.js");
+      } },
+    ],
   });
   try {
     const resolve = (id: string, importer: string) => server.environments.client.pluginContainer.resolveId(id, importer);
@@ -76,6 +82,9 @@ it("serves linked source live across hosts and resolves its dependencies from Ea
       .toBe(normalizePath(path.join(ui, "src/details.ts")) + "?raw");
     expect((await resolve("jpeg-js", uiFile))?.id).toBe(normalizePath(path.join(earth, "node_modules/jpeg-js/index.js")));
     expect((await resolve("react", uiFile))?.id).toBe(normalizePath(path.join(host, "node_modules/react/index.js")));
+    // A dependency the optimizer has named but not written yet must not throw.
+    const pending = await resolve("pending-dep", uiFile);
+    expect(pending?.id).toBe(normalizePath(path.join(host, "node_modules/.vite/deps/pending-dep.js")));
     expect(server.config.optimizeDeps.exclude).toEqual(expect.arrayContaining(["foss-earth", "@foss-earth/ui"]));
     expect(server.config.optimizeDeps.exclude).not.toContain("react");
     expect(server.config.server.fs.allow).toEqual(expect.arrayContaining([host, earth, ui]));

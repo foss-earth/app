@@ -9,6 +9,10 @@ import { LocationPanel, type LocationPanelContribution } from "@foss-earth/engin
 import { bindEarthLocationServices, createEarthLocationServices } from "../app/locationServices";
 import { getAppSettings } from "../settings/appSettings";
 import { POSITION_ALTITUDE_ID, type AltitudeReference } from "../settings/catalogue";
+import { TABS_BEHIND_TOOLBAR_ID, TOOLBAR_EDGE_ID, WINDOWS_PRESENTATION_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
+type WorldPresentationChoice = "auto" | "overlay" | "split";
+type ToolbarEdgeChoice = "auto" | "top" | "bottom";
+type WorldResize = "live" | "release";
 import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/browser";
 import type { ViewerTabs as PanoramaTabs, ViewerTabsSnapshot as PanoramaTabsSnapshot } from "@foss-earth/360/panels";
 
@@ -35,6 +39,16 @@ function subscribePositionReadout(onChange: () => void): () => void {
     observer.disconnect();
     window.removeEventListener("resize", onChange);
   };
+}
+
+function subscribeLogTab(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-log-visible"] });
+  return () => observer.disconnect();
+}
+/** The floating log is only the widest arrangement. Everywhere else it is a tab. */
+function logTabShown(): boolean {
+  return document.documentElement.dataset.logVisible === "false";
 }
 
 function positionReadoutShown(): boolean {
@@ -101,6 +115,8 @@ export interface WindowOverlayProps<TabId extends string = never> {
   settingsSections?: readonly PanelSection[];
   /** The toolbar, theme and what the interface shows, in an Interface tab. */
   interfaceSections?: readonly PanelSection[];
+  /** Theme and window controls, drawn above the Interface tab's sections. */
+  interfaceLead?: HTMLElement;
   /** Place-lookup limits, drawn under the Location form. */
   locationSearchSection?: PanelSection;
   /** Adds the shared Map tab showing this element, from `createMapSourcePanel`. */
@@ -146,14 +162,14 @@ export interface WindowOverlayProps<TabId extends string = never> {
 
 export function WindowOverlay<TabId extends string = never>({
   getViewState, setViewState, additionalTabs = [], renderAdditionalTab,
-  controlsSections, interfaceSections, settingsSections, locationSearchSection,
+  controlsSections, interfaceSections, interfaceLead, settingsSections, locationSearchSection,
   mapTab, rendererTab, skyTab, timeTab, scenesTab, aboutTab, bugReportTab,
   onBugReportShow, panoramaTabs, locationSearchProvider,
   enableAirportPresets = false, locationContribution, locationHostDataCodec,
   locationDraft, observeLocation, settings: suppliedSettings, storage: suppliedStorage,
   overlayApiRef, onBeforeCloseTab, onTabVisibility,
 }: WindowOverlayProps<TabId>) {
-  type OverlayTabId = BuiltInTabId | TabId;
+  type OverlayTabId = BuiltInTabId | TabId | "log";
   if (enableAirportPresets && !locationContribution) {
     throw new Error("Airport presets require the flight host's Location contribution.");
   }
@@ -171,6 +187,27 @@ export function WindowOverlay<TabId extends string = never>({
   }, [lookup]);
   const draft = useMemo(() => locationDraft ?? createLocationDraftStore({ storage, key: LOCATION_PLACE_DRAFT_KEY, hostDataCodec: locationHostDataCodec }), [locationDraft, storage, locationHostDataCodec]);
   const readoutShown = useSyncExternalStore(subscribePositionReadout, positionReadoutShown, () => false);
+  const presentationChoice = useSyncExternalStore(
+    (listener) => settings.has(WINDOWS_PRESENTATION_ID) ? settings.watch(WINDOWS_PRESENTATION_ID, () => listener()) : () => {},
+    (): WorldPresentationChoice => settings.has(WINDOWS_PRESENTATION_ID) ? settings.get(WINDOWS_PRESENTATION_ID) : "auto",
+    (): WorldPresentationChoice => "auto",
+  );
+  const tabsBehindToolbar = useSyncExternalStore(
+    (listener) => settings.has(TABS_BEHIND_TOOLBAR_ID) ? settings.watch(TABS_BEHIND_TOOLBAR_ID, () => listener()) : () => {},
+    () => settings.has(TABS_BEHIND_TOOLBAR_ID) ? settings.get<boolean>(TABS_BEHIND_TOOLBAR_ID) : false,
+    () => false,
+  );
+  const toolbarEdge = useSyncExternalStore(
+    (listener) => settings.has(TOOLBAR_EDGE_ID) ? settings.watch(TOOLBAR_EDGE_ID, () => listener()) : () => {},
+    (): ToolbarEdgeChoice => settings.has(TOOLBAR_EDGE_ID) ? settings.get(TOOLBAR_EDGE_ID) : "bottom",
+    (): ToolbarEdgeChoice => "bottom",
+  );
+  const worldResize = useSyncExternalStore(
+    (listener) => settings.has(WORLD_RESIZE_ID) ? settings.watch(WORLD_RESIZE_ID, () => listener()) : () => {},
+    (): WorldResize => settings.has(WORLD_RESIZE_ID) ? settings.get(WORLD_RESIZE_ID) : "release",
+    (): WorldResize => "release",
+  );
+  const logIsTab = useSyncExternalStore(subscribeLogTab, logTabShown, () => false);
   const altitudeReference = useSyncExternalStore<AltitudeReference>(
     (listener) => settings.has(POSITION_ALTITUDE_ID) ? settings.watch(POSITION_ALTITUDE_ID, () => listener()) : () => {},
     () => settings.has(POSITION_ALTITUDE_ID) ? settings.get<AltitudeReference>(POSITION_ALTITUDE_ID) : "asl",
@@ -206,11 +243,12 @@ export function WindowOverlay<TabId extends string = never>({
   const builtIn = new Set<string>(["location", ...sectionIds, ...elementIds]);
   const tabDefinitions: readonly WindowTabDefinition<OverlayTabId>[] = [
     { id: "location", label: "Location" },
+    ...(logIsTab ? [{ id: "log" as const, label: "Log" }] : []),
     ...sectionIds.map(id => ({ id, label: sectionLabels[id] })),
     ...additionalTabs.filter(tab => !builtIn.has(tab.id)),
     ...elementIds.map(id => ({ id, label: elementLabels[id] })),
   ];
-  const restorable = new Set(tabDefinitions.filter(tab => !PANORAMA_ONLY.has(tab.id) && tab.available !== false).map(tab => tab.id));
+  const restorable = new Set(tabDefinitions.filter(tab => tab.id !== "log" && !PANORAMA_ONLY.has(tab.id) && tab.available !== false).map(tab => tab.id));
   const geometry = useMemo(() => browserOverlayGeometry(window, () => {
     const bar = document.querySelector(".hud-bar")?.getBoundingClientRect();
     return bar && bar.height > 0 ? bar.top : null;
@@ -235,12 +273,27 @@ export function WindowOverlay<TabId extends string = never>({
     overlayApiRef={overlayApiRef}
     onBeforeCloseTab={onBeforeCloseTab}
     focus={{ onClose(tabId) { if (tabId === "panorama") panoramaTabs?.leave(); } }}
-    onTabVisibility={(tabId, visible) => { if (visible && tabId === "bug-report") onBugReportShow?.(); onTabVisibility?.(tabId, visible); }}
+    presentation={{
+      choice: presentationChoice,
+      onChoice: (choice) => { if (settings.has(WINDOWS_PRESENTATION_ID)) settings.set(WINDOWS_PRESENTATION_ID, choice); },
+      tabsBehindToolbar,
+      toolbarEdge,
+      worldResize,
+    }}
+    onTabVisibility={(tabId, visible) => {
+      if (tabId === "log") return;
+      if (visible && tabId === "bug-report") onBugReportShow?.();
+      onTabVisibility?.(tabId, visible);
+    }}
     renderTabContent={tabId => {
+      if (tabId === "log") {
+        const logElement = document.getElementById("app-log");
+        return logElement ? <AdoptedElement element={logElement} className="foss-earth-log-tab" /> : null;
+      }
       const what = tabDefinitions.find(tab => tab.id === tabId)?.label ?? tabId;
       const save = tabId === "settings" ? null : <TabPresetSave settings={settings} tab={tabId} what={what} />;
       const sections = sectionTabs[tabId as SectionTabId];
-      if (sections) return <SectionsPanel sections={sections} storage={storage} footer={save} />;
+      if (sections) return <SectionsPanel sections={sections} storage={storage} leading={tabId === "interface" ? interfaceLead : undefined} footer={save} />;
       const element = elementTabs[tabId as ElementTabId];
       if (element) return <><AdoptedElement element={element} className="foss-earth-element-tab" />{save}</>;
       if (tabId !== "location") {

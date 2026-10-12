@@ -314,7 +314,7 @@ describe("createGlobeApp smoke behavior", () => {
     const originalMode = document.documentElement.dataset.dockLayout;
     log.getBoundingClientRect = () => ({ left: 12, top: 12, width: 240, height: 140, right: 252, bottom: 152, x: 12, y: 12, toJSON() {} });
     try {
-      for (const [mode, expectedWidth] of [["dual", 320], ["single", 280], ["stacked", 280], [undefined, 280]] as const) {
+      for (const [mode, expectedWidth] of [["dual", 320], ["columns", 280], ["stacked", 280], [undefined, 280]] as const) {
         if (mode === undefined) delete document.documentElement.dataset.dockLayout;
         else document.documentElement.dataset.dockLayout = mode;
         grip.dispatchEvent(new PointerEvent("pointerdown", { button: 0, clientX: 252, clientY: 152, pointerId: 1 }));
@@ -726,7 +726,9 @@ describe("createGlobeApp smoke behavior", () => {
     expect(controls("mouse")).toEqual(expect.arrayContaining(["input.mouse.orbitRate", "input.mouse.dragThreshold", "input.wheel.zoomRate"]));
     expect(controls("touch")).toEqual(expect.arrayContaining(["input.touch.orbitRate", "input.touch.panRate", "input.touch.zoomExponent"]));
     expect(controls("controller")).toContain("input.gamepad.deadzone");
-    expect(app.interfaceSections.map(({ id, title }) => [id, title])).toEqual([["theme", "Theme"], ["toolbar", "Toolbar"], ["position", "Position readout"], ["log", "Log"]]);
+    expect(app.interfaceSections.map(({ id, title }) => [id, title])).toEqual([["toolbar", "Toolbar"], ["position", "Position readout"], ["log", "Log"]]);
+    expect(app.interfaceLead.querySelector("[data-settings-section=\"interface/theme\"]")).not.toBeNull();
+    expect(app.interfaceLead.querySelector("[data-settings-section=\"interface/windows\"]")).not.toBeNull();
     expect([app.locationSearchSection.id, app.locationSearchSection.title, app.locationSearchSection.defaultOpen]).toEqual(["search", "Search", false]);
     expect([...app.locationSearchSection.element.querySelectorAll("[data-parameter]")].map(element => element.getAttribute("data-parameter"))).toEqual([
       "search.cacheDuration", "search.cacheEntries", "search.timeout",
