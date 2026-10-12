@@ -2,7 +2,7 @@
 import { CHECK_PUBLISHED_EVERY_DEFAULT } from "../../app/publishedVersion";
 import { UI_PARAMETERS, type ParameterSpec } from "@foss-earth/ui/settings";
 import {
-  createToolbarParameters, POSITION_PARAMETERS, MAP_SOURCE_HUD_LAYOUT_PARAMETERS, type ToolbarItemDescriptor,
+  createToolbarParameters, POSITION_PARAMETERS, MAP_SOURCE_HUD_LAYOUT_PARAMETERS, TOOLBAR_BOTTOM_CLEARANCE_PARAMETERS, type ToolbarItemDescriptor,
 } from "@foss-earth/toolbar";
 import {
   LOCATION_LOOKUP_PARAMETERS, POSITION_GEOID_PARAMETERS, ENGINE_VISUALIZATION_PARAMETERS,
@@ -138,5 +138,6 @@ export const APP_FILE_PARAMETERS: readonly ParameterSpec[] = [
 export const INTERFACE_PARAMETERS: readonly ParameterSpec[] = [
   ...APP_FILE_PARAMETERS, ...UI_PARAMETERS, ...toolbarParameters, ...POSITION_PARAMETERS,
   ...MAP_SOURCE_HUD_LAYOUT_PARAMETERS.map(spec => ({ ...spec, source: "src/app/createGlobeApp.ts" })),
+  ...TOOLBAR_BOTTOM_CLEARANCE_PARAMETERS.map(spec => ({ ...spec, source: "src/app/createGlobeApp.ts" })),
   ...LOCATION_LOOKUP_PARAMETERS, ...POSITION_GEOID_PARAMETERS, ...ENGINE_VISUALIZATION_PARAMETERS,
 ];

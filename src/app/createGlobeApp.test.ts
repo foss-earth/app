@@ -621,6 +621,13 @@ describe("createGlobeApp smoke behavior", () => {
     const input = group.querySelector<HTMLInputElement>(".map-detail-control__slider")!;
     const originalValue = input.value;
     expect(settings.get(id)).toBe("compact");
+    expect(settings.get("interface.toolbar.bottomClearance")).toBe(false);
+    expect(document.documentElement.hasAttribute("data-hud-home-clearance")).toBe(false);
+    expect(sectionElement(app.interfaceSections, "toolbar").querySelector(`[data-parameter="interface.toolbar.bottomClearance"]`)).not.toBeNull();
+    settings.set("interface.toolbar.bottomClearance", true);
+    expect(document.documentElement.hasAttribute("data-hud-home-clearance")).toBe(true);
+    settings.reset("interface.toolbar.bottomClearance");
+    expect(document.documentElement.hasAttribute("data-hud-home-clearance")).toBe(false);
     expect(group.dataset.mapHudLayout).toBe("compact");
     expect(slot.classList.contains("hud-bar-end")).toBe(true);
     expect(sectionElement(app.interfaceSections, "toolbar").querySelectorAll(`[data-parameter="${id}"]`)).toHaveLength(1);

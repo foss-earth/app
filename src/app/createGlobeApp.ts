@@ -54,7 +54,7 @@ import { MAX_PITCH_DEG } from "@foss-earth/engine";
 import { ecefToGeodetic, RAD_TO_DEG } from "@foss-earth/engine";
 import { createStatusHud, type CameraAltitude, type StatusHudHandle } from "@foss-earth/toolbar/browser";
 import { surfaceHeightDatum } from "@foss-earth/engine";
-import { PERFORMANCE_METRIC_DEFINITIONS, MAP_SOURCE_HUD_LAYOUT_ID, type PerformanceMetricId } from "@foss-earth/toolbar";
+import { PERFORMANCE_METRIC_DEFINITIONS, MAP_SOURCE_HUD_LAYOUT_ID, TOOLBAR_BOTTOM_CLEARANCE_ID, type PerformanceMetricId } from "@foss-earth/toolbar";
 import { createNorthButton, type NorthButtonHandle } from "@foss-earth/toolbar/browser";
 import { createHelpModal, type HelpModalHandle } from "@foss-earth/toolbar/browser";
 import { HUD_BUTTON_IDS, hudButtonParameterId, type HudButtonId } from "@foss-earth/toolbar";
@@ -350,7 +350,7 @@ export async function createGlobeApp(
         className: "north-button",
         content: () => {
           const template = document.createElement("template");
-          template.innerHTML = `<svg id="northButtonSvg" viewBox="0 0 36 36" width="28" height="28" aria-hidden="true"><polygon points="18,5 14,14 22,14" fill="#ef4444"></polygon><text x="18" y="27" text-anchor="middle" fill="rgba(255,255,255,0.82)" font-family="system-ui,-apple-system,sans-serif" font-weight="700" font-size="13">N</text></svg>`;
+          template.innerHTML = `<svg id="northButtonSvg" viewBox="0 0 36 36" width="26" height="26" aria-hidden="true"><polygon points="18,5 14,14 22,14" fill="#ef4444"></polygon><text x="18" y="27" text-anchor="middle" fill="rgba(255,255,255,0.82)" font-family="system-ui,-apple-system,sans-serif" font-weight="700" font-size="13">N</text></svg>`;
           return template.content.firstElementChild ?? document.createElement("span");
         },
       },
@@ -391,6 +391,11 @@ export async function createGlobeApp(
   // One registry for the page: the map source, renderer and every other
   // parameter below are read from it and follow it.
   const settings = getAppSettings();
+  const applyBottomClearance = (): void => {
+    if (settings.get(TOOLBAR_BOTTOM_CLEARANCE_ID) === true) document.documentElement.dataset.hudHomeClearance = "true";
+    else delete document.documentElement.dataset.hudHomeClearance;
+  };
+  applyBottomClearance();
   if (!settings.has(FRAME_PROFILING_IDS.enabled)) settings.register(frameProfilingParameters({ tab: "renderer", section: "performance" }));
   const ui = createEarthUiHost(settings, document);
   cleanup.push(() => ui.dispose());
@@ -769,6 +774,7 @@ export async function createGlobeApp(
     mapSourceHud?.setLayout(value === "expanded" ? "expanded" : "compact");
     hudFit?.update();
   }));
+  retainSettingsRelease(settings.watch(TOOLBAR_BOTTOM_CLEARANCE_ID, applyBottomClearance));
   retainSettingsRelease(settings.subscribe(changed => {
       if (![...changed].some(id => fittingIds.has(id))) return;
       // On pins the chip, Auto fits it by priority, and Off removes it.
