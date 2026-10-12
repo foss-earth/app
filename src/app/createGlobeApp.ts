@@ -25,7 +25,7 @@ import {
 } from "@foss-earth/engine/settings";
 import { TERRAIN_SOURCES, type TerrainSource } from "@foss-earth/engine";
 import { getAppSettings } from "../settings/appSettings";
-import { INPUT_SENSITIVITY_IDS, PERFORMANCE_HUD_METRICS, TOOLBAR_EDIT_PRIORITIES_ID, TOOLBAR_PRIORITIES, toolbarPriorityParameterId } from "../settings/catalogue";
+import { INPUT_SENSITIVITY_IDS, PERFORMANCE_HUD_METRICS, POSITION_ALTITUDE_ID, TOOLBAR_EDIT_PRIORITIES_ID, TOOLBAR_PRIORITIES, toolbarPriorityParameterId } from "../settings/catalogue";
 import { createParameterControl, type ParameterControlHandle } from "@foss-earth/ui/browser";
 import { createParameterSection, type ParameterSectionHandle } from "@foss-earth/ui/browser";
 import { createThemeControl } from "@foss-earth/ui/browser";
@@ -130,6 +130,8 @@ export interface GlobeAppHandle extends GlobeHandle {
   controlsSections: readonly PanelSection[];
   /** The toolbar and theme, for the host's Interface tab. */
   interfaceSections: readonly PanelSection[];
+  /** Place-lookup limits, shown at the bottom of the Location tab. */
+  locationSearchSection: PanelSection;
   /** Presets, saved settings, the app's files and diagnostics, for the host's Settings tab. */
   settingsSections: readonly PanelSection[];
   /** Which version runs and what it is built from, for the host's About tab. */
@@ -234,6 +236,37 @@ function getRasterWarningMessage(status: BabylonRuntime["status"]): string {
   return `${source?.label ?? "Raster basemap"} is active. Attribution: ${source?.attribution ?? "see provider terms"}.`;
 }
 
+/** A single-color bug, so the toolbar mark does not carry the emoji's palette. */
+function createBugIcon(document: Document): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  for (const d of [
+    "M8 2.5 9.8 4.3",
+    "M14.2 4.3 16 2.5",
+    "M9 7.2V6a3 3 0 0 1 6 0v1.2",
+    "M12 20.5c-3.3 0-6-2.6-6-5.8v-3.2A3.5 3.5 0 0 1 9.5 8h5A3.5 3.5 0 0 1 18 11.5v3.2c0 3.2-2.7 5.8-6 5.8Z",
+    "M12 20.5V11",
+    "M6.6 9.2C4.8 9 3.2 7.4 3.2 5.4",
+    "M6 13.2H2.2",
+    "M3.4 20.8c0-2 1.6-3.7 3.6-3.8",
+    "M17.4 9.2c1.8-.2 3.4-1.8 3.4-3.8",
+    "M18 13.2h3.8",
+    "M17 17c2 .1 3.6 1.8 3.6 3.8",
+  ]) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "1.8");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.append(path);
+  }
+  return svg;
+}
+
 export async function createGlobeApp(
   rootElement: HTMLElement,
   options: GlobeAppOptions = {},
@@ -335,9 +368,9 @@ export async function createGlobeApp(
         },
       },
       { kind: "button", id: "settingsButton", title: "Settings", ariaLabel: "Settings", className: "settings-button", text: "⚙" },
-      { kind: "button", id: "bugReportButton", title: "Show or close the Bug report tab", ariaLabel: "Bug report", text: "🐞" },
+      { kind: "button", id: "bugReportButton", title: "Show or close the Bug report tab", ariaLabel: "Bug report", className: "bug-report-button", content: () => createBugIcon(document) },
       { kind: "button", id: "fullscreenButton", title: "Enter fullscreen", ariaLabel: "Enter fullscreen", text: "⛶" },
-      { kind: "button", id: "hudStatus", appearance: "chip", className: "hud-chip-button hud-status-text", ariaLive: "polite", ariaLabel: "Camera position", title: "Latitude and longitude of the point looked at, the camera's altitude, heading, pitch and zoom distance. Click to show or hide the Location tab." },
+      { kind: "button", id: "hudStatus", appearance: "chip", className: "hud-chip-button hud-status-text", ariaLive: "polite", ariaLabel: "Position readout", title: "Latitude and longitude of the point looked at, the camera's altitude, heading, pitch and zoom distance. Click to show or hide the Location tab." },
       { kind: "slot", id: "mapSourceSlot", className: "hud-bar-end map-source-hud-slot" },
     ],
   });
@@ -566,15 +599,32 @@ export async function createGlobeApp(
 
   const positionSeaLevel = createBrowserPositionSeaLevelPort();
   cleanup.push(() => positionSeaLevel.dispose());
-  const statusHud: StatusHudHandle | null = hudStatusEl ? createStatusHud(hudStatusEl, settings, { document, seaLevel: positionSeaLevel }) : null;
+  let locationTabOpen = false;
+  const statusHud: StatusHudHandle | null = hudStatusEl ? createStatusHud(hudStatusEl, settings, {
+    document,
+    seaLevel: positionSeaLevel,
+    onCommit(commit) {
+      if (commit.part === "altitude") {
+        if (commit.reference && settings.get(POSITION_ALTITUDE_ID) !== commit.reference) settings.set(POSITION_ALTITUDE_ID, commit.reference);
+        if (commit.value !== undefined) runtime.setViewState({ zoomMeters: commit.value });
+        return;
+      }
+      if (commit.value === undefined) return;
+      runtime.setViewState(commit.part === "latitude" ? { latDeg: commit.value } : { lonDeg: commit.value });
+    },
+  }) : null;
   cleanup.push(() => statusHud?.destroy());
   const globePositionTitle = hudStatusEl?.title ?? "";
   let showingPanoramaPosition = false;
+  const syncPositionEditing = (): void => {
+    statusHud?.setEditable(locationTabOpen && !showingPanoramaPosition);
+  };
   const showPositionContext = (inside: boolean): void => {
     if (inside === showingPanoramaPosition) return;
     showingPanoramaPosition = inside;
+    syncPositionEditing();
     if (!hudStatusEl) return;
-    hudStatusEl.setAttribute("aria-label", inside ? "Picture position and view" : "Camera position");
+    hudStatusEl.setAttribute("aria-label", inside ? "Picture position and view" : "Position readout");
     hudStatusEl.title = inside
       ? "The picture's latitude, longitude and capture height, current heading, pitch and vertical field of view. Click to show the panorama tab."
       : globePositionTitle;
@@ -890,17 +940,21 @@ export async function createGlobeApp(
       element: sectionOf("controls", "controller", { main: controllerSectionEl ?? undefined }), defaultOpen: false },
   ];
   const themeControl = createThemeControl(settings, document);
-  cleanup.push(() => themeControl.destroy());
-  const toolbarSection = createToolbarInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection, main: themeControl.element, covers: ["interface.theme"] });
+  parameterControls.push(themeControl);
+  const themeSection = sectionOf("interface", "theme", { main: themeControl.element, covers: ["interface.theme"] });
+  const toolbarSection = createToolbarInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection });
   parameterSections.push(toolbarSection);
   const positionSection = createPositionInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection });
   parameterSections.push(positionSection);
   const interfaceSections: PanelSection[] = [
+    { id: "theme", title: settings.getSectionTitle("interface", "theme"), element: themeSection, defaultOpen: true },
     { id: "toolbar", title: settings.getSectionTitle("interface", "toolbar"), element: toolbarSection.element, defaultOpen: false },
     { id: "position", title: settings.getSectionTitle("interface", "position"), element: positionSection.element, defaultOpen: false },
     { id: "log", title: settings.getSectionTitle("interface", "log"), element: sectionOf("interface", "log"), defaultOpen: false },
-    { id: "search", title: settings.getSectionTitle("interface", "search"), element: sectionOf("interface", "search"), defaultOpen: false },
   ];
+  const locationSearchSection: PanelSection = {
+    id: "search", title: settings.getSectionTitle("location", "search"), element: sectionOf("location", "search"), defaultOpen: false,
+  };
   const settingsSections: PanelSection[] = [
     { id: "presets", title: "Presets", element: presets.element, defaultOpen: false },
     { id: "saved-settings", title: "Saved settings", element: savedSettings.element, defaultOpen: false },
@@ -1122,6 +1176,7 @@ export async function createGlobeApp(
     openControllerBindings,
     controlsSections,
     interfaceSections,
+    locationSearchSection,
     settingsSections,
     aboutTab: about.element,
     bugReportTab: bugReportPanel.element,
@@ -1137,6 +1192,10 @@ export async function createGlobeApp(
     onTabVisibility(tabId, visible) {
       if (tabId === "dev") dev.tab?.onOpenChange(visible);
       if (tabId === "about" && visible) for (const listener of [...aboutShown]) listener();
+      if (tabId === "location") {
+        locationTabOpen = visible;
+        syncPositionEditing();
+      }
     },
     whenDevSettled: () => dev.whenSettled(),
     addLayer,

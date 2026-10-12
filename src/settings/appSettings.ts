@@ -5,7 +5,7 @@ import { linkParameterGroup, SETTINGS_STORAGE_KEY, URL_PARAMETER_PREFIX, type Se
 import { bindEarthSettingsUrl } from "../app/settingsUrlBinding";
 
 /** Where FOSS Earth's sources are browsable; hosts add their own prefix with `setSourceBase`. */
-export const FOSS_EARTH_SOURCE_BASE = "https://github.com/foss-earth/foss-earth.github.io/blob/main/";
+export const FOSS_EARTH_SOURCE_BASE = "https://github.com/foss-earth/app/blob/main/";
 
 /** Parameters the address bar shows once chosen, so a link or a reload opens the same map. */
 const LINKED_PARAMETER_IDS = ["map.source.basemap", "map.source.elevation"];

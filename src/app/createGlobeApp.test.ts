@@ -332,6 +332,8 @@ describe("createGlobeApp smoke behavior", () => {
     const overlay = fakeOverlay();
     const { app, root } = await createAppUnderTest({ overlayApiRef: overlay, issueReporter: { repository: "foss-earth/foss-earth.github.io" } });
     const bugButton = root.querySelector<HTMLButtonElement>("#bugReportButton")!;
+    expect(bugButton.querySelector("svg")).not.toBeNull();
+    expect(bugButton.textContent).not.toContain("🐞");
     try {
       const diagnostics = sectionElement(app.settingsSections, "diagnostics");
       expect(diagnostics.textContent).toContain("Copy report");
@@ -373,7 +375,7 @@ describe("createGlobeApp smoke behavior", () => {
       root.querySelector<HTMLElement>("#themeButton")!.style.order,
       root.querySelector<HTMLElement>("#settingsButton")!.style.order,
       root.querySelector<HTMLElement>("#bugReportButton")!.style.order,
-    ]).toEqual(["0", "1", "2", "3", "4", "5", "6", "7", "8"]);
+    ]).toEqual(["0", "1", "2", "3", "4", "5", "6", "8", "7"]);
     // Which version runs is its own tab, About, no longer a section of Settings.
     expect(app.settingsSections.map(section => section.id)).not.toContain("about");
     const aboutLines = () => [...app.aboutTab.querySelectorAll(".foss-earth-about__app .foss-earth-about__line")].map(line => line.textContent);
@@ -478,7 +480,7 @@ describe("createGlobeApp smoke behavior", () => {
     mockState.getViewState.mockReturnValue(viewState);
     mockState.frameCallback?.();
     expect(hud.textContent).toBe("44.9778°N 93.2650°W 600m ASL h017° p71° z600m");
-    expect(hud.getAttribute("aria-label")).toBe("Camera position");
+    expect(hud.getAttribute("aria-label")).toBe("Position readout");
     expect(hud.title).toContain("Location tab");
     hud.click();
     expect(overlay.current.toggleTab).toHaveBeenCalledWith("location");
@@ -502,7 +504,10 @@ describe("createGlobeApp smoke behavior", () => {
     if (tilesInput) tilesInput.checked = true;
     tilesInput?.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(Array.from(root.querySelectorAll("#perfMetricsPill .perf-chip")).map((el) => el.textContent)).toContain("42⬟");
+    const meshes = root.querySelector<HTMLElement>('#perfMetricsPill [data-perf-metric="activeMeshes"]');
+    expect(meshes?.firstElementChild?.tagName).toBe("svg");
+    expect(meshes?.querySelector(".perf-chip__value")?.textContent).toBe("42");
+    expect(meshes?.getAttribute("aria-label")).toBe("Active meshes: 42");
     expect(Array.from(root.querySelectorAll("#perfMetricsPill .perf-chip")).map((el) => el.textContent)).toContain("3/5t");
     expect(root.querySelector<HTMLElement>('#perfMetricsPill [data-perf-metric="activeMeshes"]')?.title).toBe(
       "Babylon meshes currently active in the scene.",
@@ -721,7 +726,11 @@ describe("createGlobeApp smoke behavior", () => {
     expect(controls("mouse")).toEqual(expect.arrayContaining(["input.mouse.orbitRate", "input.mouse.dragThreshold", "input.wheel.zoomRate"]));
     expect(controls("touch")).toEqual(expect.arrayContaining(["input.touch.orbitRate", "input.touch.panRate", "input.touch.zoomExponent"]));
     expect(controls("controller")).toContain("input.gamepad.deadzone");
-    expect(app.interfaceSections.map(({ id, title }) => [id, title])).toEqual([["toolbar", "Toolbar"], ["position", "Position readout"], ["log", "Log"], ["search", "Search"]]);
+    expect(app.interfaceSections.map(({ id, title }) => [id, title])).toEqual([["theme", "Theme"], ["toolbar", "Toolbar"], ["position", "Position readout"], ["log", "Log"]]);
+    expect([app.locationSearchSection.id, app.locationSearchSection.title, app.locationSearchSection.defaultOpen]).toEqual(["search", "Search", false]);
+    expect([...app.locationSearchSection.element.querySelectorAll("[data-parameter]")].map(element => element.getAttribute("data-parameter"))).toEqual([
+      "search.cacheDuration", "search.cacheEntries", "search.timeout",
+    ]);
     expect(app.settingsSections.map(({ id, title }) => [id, title])).toEqual([
       ["presets", "Presets"],
       ["saved-settings", "Saved settings"],

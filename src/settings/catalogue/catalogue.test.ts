@@ -15,7 +15,7 @@ describe("FOSS Earth's catalogue", () => {
       expect(spec.defaultReason.length, spec.id).toBeGreaterThan(0);
       // Shared owner parameters identify a public package route; host-owned
       // parameters keep their source file. Neither may name a private import.
-      expect(spec.source, spec.id).toMatch(/^(?:src\/.+\.tsx?|@foss-earth\/[a-z0-9-]+(?:\/[a-z0-9-]+)?)$/);
+      expect(spec.source, spec.id).toMatch(/^(?:src\/.+\.tsx?|@foss-earth\/[a-z0-9-]+(?:\/(?:src\/.+\.tsx?|[a-z0-9-]+))?)$/);
       expect(spec.home.tab.length, spec.id).toBeGreaterThan(0);
       if (spec.kind === "number" || spec.kind === "range") expect(spec.bounds, spec.id).toBeTypeOf("function");
       if (spec.kind === "choice") expect(spec.choices?.length ?? 0, spec.id).toBeGreaterThan(0);
@@ -81,7 +81,7 @@ describe("FOSS Earth's catalogue", () => {
       expect(state.spec.home, id).toEqual({ tab: "interface", section: "toolbar", level: "main" });
       expect(state.spec.kind, id).toBe("choice");
       expect(state.choices.map(choice => [choice.id, choice.label, choice.icon ?? choice.shortLabel]), id).toEqual([
-        ["on", "On", "toggle-on"], ["auto", "Auto", "A"], ["off", "Off", "toggle-off"],
+        ["on", "On", "line"], ["auto", "Auto", "A"], ["off", "Off", "circle"],
       ]);
       expect(state.value, id).toBe(id.startsWith("interface.toolbar.") || id.endsWith(".fps") ? "auto" : "off");
     }
@@ -93,8 +93,12 @@ describe("FOSS Earth's catalogue", () => {
     expect(settings.get(TOOLBAR_EDIT_PRIORITIES_ID)).toBe(false);
     expect(settings.spec(TOOLBAR_EDIT_PRIORITIES_ID)).toMatchObject({ label: "Priorities", booleanControl: "auto-custom" });
     expect(TOOLBAR_PRIORITIES.slice(0, 10).map(([item]) => item)).toEqual([
-      "north", "help", "inputMode", "fullscreen", "fps", "renderer", "position", "theme", "settings", "bugReport",
+      "north", "help", "inputMode", "fullscreen", "fps", "renderer", "position", "theme", "bugReport", "settings",
     ]);
+    expect(settings.spec("interface.toolbar.bugReport")).toMatchObject({ label: "Bug report", mark: "bug" });
+    expect(settings.spec("interface.performanceHud.activeMeshes")).toMatchObject({ label: "Active meshes", mark: "polygon" });
+    expect(settings.spec("interface.toolbar.settings")).toMatchObject({ label: "Settings", mark: "gear" });
+    expect(settings.spec(toolbarPriorityParameterId("settings"))?.label).toBe("Settings priority");
     expect(TOOLBAR_PRIORITIES.map(([item]) => item).sort()).toEqual([
       "north", ...TOOLBAR_BUTTONS.map(([button]) => button), ...PERFORMANCE_HUD_METRICS.map(([metric]) => metric),
     ].sort());

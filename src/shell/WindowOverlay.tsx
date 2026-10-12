@@ -1,13 +1,14 @@
 /** Earth tab composition. Shared UI owns docking, persistence and context lifecycle. */
-import { useCallback, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { WindowOverlay as SharedWindowOverlay, AdoptedElement, SectionsPanel, type PanelSection } from "@foss-earth/ui/react";
-import { browserOverlayGeometry, browserOverlayLayout } from "@foss-earth/ui/browser";
+import { browserOverlayGeometry, browserOverlayLayout, createTabPresetSave } from "@foss-earth/ui/browser";
 import type { WindowTabDefinition, WindowOverlayLogSize } from "@foss-earth/ui/windowing";
 import type { SettingsRegistry, SettingsStorage } from "@foss-earth/ui/settings";
 import { createLocationDraftStore, LOCATION_PLACE_DRAFT_KEY, type LocationDraftStore, type GeodeticLocation, type LocationSearchProvider, type LocationHostDataCodec } from "@foss-earth/engine";
 import { LocationPanel, type LocationPanelContribution } from "@foss-earth/engine/react";
 import { bindEarthLocationServices, createEarthLocationServices } from "../app/locationServices";
 import { getAppSettings } from "../settings/appSettings";
+import { POSITION_ALTITUDE_ID, type AltitudeReference } from "../settings/catalogue";
 import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/browser";
 import type { ViewerTabs as PanoramaTabs, ViewerTabsSnapshot as PanoramaTabsSnapshot } from "@foss-earth/360/panels";
 
@@ -18,6 +19,30 @@ const HIDDEN_IN_PANORAMA: ReadonlySet<string> = new Set(["map", "sky", "time"]);
 const PANORAMA_ONLY: ReadonlySet<string> = new Set(["panorama", "panorama-settings"]);
 const OUTSIDE_PANORAMA: PanoramaTabsSnapshot = { title: null, onScreen: false };
 const DEFAULT_LOCATION: GeodeticLocation = { latDeg: 44.977753, lonDeg: -93.265011 };
+
+function subscribePositionReadout(onChange: () => void): () => void {
+  const observer = new MutationObserver(onChange);
+  const observe = (): void => {
+    observer.disconnect();
+    const chip = document.querySelector("#hudStatus");
+    const bar = chip?.closest(".hud-bar") ?? document.querySelector(".hud-bar");
+    if (chip) observer.observe(chip, { attributes: true, attributeFilter: ["hidden", "class", "style", "data-hud-overflow-hidden", "data-hud-choice-hidden"] });
+    if (bar) observer.observe(bar, { attributes: true, attributeFilter: ["class", "hidden"] });
+  };
+  observe();
+  window.addEventListener("resize", onChange);
+  return () => {
+    observer.disconnect();
+    window.removeEventListener("resize", onChange);
+  };
+}
+
+function positionReadoutShown(): boolean {
+  const chip = document.querySelector<HTMLElement>("#hudStatus");
+  if (!chip || chip.hidden || chip.hasAttribute("data-hud-choice-hidden") || chip.hasAttribute("data-hud-overflow-hidden")) return false;
+  const style = getComputedStyle(chip);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
 
 function currentLocation(getViewState: () => GeodeticLocation | null): GeodeticLocation {
   const view = getViewState();
@@ -42,6 +67,16 @@ function measurePanoramaPhotograph(body: HTMLElement): number | null {
   const minimumHeight = (summary?.getBoundingClientRect().height ?? 0) + paddingTop + paddingBottom;
   return Math.max(photographHeight, minimumHeight);
 }
+function TabPresetSave({ settings, tab, what }: { settings: SettingsRegistry; tab: string; what: string }) {
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const save = createTabPresetSave(settings, tab, what, document);
+    host.current?.replaceChildren(save.element);
+    return () => save.destroy();
+  }, [settings, tab, what]);
+  return <div ref={host} className="foss-earth-tab-preset-host" />;
+}
+
 export interface WindowOverlayHandle<TabId extends string = never> {
   openOrSelectTab(tabId: BuiltInTabId | TabId): void;
   /**
@@ -66,6 +101,8 @@ export interface WindowOverlayProps<TabId extends string = never> {
   settingsSections?: readonly PanelSection[];
   /** The toolbar, theme and what the interface shows, in an Interface tab. */
   interfaceSections?: readonly PanelSection[];
+  /** Place-lookup limits, drawn under the Location form. */
+  locationSearchSection?: PanelSection;
   /** Adds the shared Map tab showing this element, from `createMapSourcePanel`. */
   mapTab?: HTMLElement;
   /** Adds the shared Renderer tab showing this element, from `createRendererPanel`. */
@@ -109,7 +146,7 @@ export interface WindowOverlayProps<TabId extends string = never> {
 
 export function WindowOverlay<TabId extends string = never>({
   getViewState, setViewState, additionalTabs = [], renderAdditionalTab,
-  controlsSections, interfaceSections, settingsSections,
+  controlsSections, interfaceSections, settingsSections, locationSearchSection,
   mapTab, rendererTab, skyTab, timeTab, scenesTab, aboutTab, bugReportTab,
   onBugReportShow, panoramaTabs, locationSearchProvider,
   enableAirportPresets = false, locationContribution, locationHostDataCodec,
@@ -121,6 +158,7 @@ export function WindowOverlay<TabId extends string = never>({
     throw new Error("Airport presets require the flight host's Location contribution.");
   }
   const storage = useMemo(() => suppliedStorage === undefined ? browserStorage() : suppliedStorage, [suppliedStorage]);
+  const settings = suppliedSettings ?? getAppSettings();
   const lookup = useMemo(() => locationSearchProvider ? null : createEarthLocationServices(suppliedSettings ?? getAppSettings(), {
     storage, fetch: (url, init) => window.fetch(url, init), nowMs: Date.now,
     createAbortController: () => new AbortController(),
@@ -132,6 +170,12 @@ export function WindowOverlay<TabId extends string = never>({
     return () => { unbind(); lookup.dispose(); };
   }, [lookup]);
   const draft = useMemo(() => locationDraft ?? createLocationDraftStore({ storage, key: LOCATION_PLACE_DRAFT_KEY, hostDataCodec: locationHostDataCodec }), [locationDraft, storage, locationHostDataCodec]);
+  const readoutShown = useSyncExternalStore(subscribePositionReadout, positionReadoutShown, () => false);
+  const altitudeReference = useSyncExternalStore<AltitudeReference>(
+    (listener) => settings.has(POSITION_ALTITUDE_ID) ? settings.watch(POSITION_ALTITUDE_ID, () => listener()) : () => {},
+    () => settings.has(POSITION_ALTITUDE_ID) ? settings.get<AltitudeReference>(POSITION_ALTITUDE_ID) : "asl",
+    () => "asl",
+  );
   const observe = useCallback((listener: () => void) => {
     if (observeLocation) return observeLocation(listener);
     // Temporary old-signature compatibility. The Earth app supplies its frame event.
@@ -193,15 +237,26 @@ export function WindowOverlay<TabId extends string = never>({
     focus={{ onClose(tabId) { if (tabId === "panorama") panoramaTabs?.leave(); } }}
     onTabVisibility={(tabId, visible) => { if (visible && tabId === "bug-report") onBugReportShow?.(); onTabVisibility?.(tabId, visible); }}
     renderTabContent={tabId => {
+      const what = tabDefinitions.find(tab => tab.id === tabId)?.label ?? tabId;
+      const save = tabId === "settings" ? null : <TabPresetSave settings={settings} tab={tabId} what={what} />;
       const sections = sectionTabs[tabId as SectionTabId];
-      if (sections) return <SectionsPanel sections={sections} storage={storage} />;
+      if (sections) return <SectionsPanel sections={sections} storage={storage} footer={save} />;
       const element = elementTabs[tabId as ElementTabId];
-      if (element) return <AdoptedElement element={element} className="foss-earth-element-tab" />;
-      if (tabId !== "location") return renderAdditionalTab?.(tabId as TabId) ?? null;
-      return <LocationPanel initialLocation={currentLocation(getViewState)} getCurrentLocation={getViewState} onApply={setViewState}
-        searchProvider={locationSearchProvider ?? lookup?.searchLocations} observeLocation={observe} draft={draft}
-        hostDataCodec={locationHostDataCodec} contribution={locationContribution} createAbortController={() => new AbortController()}
-        searchAttribution={<span>Places: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>; airports: <a href="https://www.freeairportdb.com/" target="_blank" rel="noreferrer">FreeAirportDB</a></span>} />;
+      if (element) return <><AdoptedElement element={element} className="foss-earth-element-tab" />{save}</>;
+      if (tabId !== "location") {
+        const extra = renderAdditionalTab?.(tabId as TabId) ?? null;
+        return <>{extra}{save}</>;
+      }
+      return <>
+        <LocationPanel initialLocation={currentLocation(getViewState)} getCurrentLocation={getViewState} onApply={setViewState}
+          showCoordinates={!readoutShown} altitudeReference={altitudeReference}
+          onAltitudeReferenceChange={(reference) => { if (settings.has(POSITION_ALTITUDE_ID)) settings.set(POSITION_ALTITUDE_ID, reference); }}
+          searchProvider={locationSearchProvider ?? lookup?.searchLocations} observeLocation={observe} draft={draft}
+          hostDataCodec={locationHostDataCodec} contribution={locationContribution} createAbortController={() => new AbortController()}
+          searchAttribution={<span>Places: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>; airports: <a href="https://www.freeairportdb.com/" target="_blank" rel="noreferrer">FreeAirportDB</a></span>} />
+        {locationSearchSection ? <SectionsPanel sections={[locationSearchSection]} storage={storage} /> : null}
+        {save}
+      </>;
     }}
   />
     {panorama.onScreen && <button type="button" className="hud-chip hud-chip-button foss-earth-panorama-return" onClick={() => panoramaTabs?.leave()}>Return to map</button>}

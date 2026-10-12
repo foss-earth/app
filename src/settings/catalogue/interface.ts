@@ -19,10 +19,10 @@ export const TOOLBAR_BUTTONS = [
   ["renderer", "Renderer", "the WebGPU or WebGL indicator that opens the Renderer tab"],
   ["inputMode", "Input method", "the input method button, which opens the Controls tab"],
   ["theme", "Theme button", "the light and dark theme button"],
-  ["settings", "Settings (⚙)", "the ⚙ button that opens the Settings tab"],
-  ["bugReport", "Bug report (🐞)", "the 🐞 button that shows or closes the Bug report tab"],
+  ["settings", "Settings", "the ⚙ button that opens the Settings tab"],
+  ["bugReport", "Bug report", "the button that shows or closes the Bug report tab"],
   ["fullscreen", "Fullscreen", "the button that enters or leaves fullscreen"],
-  ["position", "Camera position", "the latitude, longitude, altitude, heading, pitch and zoom readout that opens Location"],
+  ["position", "Position readout", "the latitude, longitude, altitude, heading, pitch and zoom readout that opens Location"],
 ] as const;
 
 export const TOOLBAR_PRIORITIES = [
@@ -32,13 +32,13 @@ export const TOOLBAR_PRIORITIES = [
   ["fullscreen", "Fullscreen", 3],
   ["fps", "FPS", 4],
   ["renderer", "Renderer", 5],
-  ["position", "Camera position", 6],
+  ["position", "Position readout", 6],
   ["theme", "Theme button", 7],
-  ["settings", "Settings (⚙)", 8],
-  ["bugReport", "Bug report (🐞)", 9],
+  ["bugReport", "Bug report", 8],
+  ["settings", "Settings", 9],
   ["frame", "Frame time", 10],
   ["p95", "P95 frame time", 11],
-  ["activeMeshes", "Active meshes (#⬟)", 12],
+  ["activeMeshes", "Active meshes", 12],
   ["drawCalls", "Draw calls", 13],
   ["tiles", "Map tiles (#/#t)", 14],
   ["culling", "Culling", 15],
@@ -49,19 +49,25 @@ export const PERFORMANCE_HUD_METRICS = [
   ["fps", "FPS", true, "Frames per second rendered by the map."],
   ["frame", "Frame time", false, "Average time spent rendering each frame."],
   ["p95", "P95 frame time", false, "95th percentile frame time over the recent sample window."],
-  ["activeMeshes", "Active meshes (#⬟)", false, "Babylon meshes currently active in the scene."],
+  ["activeMeshes", "Active meshes", false, "Babylon meshes currently active in the scene."],
   ["drawCalls", "Draw calls", false, "GPU draw calls submitted for the current frame when the renderer exposes them."],
   ["tiles", "Map tiles (#/#t)", false, "Visible map tiles over active map tiles managed by the tile runtime."],
   ["culling", "Culling", false, "Visible tracked objects over total tracked objects after hemisphere culling."],
   ["memory", "Memory", false, "Approximate JavaScript heap memory currently used by the page."],
 ] as const;
 export type ToolbarItemId = typeof TOOLBAR_PRIORITIES[number][0];
-const orderingReason = "North and help come first, followed by input method, fullscreen, FPS, renderer, position, theme, settings, bug report and additional performance readings.";
+const TOOLBAR_MARKS: Partial<Record<ToolbarItemId, NonNullable<ParameterSpec["mark"]>>> = {
+  bugReport: "bug",
+  activeMeshes: "polygon",
+  settings: "gear",
+};
+const orderingReason = "North and help come first, followed by input method, fullscreen, FPS, renderer, position, theme, bug report, settings and additional performance readings.";
 const toolbarItems: readonly ToolbarItemDescriptor[] = TOOLBAR_PRIORITIES.map(([id, label, defaultPriority]) => {
   const button = TOOLBAR_BUTTONS.find(([item]) => item === id);
   const metric = PERFORMANCE_HUD_METRICS.find(([item]) => item === id);
+  const mark = TOOLBAR_MARKS[id];
   return {
-    id, label, defaultPriority, essential: id === "north",
+    id, label, defaultPriority, essential: id === "north", ...(mark ? { mark } : {}),
     description: button ? `Shows ${button[2]}.` : metric?.[3] ?? "North stays available.",
     visibilityId: button ? `interface.toolbar.${id}` : metric ? `interface.performanceHud.${id}` : undefined,
     defaultVisibility: button || metric?.[2] ? "auto" : "off",
@@ -69,7 +75,7 @@ const toolbarItems: readonly ToolbarItemDescriptor[] = TOOLBAR_PRIORITIES.map(([
       : metric?.[2] ? "Shown when it fits after north, help, input method and fullscreen: it is the first performance reading to look at."
       : "Hidden by default: a debugging reading.",
     priorityDefaultReason: orderingReason,
-    source: "src/settings/catalogue/interface.ts",
+    source: "src/app/createGlobeApp.ts",
   };
 });
 const toolbarParameters = createToolbarParameters(toolbarItems).map(spec =>
@@ -130,6 +136,7 @@ export const APP_FILE_PARAMETERS: readonly ParameterSpec[] = [
 ];
 /** Compatibility aggregate; each parameter's implementation comes from its owner. */
 export const INTERFACE_PARAMETERS: readonly ParameterSpec[] = [
-  ...APP_FILE_PARAMETERS, ...UI_PARAMETERS, ...toolbarParameters, ...POSITION_PARAMETERS, ...MAP_SOURCE_HUD_LAYOUT_PARAMETERS,
+  ...APP_FILE_PARAMETERS, ...UI_PARAMETERS, ...toolbarParameters, ...POSITION_PARAMETERS,
+  ...MAP_SOURCE_HUD_LAYOUT_PARAMETERS.map(spec => ({ ...spec, source: "src/app/createGlobeApp.ts" })),
   ...LOCATION_LOOKUP_PARAMETERS, ...POSITION_GEOID_PARAMETERS, ...ENGINE_VISUALIZATION_PARAMETERS,
 ];
