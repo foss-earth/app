@@ -315,6 +315,7 @@ export async function createGlobeApp(
             </div>
           </div>
           <p class="help-zoom">Zoom \u2014 Scroll wheel\u00B7Pinch\u00B7Triggers <small>(controller)</small></p>
+          <p class="help-zoom">Wheel, pinch and right drag act about the point under the pointer or fingers; keys and the controller about the compass target. Change them, or pin a point, in Controls \u2192 Mouse, Touch and Orbit.</p>
           <p class="help-zoom">Controller \u2014 top face button resets north-up\u00B7Change bindings in Controls \u2192 Controller</p>
           <button id="helpModalDismiss" class="modal-dismiss" type="button">Got it</button>
         </div>

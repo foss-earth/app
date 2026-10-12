@@ -1,5 +1,6 @@
 import { FOSS_EARTH_MIGRATIONS, FOSS_EARTH_PARAMETERS, FOSS_EARTH_SECTION_TITLES, FOSS_EARTH_URL_NAMES, fossEarthUrlAliases, RENDERER_EXPERIMENT_IDS } from "./catalogue";
 import { BUILT_IN_PRESETS } from "./presets";
+import { NAVIGATION_ANCHOR_PRESETS } from "@foss-earth/engine/settings";
 import { createBrowserSettingsRegistry, readDeviceContext } from "@foss-earth/ui/browser";
 import { linkParameterGroup, SETTINGS_STORAGE_KEY, URL_PARAMETER_PREFIX, type SettingsRegistry } from "@foss-earth/ui/settings";
 import { bindEarthSettingsUrl } from "../app/settingsUrlBinding";
@@ -34,6 +35,8 @@ export function getAppSettings(): SettingsRegistry {
   for (const [tab, section, title] of FOSS_EARTH_SECTION_TITLES) registry.setSectionTitle(tab, section, title);
   registry.migrateLegacy(FOSS_EARTH_MIGRATIONS);
   registry.registerPresets(BUILT_IN_PRESETS);
+  // The engine owns the zoom and rotation point presets; they set those eight choices only.
+  registry.registerPresets(NAVIGATION_ANCHOR_PRESETS);
   const { all: allExperiments, ...experiments } = RENDERER_EXPERIMENT_IDS;
   const nextStops: (() => void)[] = [];
   try {
