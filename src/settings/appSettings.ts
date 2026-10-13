@@ -35,7 +35,7 @@ export function getAppSettings(): SettingsRegistry {
   for (const [tab, section, title] of FOSS_EARTH_SECTION_TITLES) registry.setSectionTitle(tab, section, title);
   registry.migrateLegacy(FOSS_EARTH_MIGRATIONS);
   registry.registerPresets(BUILT_IN_PRESETS);
-  // The engine owns the zoom and rotation point presets; they set those eight choices only.
+  // The engine owns the zoom point presets; they set those four choices only.
   registry.registerPresets(NAVIGATION_ANCHOR_PRESETS);
   const { all: allExperiments, ...experiments } = RENDERER_EXPERIMENT_IDS;
   const nextStops: (() => void)[] = [];

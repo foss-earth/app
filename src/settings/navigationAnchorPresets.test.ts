@@ -15,8 +15,8 @@ function registry() {
   return settings;
 }
 
-describe("zoom and rotation point presets", () => {
-  it("are the engine's two, listed after the built-in ones, each setting the eight choices and nothing else", () => {
+describe("zoom point presets", () => {
+  it("are the engine's two, listed after the built-in ones, each setting the four zoom choices and nothing else", () => {
     const settings = registry();
     expect(settings.listPresets().map(preset => preset.name)).toEqual([...BUILT_IN_PRESETS.map(preset => preset.name), "Pointer and touch anchors", "Compass-centered"]);
     for (const preset of NAVIGATION_ANCHOR_PRESETS) {
@@ -34,7 +34,7 @@ describe("zoom and rotation point presets", () => {
     expect(settings.get(SHOW_NAVIGATION_ANCHORS_ID)).toBe(false);
     settings.applyPreset(pointerAndTouch);
     expect(settings.get("input.mouse.zoomAnchor")).toBe(DEFAULT_NAVIGATION_ANCHORS.mouse.zoom);
-    expect(settings.get("input.touch.orbitPivot")).toBe(DEFAULT_NAVIGATION_ANCHORS.touch.orbit);
+    expect(settings.get("input.touch.zoomAnchor")).toBe(DEFAULT_NAVIGATION_ANCHORS.touch.zoom);
     expect(settings.get("input.nonPointer.zoomAnchor")).toBe(DEFAULT_NAVIGATION_ANCHORS.nonPointer.zoom);
     expect(settings.diffPreset(pointerAndTouch).changes).toEqual([]);
     expect(settings.get(SHOW_NAVIGATION_ANCHORS_ID)).toBe(false);
