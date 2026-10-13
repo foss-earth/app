@@ -315,7 +315,7 @@ export async function createGlobeApp(
             </div>
           </div>
           <p class="help-zoom">Zoom \u2014 Scroll wheel\u00B7Pinch\u00B7Triggers <small>(controller)</small></p>
-          <p class="help-zoom">Wheel and pinch zoom toward the point under the pointer or fingers; keys and the controller toward the compass target. Change them, or pin a point, in Controls \u2192 Mouse, Touch and Orbit. Orbit always turns around the compass, which stays where it is.</p>
+          <p class="help-zoom">Right drag and two-finger drag tilt around the compass. Wheel and pinch zoom toward the ground under the pointer or fingers, or toward the compass when Zoom center is View center, in Controls \u2192 Orbit.</p>
           <p class="help-zoom">Controller \u2014 top face button resets north-up\u00B7Change bindings in Controls \u2192 Controller</p>
           <button id="helpModalDismiss" class="modal-dismiss" type="button">Got it</button>
         </div>
