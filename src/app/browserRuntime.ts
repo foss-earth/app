@@ -201,6 +201,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     detachResourcePolicy.push(streams.register(network), streams.register(memory),
       memory.track("images/encoded", () => imageBroker.pools.stats().encoded.reserved, { inHeap: true }),
       memory.track("images/decoded", () => imageBroker.pools.stats().decoded.reserved),
+      memory.track("sky/tables", () => sky.getEnvironment()?.cost.tableBytes ?? null, { inHeap: true }),
       memory.track("sky/night lights", () => sky.getNightLights()?.state.memoryBytes ?? null, { inHeap: true }));
     stage = "initial surface and sky readiness";
     // Parallel shader compilation can leave the first frames uniformly clear.
