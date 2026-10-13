@@ -34,8 +34,18 @@ npm run dev
 
 and open `http://localhost:5173/app/`. The other commands are `npm run typecheck`,
 `npm run lint`, `npm test`, `npm run build` (output in `dist/`, built for the
-`/app/` route) and `npm run preview`. Pages assembly and deployment belong to the
-landing repository.
+`/app/` route) and `npm run preview`.
+
+Publishing https://foss-earth.github.io/ is a separate step, from any directory:
+
+```sh
+cd ~/gh/foss-earth/app && npm run build
+cd ../foss-earth.github.io && npm run build && npm run deploy
+```
+
+The campus tour links this checkout, so it is published on its own afterwards
+with `cd ~/gh/UMN-VR/tour && npm run deploy`. The steps are in
+[Deploying to GitHub Pages](https://github.com/foss-earth/docs/blob/main/docs/deploying.md).
 
 ### Local source
 
