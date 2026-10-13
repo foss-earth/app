@@ -1,0 +1,177 @@
+.pose-editor {
+  margin: 0 6px 6px;
+}
+
+.pose-editor-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+
+.pose-editor-see,
+.pose-editor-fields,
+.pose-editor-field,
+.pose-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+
+.pose-editor-see,
+.pose-editor-fields,
+.pose-editor-hint,
+.pose-editor-status,
+.pose-editor-actions {
+  flex-basis: 100%;
+}
+
+.pose-editor-see input[type="range"] {
+  width: 9em;
+}
+
+.pose-editor-field input,
+.pose-editor-see span:last-child {
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pose-editor-field {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 100%;
+}
+
+.pose-editor-field input {
+  flex: 0 0 auto;
+  width: calc(var(--pose-chars, 1) * 1ch + 1.6em);
+  max-width: calc(var(--pose-chars, 1) * 1ch + 1.6em);
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 6px;
+  padding: 2px 4px;
+  color: inherit;
+  background: transparent;
+}
+
+.pose-editor-axis input {
+  width: calc(var(--pose-chars, 1) * 1ch + 2.1em);
+  max-width: calc(var(--pose-chars, 1) * 1ch + 2.1em);
+}
+
+.pose-editor-axis {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.pose-editor-axis-reset {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+
+.pose-editor-axis-reset svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
+.pose-editor-axis-reset:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pose-editor-hint,
+.pose-editor-status {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.72;
+}
+
+.pose-editor-actions button {
+  border-radius: 999px;
+  padding: 3px 9px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pose-editor-reset {
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  color: inherit;
+  background: transparent;
+}
+
+.pose-editor-save {
+  border: 1px solid var(--globe-accent, #60a5fa);
+  color: inherit;
+  background: color-mix(in srgb, var(--globe-accent, #60a5fa) 18%, transparent);
+}
+
+.pose-editor-actions button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.pose-gizmo {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pose-gizmo [data-handle] {
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.pose-gizmo-line,
+.pose-gizmo-head {
+  filter: url(#pose-gizmo-shadow);
+}
+
+.pose-gizmo-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  pointer-events: stroke;
+}
+
+.pose-gizmo-line {
+  fill: none;
+  stroke-width: 2.5;
+  pointer-events: none;
+}
+
+.pose-gizmo-head {
+  stroke: none;
+  pointer-events: fill;
+}
+
+.pose-gizmo-label {
+  fill: #f4efe4;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.pose-gizmo-hub {
+  fill: #f4efe4;
+  pointer-events: none;
+}

@@ -30,6 +30,16 @@ export function createEarthViewerInput(runtime: BabylonRuntime, canvas: HTMLCanv
   });
 }
 
+/** A live placement edit. Null height keeps the photograph's authored capture height. */
+export interface PanoramaPoseEdit {
+  longitudeDeg: number;
+  latitudeDeg: number;
+  heightMeters: number | null;
+  headingDeg: number;
+  pitchDeg: number;
+  offsetM: number;
+}
+
 interface EarthSceneFrames {
   subscribe(listener: () => void): () => void;
   wheels: WheelGestureWatch;
@@ -38,7 +48,11 @@ interface EarthSceneFrames {
 export function createEarthSceneWorld(
   runtime: BabylonRuntime, settings: SettingsRegistry, frames: EarthSceneFrames,
   canvas: HTMLCanvasElement, viewer: Pick<PublishedImageViewer, "status" | "isPlacementFrozen">,
-): SceneWorldPorts & { dispose(): void; whenSettled(): Promise<void> } {
+): SceneWorldPorts & {
+  dispose(): void; whenSettled(): Promise<void>;
+  setPoseEdit(id: string, edit: PanoramaPoseEdit | null): ScenePlacement | null;
+  posePlacement(id: string): ScenePlacement | null;
+} {
   const hostWindow = canvas.ownerDocument.defaultView;
   if (!hostWindow) throw new Error("Scene host needs the canvas Window.");
   let disposed = false;
@@ -49,37 +63,80 @@ export function createEarthSceneWorld(
     createAbortController: () => new AbortController(), combineSignals: signals => AbortSignal.any([...signals]),
     abortReason: () => new DOMException("Cancelled by input or camera change.", "AbortError"),
   });
-  type Cached = { result: ScenePlacement; revision: number | null };
+  type Cached = { result: ScenePlacement; revision: number | null; stamp: string };
   const cache = new WeakMap<ResolvedPanorama, Cached>();
+  const edits = new Map<string, PanoramaPoseEdit>();
   const watches = new Set<{ entity: ResolvedPanorama; radiusMeters: number; changed(next: ScenePlacement): void }>();
+  function sourceOf(entity: ResolvedPanorama): { capture: ResolvedPanorama["capture"]; pose: ResolvedPanorama["imagePose"]; marker: ResolvedPanorama["marker"]; stamp: string } {
+    const edit = edits.get(entity.id);
+    if (!edit) return { capture: entity.capture, pose: entity.imagePose, marker: entity.marker, stamp: "authored" };
+    const height = edit.heightMeters === null ? entity.capture.height ?? null
+      : { ...(entity.capture.height ?? { datum: "WGS84-ellipsoid" as const }), meters: edit.heightMeters };
+    return {
+      capture: { ...entity.capture, longitudeDeg: edit.longitudeDeg, latitudeDeg: edit.latitudeDeg, height },
+      pose: { ...entity.imagePose, headingDeg: edit.headingDeg, pitchDeg: edit.pitchDeg },
+      marker: { ...entity.marker, offsetM: edit.offsetM },
+      stamp: `${edit.longitudeDeg}|${edit.latitudeDeg}|${edit.heightMeters}|${edit.headingDeg}|${edit.pitchDeg}|${edit.offsetM}`,
+    };
+  }
+  function contentOf(source: { capture: ResolvedPanorama["capture"]; pose: ResolvedPanorama["imagePose"] }) {
+    return mulMat3Mat3(transpose3(imagePoseMatrix(source.pose)), ecefToEnuMatrix(enuFrame(source.capture.longitudeDeg, source.capture.latitudeDeg)));
+  }
   function update(entity: ResolvedPanorama, radiusMeters: number): { item: Cached; changed: boolean } {
+    const source = sourceOf(entity);
     let item = cache.get(entity);
     if (!item) {
-      item = { revision: null, result: { state: "pending", placement: {
-        marker: null, radiusMeters,
-        content: mulMat3Mat3(transpose3(imagePoseMatrix(entity.imagePose)), ecefToEnuMatrix(enuFrame(entity.capture.longitudeDeg, entity.capture.latitudeDeg))),
-        ...entity.markerStyle,
+      item = { revision: null, stamp: "", result: { state: "pending", placement: {
+        marker: null, radiusMeters, content: contentOf(source), ...entity.markerStyle,
       } } };
       cache.set(entity, item);
     }
     const old = item.result;
-    if (entity.marker.mode === "capture-relative") {
-      if (old.state === "placed") return { item, changed: false };
-      if (!entity.capture.height) throw new Error("Capture-relative placement requires its known height.");
-      item.result = { ...old, state: "placed", placement: { ...old.placement, marker: captureRelativeMarker(entity.capture, entity.capture.height.meters, entity.marker.eastM, entity.marker.northM, entity.marker.offsetM) } };
+    const stampChanged = item.stamp !== source.stamp;
+    const placement = { ...old.placement, radiusMeters, content: contentOf(source), ...entity.markerStyle };
+    if (source.marker.mode === "capture-relative") {
+      if (old.state === "placed" && !stampChanged) return { item, changed: false };
+      if (!source.capture.height) throw new Error("Capture-relative placement requires its known height.");
+      item.stamp = source.stamp;
+      item.result = { ...old, state: "placed", placement: { ...placement, marker: captureRelativeMarker(source.capture, source.capture.height.meters, source.marker.eastM, source.marker.northM, source.marker.offsetM) } };
       return { item, changed: true };
     }
-    if (viewer.isPlacementFrozen(entity.id)) return { item, changed: false };
+    // A flight keeps its marker. An edit still has to move it, including while the view is inside.
+    if (viewer.isPlacementFrozen(entity.id) && !stampChanged) return { item, changed: false };
     const revision = runtime.surface.revision?.() ?? null;
-    if (old.state === "placed" && revision !== null && item.revision === revision) return { item, changed: false };
-    const query = groundQueryPoint(entity.capture, entity.marker.eastM, entity.marker.northM);
+    if (old.state === "placed" && !stampChanged && revision !== null && item.revision === revision) return { item, changed: false };
+    const query = groundQueryPoint(source.capture, source.marker.eastM, source.marker.northM);
     const hit = runtime.surface.sample(query.latitudeDeg, query.longitudeDeg);
-    if (!hit) return { item, changed: false };
-    const marker = groundRelativeMarker(query, hit.heightMeters, entity.marker.offsetM);
+    if (!hit) {
+      if (!stampChanged || old.state !== "placed") return { item, changed: false };
+      // Leave the stamp stale so a later frame can sample the ground again, without asking for a frame once the orientation is current.
+      const nextPlacement = { ...placement, marker: old.placement.marker };
+      const changed = nextPlacement.content.some((row, index) => row.some((value, column) => value !== old.placement.content[index][column]));
+      item.result = { ...old, placement: nextPlacement };
+      return { item, changed };
+    }
+    const marker = groundRelativeMarker(query, hit.heightMeters, source.marker.offsetM);
     const moved = !old.placement.marker || length(sub(marker, old.placement.marker)) > 1e-3;
     item.revision = revision ?? hit.revision;
-    item.result = { ...old, state: "placed", placement: { ...old.placement, marker } };
-    return { item, changed: moved };
+    item.stamp = source.stamp;
+    item.result = { ...old, state: "placed", placement: { ...placement, marker } };
+    return { item, changed: moved || stampChanged };
+  }
+  function publish(id: string): ScenePlacement | null {
+    let result: ScenePlacement | null = null;
+    let moved = false;
+    for (const watch of [...watches]) {
+      if (watch.entity.id !== id) continue;
+      const next = update(watch.entity, watch.radiusMeters);
+      result = next.item.result;
+      if (next.changed) { watch.changed(next.item.result); moved = true; }
+    }
+    if (moved) runtime.requestRender();
+    return result;
+  }
+  function posePlacement(id: string): ScenePlacement | null {
+    for (const watch of watches) if (watch.entity.id === id) return cache.get(watch.entity)?.result ?? null;
+    return null;
   }
   const offFrame = frames.subscribe(() => {
     if (disposed) return;
@@ -115,6 +172,12 @@ export function createEarthSceneWorld(
   return {
     resolvePlacement(entity, { radiusMeters }) { return update(entity, radiusMeters).item.result; },
     watchPlacement(entity, { radiusMeters }, changed) { const watch = { entity, radiusMeters, changed }; watches.add(watch); return () => { watches.delete(watch); }; },
+    setPoseEdit(id: string, edit: PanoramaPoseEdit | null): ScenePlacement | null {
+      if (disposed) return null;
+      if (edit) edits.set(id, edit); else edits.delete(id);
+      return publish(id);
+    },
+    posePlacement,
     showOverview: (value, options) => overview.showOverview(value, options),
     whenSettled: () => overview.whenSettled(),
     dispose() {
@@ -122,7 +185,7 @@ export function createEarthSceneWorld(
       disposed = true;
       attemptEarthCleanup([
         () => overview.dispose(),
-        offFrame, () => watches.clear(),
+        offFrame, () => watches.clear(), () => edits.clear(),
         ...inputTypes.map(type => () => hostWindow.removeEventListener(type, onOverviewInput, { capture: true })),
       ], "Scene world cleanup failed.");
     },

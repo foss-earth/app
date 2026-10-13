@@ -5,6 +5,7 @@ import { execSync } from 'node:child_process'
 import { appFiles } from './vite/appFiles.ts'
 import { builtFrom } from './vite/builtFrom.ts'
 import { localSource } from './vite/localSource.ts'
+import { poseSave } from './vite/poseSave.ts'
 import { babylonShaderChunks } from '@foss-earth/renderer/vite'
 
 // Both local development and the compiled artifact use the landing site's app route.
@@ -67,5 +68,5 @@ export default defineConfig({
   },
   // The app's own files are kept on the visitor's device by a service worker (docs/app-files.md),
   // and each page says what it is built from, for the About tab.
-  plugins: [localSource(), react(), babylonShaderChunks(), appFiles(), builtFrom()],
+  plugins: [localSource(), react(), babylonShaderChunks(), appFiles(), builtFrom(), poseSave()],
 })

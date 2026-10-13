@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BabylonRuntime } from "@foss-earth/engine/babylon";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
+import { pointGeodetic } from "@foss-earth/engine";
+import type { ResolvedPanorama } from "@foss-earth/scenes";
 import { createEarthSceneWorld, createEarthViewerInput } from "./sceneWorld";
 
 vi.mock("@foss-earth/engine/browser", async original => ({
@@ -54,5 +56,30 @@ describe("Earth geographic scene lifecycle", () => {
     expect(caught).toBeInstanceOf(AggregateError);
     expect((caught as AggregateError).errors).toEqual([primary, release]);
     host.dispose();
+  });
+  it("moves a watched photograph when its pose edit changes, and keeps doing so after it was placed", () => {
+    const { make, runtime } = fixture();
+    runtime.surface.sample = () => ({ heightMeters: 250, revision: 3 });
+    const world = make();
+    const entity: ResolvedPanorama = {
+      id: "orb", type: "panorama", assetId: "asset", title: "Orb", links: [],
+      capture: { longitudeDeg: 0, latitudeDeg: 0, height: { meters: 30, datum: "WGS84-ellipsoid" } },
+      imagePose: { headingDeg: 0, pitchDeg: 0, rollDeg: 0 },
+      marker: { mode: "capture-relative", eastM: 0, northM: 0, offsetM: 0 },
+      markerStyle: { outline: null, hoverScale: 1 },
+    };
+    world.watchPlacement(entity, { radiusMeters: 8 }, () => {});
+    const before = world.resolvePlacement(entity, { radiusMeters: 8 });
+    world.setPoseEdit(entity.id, { longitudeDeg: 0, latitudeDeg: 0, heightMeters: 30, headingDeg: 90, pitchDeg: 0, offsetM: 0 });
+    const turned = world.resolvePlacement(entity, { radiusMeters: 8 });
+    expect(turned.placement.content).not.toEqual(before.placement.content);
+    world.setPoseEdit(entity.id, { longitudeDeg: 0, latitudeDeg: 1, heightMeters: 30, headingDeg: 0, pitchDeg: 0, offsetM: 0 });
+    const moved = world.posePlacement(entity.id);
+    expect(pointGeodetic(moved!.placement.marker!).latitudeDeg).toBeGreaterThan(0.9);
+    const ground: ResolvedPanorama = { ...entity, id: "ground", capture: { longitudeDeg: 0, latitudeDeg: 0, height: null }, marker: { mode: "ground-relative", eastM: 0, northM: 0, offsetM: 10 } };
+    world.watchPlacement(ground, { radiusMeters: 8 }, () => {});
+    world.setPoseEdit(ground.id, { longitudeDeg: 0, latitudeDeg: 0, heightMeters: null, headingDeg: 0, pitchDeg: 0, offsetM: 40 });
+    expect(pointGeodetic(world.posePlacement(ground.id)!.placement.marker!).heightMeters).toBeCloseTo(290, 0);
+    world.dispose();
   });
 });

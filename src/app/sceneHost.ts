@@ -38,6 +38,7 @@ import {
   earthViewerMath, earthViewerPoses,
 } from "./sceneWorld";
 import { attemptEarthCleanup } from "./nativeResources";
+import { poseEditEnabled } from "./poseEditor/poseGate";
 
 export interface EarthSceneHostOptions {
   browser: Awaited<ReturnType<typeof createEarthBrowserRuntime>>;
@@ -286,6 +287,37 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         return reading ? { shown: reading.representation, loading: reading.loading, limitation: reading.limitation, progress: reading.progress } : null;
       }, externalLinkIcon: ui.externalLinkIcon, openSettings: options.openSettings });
     cleanup.push(() => tabs.destroy());
+    if (import.meta.env.DEV && import.meta.env.MODE !== "test" && poseEditEnabled(true, window.location.search)) {
+      let sceneUrl: string | null = null;
+      let poseEditor: { dispose(): void } | null = null;
+      let poseEditorGone = false;
+      const load = controller.load.bind(controller);
+      controller.load = async (input, loadOptions) => {
+        const ok = await load(input, loadOptions);
+        if (ok) {
+          const example = loadOptions?.exampleId ? controller.examples.find(entry => entry.id === input.trim()) : undefined;
+          sceneUrl = example?.url ?? input;
+        }
+        return ok;
+      };
+      void import("./poseEditor/editor").then(({ mountPoseEditor }) => {
+        if (poseEditorGone) return;
+        poseEditor = mountPoseEditor({
+          document: canvas.ownerDocument, canvas, baseUrl: options.baseUrl, sceneUrl: () => sceneUrl, controller, viewer, world: sceneWorld, renderer, runtime,
+          dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
+          tab: tabs.panorama,
+          beforeFrame(listener) {
+            const observer = runtime.scene.onBeforeRenderObservable.add(listener, undefined, true);
+            return () => { runtime.scene.onBeforeRenderObservable.remove(observer); };
+          },
+          afterFrame(listener) {
+            const observer = runtime.scene.onAfterRenderObservable.add(listener);
+            return () => { runtime.scene.onAfterRenderObservable.remove(observer); };
+          },
+        });
+      }).catch(error => report(null, "image", error));
+      cleanup.push(() => { poseEditorGone = true; poseEditor?.dispose(); });
+    }
     const hotspots = createSceneHotspots({ document, controller, container: canvas.parentElement ?? canvas });
     cleanup.push(() => hotspots.destroy());
     const offSettings = settings.subscribe(changed => {

@@ -10,6 +10,7 @@ import { bindEarthLocationServices, createEarthLocationServices } from "../app/l
 import { getAppSettings } from "../settings/appSettings";
 import { POSITION_ALTITUDE_ID, type AltitudeReference } from "../settings/catalogue";
 import { TABS_BEHIND_TOOLBAR_ID, TOOLBAR_EDGE_ID, WINDOWS_PRESENTATION_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
+import { poseEditTitle, requestPoseEditStop, subscribePoseEditTitle } from "../app/poseEditor/poseEditTab";
 type WorldPresentationChoice = "auto" | "overlay" | "split";
 type ToolbarEdgeChoice = "auto" | "top" | "bottom";
 type WorldResize = "live" | "release";
@@ -21,6 +22,8 @@ type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "about" | "
 type BuiltInTabId = "location" | SectionTabId | ElementTabId;
 const HIDDEN_IN_PANORAMA: ReadonlySet<string> = new Set(["map", "sky", "time"]);
 const PANORAMA_ONLY: ReadonlySet<string> = new Set(["panorama", "panorama-settings"]);
+/** On the map, editing a photograph shows its tab and keeps 360 image settings hidden. */
+const PANORAMA_SETTINGS_ONLY: ReadonlySet<string> = new Set(["panorama-settings"]);
 const OUTSIDE_PANORAMA: PanoramaTabsSnapshot = { title: null, onScreen: false };
 const DEFAULT_LOCATION: GeodeticLocation = { latDeg: 44.977753, lonDeg: -93.265011 };
 
@@ -98,6 +101,7 @@ export interface WindowOverlayHandle<TabId extends string = never> {
    * the one showing.
    */
   toggleTab(tabId: BuiltInTabId | TabId): void;
+  closeTab(tabId: BuiltInTabId | TabId): void;
 }
 
 export interface WindowOverlayProps<TabId extends string = never> {
@@ -138,9 +142,10 @@ export interface WindowOverlayProps<TabId extends string = never> {
   /**
    * A panorama's tabs, from `createPanoramaTabs`. Entering a panorama opens its
    * tab, titled "360: <title>", minimized while the camera flies in and shown
-   * once the panorama is on screen; closing that tab leaves it. Inside one the
-   * tabs about the map are hidden and 360 image settings is offered; each
-   * comes back where it was when the context returns.
+   * once the panorama is on screen; closing that tab leaves it. Editing a
+   * photograph from the map opens the same tab there, and closing it leaves
+   * editing. Inside one the tabs about the map are hidden and 360 image
+   * settings is offered; each comes back where it was when the context returns.
    */
   panoramaTabs?: PanoramaTabs;
   locationSearchProvider?: LocationSearchProvider;
@@ -222,6 +227,15 @@ export function WindowOverlay<TabId extends string = never>({
   const subscribePanorama = useCallback((listener: () => void) => panoramaTabs?.subscribe(listener) ?? (() => {}), [panoramaTabs]);
   const getPanorama = useCallback(() => panoramaTabs?.getSnapshot() ?? OUTSIDE_PANORAMA, [panoramaTabs]);
   const panorama = useSyncExternalStore(subscribePanorama, getPanorama, getPanorama);
+  const poseTitle = useSyncExternalStore(subscribePoseEditTitle, poseEditTitle, () => null);
+  const insidePanorama = panorama.title !== null;
+  const editingOnMap = poseTitle !== null && !insidePanorama;
+  useEffect(() => {
+    const api = overlayApiRef?.current;
+    if (!api) return;
+    if (editingOnMap) api.openOrSelectTab("panorama");
+    else if (!insidePanorama) api.closeTab("panorama");
+  }, [editingOnMap, insidePanorama, overlayApiRef]);
   const sectionTabs: Partial<Record<SectionTabId, readonly PanelSection[]>> = {
     ...(controlsSections ? { controls: controlsSections } : {}),
     ...(interfaceSections ? { interface: interfaceSections } : {}),
@@ -236,7 +250,7 @@ export function WindowOverlay<TabId extends string = never>({
   };
   const sectionLabels: Record<SectionTabId, string> = { controls: "Controls", interface: "Interface", settings: "Settings" };
   const elementLabels: Record<ElementTabId, string> = {
-    map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", about: "About", "bug-report": "Bug report", panorama: panorama.title ?? "360", "panorama-settings": "360 image settings",
+    map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", about: "About", "bug-report": "Bug report", panorama: panorama.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
   };
   const sectionIds = (Object.keys(sectionLabels) as SectionTabId[]).filter(id => sectionTabs[id]);
   const elementIds = (Object.keys(elementLabels) as ElementTabId[]).filter(id => elementTabs[id]);
@@ -269,10 +283,15 @@ export function WindowOverlay<TabId extends string = never>({
     logSize={logSize}
     layoutPort={layout}
     restorableTabs={restorable}
-    context={{ active: panorama.title !== null, ready: panorama.onScreen, baseOnlyTabs: HIDDEN_IN_PANORAMA as ReadonlySet<OverlayTabId>, contextOnlyTabs: PANORAMA_ONLY as ReadonlySet<OverlayTabId>, entryTabId: "panorama", measureEntry: measurePanoramaPhotograph }}
+    context={{ active: insidePanorama, ready: panorama.onScreen, baseOnlyTabs: HIDDEN_IN_PANORAMA as ReadonlySet<OverlayTabId>, contextOnlyTabs: (editingOnMap ? PANORAMA_SETTINGS_ONLY : PANORAMA_ONLY) as ReadonlySet<OverlayTabId>, entryTabId: "panorama", measureEntry: measurePanoramaPhotograph }}
     overlayApiRef={overlayApiRef}
     onBeforeCloseTab={onBeforeCloseTab}
-    focus={{ onClose(tabId) { if (tabId === "panorama") panoramaTabs?.leave(); } }}
+    focus={{ onClose(tabId) {
+      if (tabId !== "panorama") return;
+      const inside = (panoramaTabs?.getSnapshot().title ?? null) !== null;
+      requestPoseEditStop();
+      if (inside) panoramaTabs?.leave();
+    } }}
     presentation={{
       choice: presentationChoice,
       onChoice: (choice) => { if (settings.has(WINDOWS_PRESENTATION_ID)) settings.set(WINDOWS_PRESENTATION_ID, choice); },
