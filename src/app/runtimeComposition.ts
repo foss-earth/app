@@ -56,6 +56,8 @@ export interface EarthRuntimeCompositionOptions extends Pick<GlobeRuntimeOptions
   whenHostSettled?(): Promise<void>;
   /** A failed constructor may still own a nonabortable model parser. */
   onWorldStartupRetirement?(drain: Promise<void>): void;
+  /** Names the owners of GPU textures and meshes in the profile's GPU memory streamgraph. */
+  gpuMemoryOwner?(name: string, kind: "texture" | "mesh"): string | null;
 }
 
 export interface EarthRuntimeComposition {
@@ -109,6 +111,7 @@ export function composeEarthRuntime(options: EarthRuntimeCompositionOptions): Ea
       scene: options.scene,
       engine: options.renderer.engine,
       now: clock.nowMs,
+      gpuMemoryOwner: options.gpuMemoryOwner,
     });
     detachProfile = bindFrameProfileSettings(options.settings, profile);
     presentation = createBabylonRendererLifecycle({
