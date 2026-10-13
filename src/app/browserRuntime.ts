@@ -8,6 +8,8 @@ import {
   whenMeshesReady, whenBorrowedDeviceSettled, type ImageUploadLimits,
 } from "@foss-earth/renderer/babylon";
 import { type RendererMode, type ReadinessPolicy, type ReadinessTimers } from "@foss-earth/renderer";
+import { observeResourceTiming, readHeapBytes } from "@foss-earth/renderer/browser";
+import { createMemorySource, createNetworkSource } from "@foss-earth/renderer/profiling";
 import { ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-earth/engine";
 import { createMapCache, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions } from "@foss-earth/engine/browser";
 import { createBrowserGlobeBindings, loadBrowserGlobeGoogleProviders } from "@foss-earth/engine/browser-globe";
@@ -20,6 +22,7 @@ import {
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import { composeEarthRuntime } from "./runtimeComposition";
 import { createEarthNativeResources, attemptEarthCleanup } from "./nativeResources";
+import { gpuMemoryOwner, meterMapFetch, METERED_REQUEST_OWNERS, requestOwner } from "./resourceOwners";
 
 type EarthSelections = Pick<GlobeRuntimeOptions,
   "googleApiKey" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
@@ -111,7 +114,14 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     const createCanvas = (width: number, height: number) => {
       const surface = document.createElement("canvas"); surface.width = width; surface.height = height; return surface;
     };
-    const cache = createMapCache({ storage: () => window.caches, fetcher: window.fetch.bind(window), now: Date.now, Response, Request, Headers });
+    const page = window.location.href;
+    // Both only observe while the frame budget measures.
+    const network = createNetworkSource({
+      observe: observeResourceTiming(window), owner: url => requestOwner(url, page), metered: METERED_REQUEST_OWNERS,
+    });
+    const memory = createMemorySource({ heapBytes: readHeapBytes(window) });
+    const cache = createMapCache({ storage: () => window.caches, fetcher: meterMapFetch(window.fetch.bind(window), network, page),
+      now: Date.now, Response, Request, Headers });
     detachResourcePolicy.push(bindEarthMapCache(cache));
     const imageBroker = broker = createImageSessionBroker(options.imageSessionLimits());
     const resources = native = createEarthNativeResources({ broker: imageBroker, scene,
@@ -163,6 +173,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
       isHidden: () => document.hidden, fatalFramePolicy: "stop", onFrameError: options.onFrameError,
       resourceWork: resources.resourceWork, disposeHost, whenHostSettled: async () => { await hostRetirement; },
       onWorldStartupRetirement(drain) { startupRetirements.add(drain); },
+      gpuMemoryOwner,
       presentation: { platform: createBrowserRendererPlatform({ window, document }), timers,
         readinessPolicy: options.readinessPolicy, onDeviceLost: resources.observedDeviceLoss,
       },
@@ -185,6 +196,12 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     });
     stage = "presentation lifecycle subscription";
     detachRestore = composition.presentation.onDeviceRestored(resources.restoreManagedDevice);
+    const streams = composition.profile.streams;
+    const sky = composition.sky;
+    detachResourcePolicy.push(streams.register(network), streams.register(memory),
+      memory.track("images/encoded", () => imageBroker.pools.stats().encoded.reserved, { inHeap: true }),
+      memory.track("images/decoded", () => imageBroker.pools.stats().decoded.reserved),
+      memory.track("sky/night lights", () => sky.getNightLights()?.state.memoryBytes ?? null, { inHeap: true }));
     stage = "initial surface and sky readiness";
     // Parallel shader compilation can leave the first frames uniformly clear.
     // Publish startup only after its visible content can draw; streamed hidden

@@ -876,8 +876,27 @@ export async function createGlobeApp(
   // The frame budget lives here, the one home of its profiling parameters.
   if (!settings.has(FRAME_PROFILING_IDS.enabled)) settings.register(frameProfilingParameters({ tab: "renderer", section: "performance" }));
 
+  // While measuring, the panel also refreshes on a timer, so its streamgraphs move while the globe is still.
+  const profilingTicks = new Set<() => void>();
+  let profilingTimer: number | null = null;
+  const syncProfilingTimer = () => {
+    const wanted = runtime.frameProfile.enabled && profilingTicks.size > 0;
+    if (wanted && profilingTimer === null) profilingTimer = window.setInterval(() => { for (const tick of [...profilingTicks]) tick(); }, 250);
+    else if (!wanted && profilingTimer !== null) { window.clearInterval(profilingTimer); profilingTimer = null; }
+  };
+  const offProfilingTimer = runtime.frameProfile.onChange(syncProfilingTimer);
+  cleanup.push(() => { offProfilingTimer(); profilingTicks.clear(); syncProfilingTimer(); });
+  const frameBudgetRefresh = {
+    nowMs: ui.refresh.nowMs,
+    subscribe(listener: () => void) {
+      const off = ui.refresh.subscribe(listener);
+      profilingTicks.add(listener);
+      syncProfilingTimer();
+      return () => { off(); profilingTicks.delete(listener); syncProfilingTimer(); };
+    },
+  };
   const frameBudget = createFrameBudgetPanel({
-    ui: { document, createParameterControl: ui.control }, refreshPort: ui.refresh,
+    ui: { document, createParameterControl: ui.control }, refreshPort: frameBudgetRefresh,
     actions: { copy, saveJson(name, text) { const url = URL.createObjectURL(new Blob([text], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url); }, onError: error => console.error(error) },
     session: runtime.frameProfile,
     settings,
@@ -997,7 +1016,11 @@ export async function createGlobeApp(
   });
   const sceneFrame = createEarthFeatureFramePreparation({ viewer: sceneHost.viewer,
     isCurrent: sceneHost.isCurrent, requestRender: runtime.requestRender });
-  prepareSceneFrame = frame => sceneFrame.prepare(frame);
+  const frameProfiler = runtime.frameProfile.profiler;
+  prepareSceneFrame = frame => {
+    const started = frameProfiler.clock();
+    try { sceneFrame.prepare(frame); } finally { frameProfiler.add("panoramas", started); }
+  };
   cleanup.push(() => { prepareSceneFrame = null; sceneHost.dispose(); });
   const scenes = sceneHost.controller;
   const scenesPanel = sceneHost.panel;
