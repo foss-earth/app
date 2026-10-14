@@ -73,15 +73,16 @@ describe("image participation", () => {
   const a = registry.open(description("a")), b = registry.open(description("b"));
   const documentOf = (tabId: string) => registry.documentOf(tabId);
 
-  it("takes each expanded side's selected image tab", () => {
+  it("takes each side's selected image tab, including a minimized window", () => {
     const result = imageParticipation(workspace(side(["location", a.tabId]), side([b.tabId])), documentOf);
     expect(result.left).toMatchObject({ tabId: a.tabId, documentId: a.documentId, size: { width: 4, height: 3 } });
     expect(result.right).toMatchObject({ tabId: b.tabId });
-    expect(result.right).not.toBeNull();
+    const minimized = imageParticipation(workspace(side([a.tabId], { collapsed: true }), side([b.tabId], { collapsed: true })), documentOf);
+    expect(minimized.left?.tabId).toBe(a.tabId);
+    expect(minimized.right?.tabId).toBe(b.tabId);
   });
 
-  it("leaves out a collapsed side, another selected tab and a tab the context hid", () => {
-    expect(imageParticipation(workspace(side([a.tabId], { collapsed: true }), side([b.tabId])), documentOf).left).toBeNull();
+  it("leaves out another selected tab and a tab the context hid", () => {
     expect(imageParticipation(workspace(side([a.tabId, "location"]), side([])), documentOf).left).toBeNull();
     expect(imageParticipation(workspace(side([a.tabId], { contextHidden: [a.tabId] }), side([])), documentOf).left).toBeNull();
   });

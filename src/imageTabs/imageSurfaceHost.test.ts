@@ -17,7 +17,16 @@ const side = (tabs: string[], extra: Partial<WindowSideSnapshot<string>> = {}): 
   ({ tabs, activeTab: tabs.at(-1) ?? null, collapsed: false, contextHidden: [], ...extra });
 const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
 
-function setup(options: { ratio?: number; keptGpuBytes?: number } = {}) {
+const be32 = (value: number) => [value >>> 24, (value >> 16) & 255, (value >> 8) & 255, value & 255];
+const ascii = (text: string) => [...text].map(c => c.charCodeAt(0));
+/** A PNG header the discovery reader accepts; checksums are not read. */
+function png(width: number, height: number): Uint8Array {
+  const chunk = (type: string, body: number[]) => [...be32(body.length), ...ascii(type), ...body, 0, 0, 0, 0];
+  return new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ...chunk("IHDR", [...be32(width), ...be32(height), 8, 2, 0, 0, 0]), ...chunk("IDAT", [0]), ...chunk("IEND", [])]);
+}
+
+function setup(options: { ratio?: number; keptGpuBytes?: number; fetch?: typeof fetch; forwardUnusedInput?: boolean } = {}) {
   const ratio = options.ratio ?? 2;
   const broker = createImageSessionBroker({ pools: { sourceGpu: 256 * MIB, decoded: 256 * MIB, encoded: 64 * MIB, uploadOutstanding: 16 * MIB, overlap: 128 * MIB }, requests: 2, decodes: 1 });
   const geometry: SurfaceGeometry = { revision: 1, cssRect: { x: 0, y: 0, width: 800, height: 600 },
@@ -38,10 +47,11 @@ function setup(options: { ratio?: number; keptGpuBytes?: number } = {}) {
     observeGeometry: () => ({ read: () => geometry, refresh: () => geometry, subscribe: () => () => {}, dispose() {} }),
     onBeforeRender(callback) { beforeRender.add(callback); return () => { beforeRender.delete(callback); }; },
     requestRender() {}, nowMs: () => now, inputMode: () => "mouse", safariGestures: false,
+    forwardUnusedInput: options.forwardUnusedInput,
     onDeviceLost(listener) { lost.add(listener); return () => { lost.delete(listener); }; },
     onDeviceRestored(listener) { restored.add(listener); return () => { restored.delete(listener); }; },
     keptGpuBytes: options.keptGpuBytes ?? 0,
-    discovery: { broker, limits: () => ({ responseBytes: MIB, timeoutMs: 1000 }), fetch: vi.fn() as unknown as typeof fetch, maxTextureSide: () => 4096, baseUrl: "https://earth.example/" },
+    discovery: { broker, limits: () => ({ responseBytes: MIB, timeoutMs: 1000 }), fetch: options.fetch ?? vi.fn() as unknown as typeof fetch, maxTextureSide: () => 4096, baseUrl: "https://earth.example/" },
   });
   let snapshot: WindowWorkspaceSnapshot<string> = { revision: 0, primary: side([]), secondary: side([]), focusedSide: null, compact: false, contextActive: false };
   const listeners = new Set<() => void>();
@@ -82,6 +92,76 @@ describe("image surface host", () => {
     expect(draw.right).toBeNull();
     expect(draw.camera).toEqual({ scale: 2, x: 0, y: 0 });
     expect(t.host.getView()).toMatchObject({ presentation: "single", sides: [{ side: "left", title: "a", status: "ready" }] });
+  });
+
+  it("keeps the comparison when both windows are minimized", async () => {
+    const t = current = setup();
+    const a = open(t.host, "a"), b = open(t.host, "b", 800, 600);
+    t.set({ primary: side([a]), secondary: side([b]) });
+    await flush();
+    const before = t.draw()!.camera;
+    t.set({ primary: side([a], { collapsed: true }), secondary: side([b], { collapsed: true }) });
+    await flush();
+    expect(t.host.getView().presentation).toBe("pair");
+    expect(t.draw()!.left?.source?.width).toBe(400);
+    expect(t.draw()!.right?.source?.width).toBe(800);
+    expect(t.draw()!.camera).toEqual(before);
+  });
+
+  it("zooms about the pointer, including a pinch that starts over another element", async () => {
+    const t = current = setup({ forwardUnusedInput: true });
+    const a = open(t.host, "a");
+    t.set({ primary: side([a]) });
+    await flush();
+    const at = { x: 200, y: 150 };
+    const before = t.draw()!.camera!;
+    const planeX = (at.x - before.x) / before.scale, planeY = (at.y - before.y) / before.scale;
+    t.surface.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, clientX: at.x, clientY: at.y, bubbles: true, cancelable: true }));
+    const zoomed = t.draw()!.camera!;
+    expect(zoomed.scale).toBeCloseTo(before.scale * 1.25, 6);
+    expect(zoomed.x + zoomed.scale * planeX).toBeCloseTo(at.x, 6);
+    expect(zoomed.y + zoomed.scale * planeY).toBeCloseTo(at.y, 6);
+    const panel = document.createElement("div");
+    document.body.append(panel);
+    t.frame(500);
+    const held = t.draw()!.camera!;
+    const pinchAt = { x: 80, y: 40 };
+    const pinchPlaneX = (pinchAt.x - held.x) / held.scale, pinchPlaneY = (pinchAt.y - held.y) / held.scale;
+    const pinch = new WheelEvent("wheel", { deltaY: -100, clientX: pinchAt.x, clientY: pinchAt.y, ctrlKey: true, bubbles: true, cancelable: true });
+    panel.dispatchEvent(pinch);
+    expect(pinch.defaultPrevented).toBe(true);
+    const after = t.draw()!.camera!;
+    expect(after.scale).toBeGreaterThan(held.scale);
+    expect(after.x + after.scale * pinchPlaneX).toBeCloseTo(pinchAt.x, 5);
+    expect(after.y + after.scale * pinchPlaneY).toBeCloseTo(pinchAt.y, 5);
+    panel.remove();
+    t.frame(500);
+    const scroller = document.createElement("div");
+    scroller.style.overflowY = "auto";
+    Object.defineProperty(scroller, "scrollHeight", { value: 900 });
+    Object.defineProperty(scroller, "clientHeight", { value: 300 });
+    document.body.append(scroller);
+    const kept = t.draw()!.camera;
+    const scroll = new WheelEvent("wheel", { deltaY: 40, clientX: 10, clientY: 10, bubbles: true, cancelable: true });
+    scroller.dispatchEvent(scroll);
+    expect(scroll.defaultPrevented).toBe(false);
+    expect(t.draw()!.camera).toEqual(kept);
+    scroller.remove();
+  });
+
+  it("leaves a wheel that starts off the picture with the page unless unused input is forwarded", async () => {
+    const t = current = setup();
+    const a = open(t.host, "a");
+    t.set({ primary: side([a]) });
+    await flush();
+    const before = t.draw()!.camera;
+    const panel = document.createElement("div");
+    document.body.append(panel);
+    const wheel = new WheelEvent("wheel", { deltaY: -100, clientX: 40, clientY: 40, ctrlKey: true, bubbles: true, cancelable: true });
+    panel.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(false);
+    expect(t.draw()!.camera).toEqual(before);
+    panel.remove();
   });
 
   it("compares two images of one aspect with a wipe, and refuses two of different aspects without loading them", async () => {
@@ -175,6 +255,15 @@ describe("image surface host", () => {
       resolution: { pixelsPerCss: 2, devicePixelRatio: window.devicePixelRatio, displayPixels: window.devicePixelRatio === 2 } });
     t.host.fit();
     expect(t.host.getView().native).toMatchObject({ scale: false });
+  });
+
+  it("opens an address on the requested side", async () => {
+    const t = current = setup({
+      fetch: (async () => new Response(png(640, 360).slice(), { headers: { "content-type": "image/png" } })) as typeof fetch,
+    });
+    t.set({ primary: side([OPEN_IMAGE_TAB]), focusedSide: "primary" });
+    expect(await t.host.openUrl("https://frames.example/output.png", "secondary")).toBe(true);
+    expect(t.opened).toEqual([[expect.stringMatching(/^image:/), "secondary"]]);
   });
 
   it("opens a new image beside the Open image tab", async () => {

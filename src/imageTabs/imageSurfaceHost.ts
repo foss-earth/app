@@ -7,6 +7,7 @@
  */
 import { controlTakesKey } from "@felipegalind0/gamepad-tools/browser";
 import { createWheelGestureClassifier } from "@foss-earth/engine";
+import { pageUsesWheel, type InputPropagationRealm } from "@foss-earth/engine/browser";
 import { createImageSourceCache, rgba8Bytes, type ImageSourceHold } from "@foss-earth/images";
 import {
   createRectangleCameraTarget, fitRectangleSurface, rectangleNativeStatus, rectanglePresentedDocuments, rectangleScaleLimits, rectangleSurfacePresentation,
@@ -72,7 +73,7 @@ export interface ImageWorkspacePort {
 }
 
 export interface ImageSurfaceHostPorts {
-  window: Window;
+  window: Window & typeof globalThis;
   canvas: HTMLCanvasElement;
   load: RectangleImageSourceLoader;
   /** The rectangle renderer: draws what the surface reads each frame, after the world. */
@@ -83,6 +84,12 @@ export interface ImageSurfaceHostPorts {
   nowMs(): number;
   inputMode(): "auto" | "mouse" | "trackpad";
   safariGestures: boolean;
+  /**
+   * A wheel or pinch the page does not use, including one that starts over a
+   * window, moves this surface about the pointer. The globe leaves this off,
+   * so an unused pinch there still moves the globe.
+   */
+  forwardUnusedInput?: boolean;
   onDeviceLost(listener: () => void): () => void;
   onDeviceRestored(listener: () => void): () => void;
   /** Recently shown images kept for switching back, within the shared kept-GPU setting. */
@@ -98,8 +105,11 @@ export interface ImageSurfaceHost {
   attachSurface(element: HTMLElement): () => void;
   /** The workspace whose selected image tabs the surface shows. Returns the unbind. */
   bindWorkspace(overlay: ImageWorkspacePort): () => void;
-  /** Opens a tab for the image beside the Open image tab; false with the reason in the view. */
-  openUrl(input: string): Promise<boolean>;
+  /**
+   * Opens a tab for the image. Without a slot, the tab is beside the Open image
+   * tab; with one, it opens on that side. False leaves the reason in the view.
+   */
+  openUrl(input: string, slot?: WindowSlotId): Promise<boolean>;
   openFile(file: Blob & { readonly name: string }): Promise<boolean>;
   /** The same document in a new tab on the other side. */
   duplicate(tabId: string): void;
@@ -134,9 +144,18 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
   const document = window.document;
   const registry = createImageDocumentRegistry();
   const cache = createImageSourceCache<RectangleImageSource>({ broker: ports.discovery.broker, keptGpuBytes: ports.keptGpuBytes, gpuBytes: source => source.gpuBytes });
-  const router = createWheelGestureRouter({ window, nowMs: ports.nowMs });
-  const held = new Map<string, Held>();
   const surfaces: Surface[] = [];
+  const propagation: InputPropagationRealm = {
+    window, Node: window.Node, Element: window.Element, HTMLInputElement: window.HTMLInputElement,
+    WheelEvent: window.WheelEvent, Event: window.Event, getComputedStyle: element => window.getComputedStyle(element),
+    userAgent: window.navigator.userAgent, hasGestureEvent: "GestureEvent" in window, nowMs: ports.nowMs,
+  };
+  const router = createWheelGestureRouter({
+    window, nowMs: ports.nowMs,
+    claimUnusedWheel: ports.forwardUnusedInput ? (target, event) => pageUsesWheel(target, event, propagation) ? null : surfaces.at(-1)?.element ?? null : undefined,
+    claimUnusedGesture: ports.forwardUnusedInput ? () => surfaces.at(-1)?.element ?? null : undefined,
+  });
+  const held = new Map<string, Held>();
   const listeners = new Set<() => void>();
   let state: RectangleSurfaceState = initialRectangleSurfaceState();
   let participation = NO_PARTICIPATION;
@@ -145,7 +164,7 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
   let nativeProblem: string | null = null;
   let deviceLost = false, disposed = false;
   let opening = 0, openingError: string | null = null;
-  let view: ImageSurfaceView | null = null, notifying = false, syncQueued = false;
+  let view: ImageSurfaceView | null = null, notifyPosted = false, syncQueued = false;
   let presentedKey = "";
 
   const active = (): Surface | null => surfaces.at(-1) ?? null;
@@ -156,11 +175,14 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
   function changed(): void {
     view = null;
     ports.requestRender();
-    if (notifying) return;
-    notifying = true;
-    queueMicrotask(() => {
-      notifying = false;
-      if (!disposed) for (const listener of [...listeners]) listener();
+    // One subscriber pass per frame. A pinch is many events; the picture
+    // reads the camera on the frame, and the toolbar follows once.
+    if (notifyPosted) return;
+    notifyPosted = true;
+    window.requestAnimationFrame(() => {
+      notifyPosted = false;
+      if (disposed) return;
+      for (const listener of [...listeners]) listener();
     });
   }
 
@@ -349,7 +371,7 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
     if (snapshot.primary.tabs.includes(OPEN_IMAGE_TAB)) return "primary";
     return snapshot.focusedSide ?? "primary";
   }
-  async function open(discover: () => Promise<ImageDiscovery>): Promise<boolean> {
+  async function open(discover: () => Promise<ImageDiscovery>, slot?: WindowSlotId): Promise<boolean> {
     opening += 1; openingError = null; changed();
     let result: ImageDiscovery;
     try { result = await discover(); }
@@ -358,7 +380,7 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
     if (disposed) return false;
     if (!result.ok) { openingError = result.reason; changed(); return false; }
     const tab = registry.open(result.description);
-    workspace?.openTabInSlot(tab.tabId, openingSlot());
+    workspace?.openTabInSlot(tab.tabId, slot ?? openingSlot());
     changed();
     return true;
   }
@@ -375,12 +397,23 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
     attachSurface(element) {
       const surfaceGeometry = ports.observeGeometry(element);
       const takesKey = (eventTarget: EventTarget | null, key: string): boolean => eventTarget === element ? false : controlTakesKey(eventTarget, key);
+      // The canvas origin in CSS pixels, refreshed when the surface moves. A
+      // pinch reads it and does no layout.
+      let originX = 0, originY = 0;
+      const place = (): void => {
+        const read = surfaceGeometry.read();
+        const box = ports.canvas.getBoundingClientRect();
+        const ppcX = read.pixelsPerCssX > 0 ? read.pixelsPerCssX : 1;
+        const ppcY = read.pixelsPerCssY > 0 ? read.pixelsPerCssY : 1;
+        originX = box.left + read.framebufferRect.x / ppcX;
+        originY = box.top + read.framebufferRect.y / ppcY;
+      };
       const binding = attachLookInput({
         window, canvas: element, model: target, router, controlTakesKey: takesKey,
         createWheelGestureClassifier: options => createWheelGestureClassifier({ ...options, nowMs: ports.nowMs }),
+        claimForeignTouch: ports.forwardUnusedInput === true,
         localPoint(clientX, clientY) {
-          const read = surfaceGeometry.read(), canvas = ports.canvas.getBoundingClientRect();
-          return { x: clientX - canvas.left - read.framebufferRect.x / read.pixelsPerCssX, y: clientY - canvas.top - read.framebufferRect.y / read.pixelsPerCssY };
+          return { x: clientX - originX, y: clientY - originY };
         },
         // The keys follow the focus: a surface the person used owns them until it loses it or Escape.
         ownsKeys: () => element.contains(document.activeElement),
@@ -395,11 +428,12 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
       });
       const focus = (): void => { if (document.activeElement !== element) element.focus({ preventScroll: true }); };
       element.addEventListener("pointerdown", focus);
-      const offGeometry = surfaceGeometry.subscribe(() => { if (active()?.element === element) { syncViewport(); changed(); } });
+      const offGeometry = surfaceGeometry.subscribe(() => { place(); if (active()?.element === element) { syncViewport(); changed(); } });
       const surface: Surface = { element, geometry: surfaceGeometry, binding,
         off: [() => element.removeEventListener("pointerdown", focus), offGeometry, () => binding.detach(), () => surfaceGeometry.dispose()] };
       surfaces.push(surface);
       surfaceGeometry.refresh();
+      place();
       syncViewport();
       changed();
       return () => {
@@ -421,7 +455,7 @@ export function createImageSurfaceHost(ports: ImageSurfaceHostPorts): ImageSurfa
         recompute();
       };
     },
-    openUrl: input => open(() => discoverUrlImage(input, ports.discovery)),
+    openUrl: (input, slot) => open(() => discoverUrlImage(input, ports.discovery), slot),
     openFile: file => open(() => discoverFileImage(file, ports.discovery)),
     duplicate(tabId) {
       const snapshot = workspace?.workspace.getSnapshot();

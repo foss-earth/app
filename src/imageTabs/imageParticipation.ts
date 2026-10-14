@@ -1,9 +1,8 @@
 /**
- * Which image documents a workspace shows, from its committed snapshot
- * (docs/proposals/shared-image-viewer-implementation.md §5). A side takes
- * part when it is expanded and its selected tab is an image tab the context
- * has not hidden. Narrow-screen folding is presentation, not membership: the
- * snapshot keeps each side's own tabs.
+ * Which image documents a workspace shows, from its committed snapshot.
+ * A side takes part when its selected tab is an image the context has not
+ * hidden. Minimizing a window hides that window and leaves the selected
+ * image on the view. Narrow-screen folding is presentation, not membership.
  */
 import type { RectangleSide, RectangleSlotDocument } from "@foss-earth/sphere-image";
 import type { WindowSideSnapshot, WindowWorkspaceSnapshot } from "@foss-earth/ui/windowing";
@@ -18,7 +17,7 @@ export interface ImageParticipation {
 
 function slotDocument(side: WindowSideSnapshot<string>, documentOf: (tabId: string) => ImageDocument | null): RectangleSlotDocument | null {
   const tabId = side.activeTab;
-  if (side.collapsed || !isImageInstanceTab(tabId) || side.contextHidden.includes(tabId)) return null;
+  if (!isImageInstanceTab(tabId) || side.contextHidden.includes(tabId)) return null;
   const document = documentOf(tabId);
   return document ? { tabId, documentId: document.id, revision: document.revision, title: document.title,
     size: { width: document.width, height: document.height } } : null;
