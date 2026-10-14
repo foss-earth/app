@@ -11,7 +11,7 @@ import { type RendererMode, type ReadinessPolicy, type ReadinessTimers } from "@
 import { observeResourceTiming, readHeapBytes } from "@foss-earth/renderer/browser";
 import { createMemorySource, createNetworkSource } from "@foss-earth/renderer/profiling";
 import { ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-earth/engine";
-import { createMapCache, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions } from "@foss-earth/engine/browser";
+import { createMapCache, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions, type TerrainDecodeWorkerPort } from "@foss-earth/engine/browser";
 import { createBrowserGlobeBindings, loadBrowserGlobeGoogleProviders } from "@foss-earth/engine/browser-globe";
 import { createTerrainLightingAdapter, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
 import { createGlobeRuntimeBudgets } from "@foss-earth/engine/settings";
@@ -44,6 +44,10 @@ export interface EarthBrowserRuntimeOptions extends EarthSelections {
   describeMapTransfer: BoundedAtlasImageryLoaderOptions["describe"];
   mapPriority(): number;
   createWorker(): AtlasImageryWorkerPort | null;
+  /** A terrain decode worker; null: terrain decodes on the page. */
+  createTerrainWorker?(): TerrainDecodeWorkerPort | null;
+  /** The most terrain decode workers at once. */
+  terrainDecodeWorkers?(): number;
   framePreparation?: GlobeRuntimeOptions["framePreparation"];
   onFrameError(error: unknown): void;
   signal?: AbortSignal;
@@ -160,6 +164,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
         Node, Element, HTMLInputElement, WheelEvent, Event, performance },
       imageTransferLimits: options.imageTransferLimits, terrainLoaderLimits: options.terrainLoaderLimits,
       describeMapTransfer: options.describeMapTransfer, mapPriority: options.mapPriority, createWorker: options.createWorker,
+      createTerrainWorker: options.createTerrainWorker, terrainDecodeWorkers: options.terrainDecodeWorkers,
       createCanvas, decode: (bytes, mimeType) => createImageBitmap(new Blob([
         new Uint8Array(bytes.buffer as ArrayBuffer, bytes.byteOffset, bytes.byteLength),
       ], { type: mimeType }), { colorSpaceConversion: "default", premultiplyAlpha: "none" }),
