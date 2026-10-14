@@ -3,7 +3,8 @@
   left: 50%;
   bottom: calc(var(--foss-hud-bottom) + var(--foss-hud-bar-height, 28px) + 12px);
   transform: translateX(-50%);
-  z-index: 10;
+  /* Under the windows (10): a phone's grip is mid-bottom, where this button is. */
+  z-index: 9;
   min-height: 48px;
   padding: 12px 24px;
   font: 600 16px/1.2 system-ui, sans-serif;
