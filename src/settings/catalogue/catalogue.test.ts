@@ -59,12 +59,13 @@ describe("FOSS Earth's catalogue", () => {
     expect(settings.get("input.orbit.invertYaw")).toBe(true);
     expect(settings.get("input.orbit.invertPitch")).toBe(false);
     expect(settings.get("input.orbit.recenterMode")).toBe("recenter");
-    expect(settings.get("visualization.compass.radiusScale")).toBe(0.05);
-    expect(settings.get("visualization.compass.minRadius")).toBe(750);
+    expect(settings.get("visualization.compass.radius")).toEqual({ min: 750, max: 240_000 });
+    expect(settings.get("visualization.compass.distance")).toEqual({ min: 15_000, max: 4_800_000 });
 
     const record = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY)!);
-    // The tuner saved its four values together, as the user's own defaults.
-    expect(record.values["visualization.compass.minRadius"]).toBe(750);
+    // The tuner saved its radius, the distances that radius covers, and the letter size, as the user's own defaults.
+    expect(record.values["visualization.compass.radius"]).toEqual({ min: 750, max: 240_000 });
+    expect(record.values["visualization.compass.labelSizeScale"]).toBe(0.2);
     expect(record.values["interface.performanceHud.memory"]).toBe("off");
     expect(record.values["interface.performanceHud.activeMeshes"]).toBeUndefined();
     expect(localStorage.getItem("foss-earth.theme")).toBe("light");

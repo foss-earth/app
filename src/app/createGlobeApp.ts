@@ -69,7 +69,7 @@ import { createSkyPanel } from "@foss-earth/sky/panels";
 import { createDateTimePanel } from "@foss-earth/sky/panels";
 import { createFrameBudgetPanel } from "@foss-earth/renderer/panel";
 import { FRAME_PROFILING_IDS, frameProfilingParameters } from "@foss-earth/renderer/settings";
-import { createOrbitCompass, type OrbitCompassHandle } from "@foss-earth/engine/compass";
+import { COMPASS_SCALE_SETTING_IDS, createOrbitCompass, orbitCompassScaleFromSettings, type OrbitCompassHandle } from "@foss-earth/engine/compass";
 import { createHemisphereCulling } from "@foss-earth/engine/visualization";
 import { createPerformanceMetrics, type PerformanceSnapshot } from "@foss-earth/renderer/diagnostics";
 import { createAnchorHeightResolver } from "@foss-earth/engine/babylon";
@@ -367,7 +367,7 @@ export async function createGlobeApp(
         className: "north-button",
         content: () => {
           const template = document.createElement("template");
-          template.innerHTML = `<svg id="northButtonSvg" viewBox="0 0 36 36" width="26" height="26" aria-hidden="true"><polygon points="18,5 14,14 22,14" fill="#ef4444"></polygon><text x="18" y="27" text-anchor="middle" fill="rgba(255,255,255,0.82)" font-family="system-ui,-apple-system,sans-serif" font-weight="700" font-size="13">N</text></svg>`;
+          template.innerHTML = `<svg id="northButtonSvg" viewBox="0 0 36 36" width="26" height="26" aria-hidden="true"><polygon points="18,5 14,14 22,14" fill="#ef4444"></polygon><text x="18" y="27" text-anchor="middle" fill="currentColor" font-family="system-ui,-apple-system,sans-serif" font-weight="700" font-size="13">N</text></svg>`;
           return template.content.firstElementChild ?? document.createElement("span");
         },
       },
@@ -805,6 +805,14 @@ export async function createGlobeApp(
   retainSettingsRelease(settings.watch("interface.poiSpriteTuner", showTuners));
   retainSettingsRelease(settings.watch("interface.compassScaleTuner", showTuners));
   retainSettingsRelease(settings.watch("visualization.compass.heightOffset", applyCompassHeight));
+  const applyCompassScale = (): void => {
+    orbitCompass.setScaleParams(orbitCompassScaleFromSettings(id => settings.get(id)));
+  };
+  applyCompassScale();
+  for (const id of COMPASS_SCALE_SETTING_IDS) retainSettingsRelease(settings.watch(id, applyCompassScale));
+  const compassMode = (): "horizon" | "legacy" => settings.get("visualization.compass.mode") === "legacy" ? "legacy" : "horizon";
+  orbitCompass.setMode(compassMode());
+  retainSettingsRelease(settings.watch("visualization.compass.mode", () => orbitCompass.setMode(compassMode())));
   for (const id of ["camera.surfaceFollowSpeed", "camera.surfaceRetry"]) {
     retainSettingsRelease(settings.watch(id, () => anchorHeights.setTuning(anchorTuning())));
   }
@@ -1009,6 +1017,7 @@ export async function createGlobeApp(
   const positionSection = createPositionInterfaceSection(settings, { document, refresh: ui.refresh, panelStorage: ui.storage, createParameterSection });
   parameterSections.push(positionSection);
   const interfaceSections: PanelSection[] = [
+    { id: "compass", title: settings.getSectionTitle("interface", "compass"), element: sectionOf("interface", "compass"), defaultOpen: false },
     { id: "toolbar", title: settings.getSectionTitle("interface", "toolbar"), element: toolbarSection.element, defaultOpen: false },
     { id: "position", title: settings.getSectionTitle("interface", "position"), element: positionSection.element, defaultOpen: false },
     { id: "log", title: settings.getSectionTitle("interface", "log"), element: sectionOf("interface", "log"), defaultOpen: false },
@@ -1205,7 +1214,7 @@ export async function createGlobeApp(
     }
     const camera = runtime.geospatialCamera;
     const compassAnchor = anchorHeights.resolve(poiTracking.getOrbitTarget() ?? camera?.center ?? null);
-    orbitCompass.update(compassAnchor, state?.zoomMeters ?? camera?.radius ?? 0);
+    orbitCompass.update(compassAnchor, state?.zoomMeters ?? camera?.radius ?? 0, camera?.position ?? null);
     culling.update();
     const poiTrackingActive = poiTracking.isTracking();
     if (poiTrackingActive !== lastPoiTrackingActive) {

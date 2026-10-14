@@ -38,6 +38,7 @@ const mockState = vi.hoisted(() => ({
   registryRemoveLayer: vi.fn(),
   registryDestroy: vi.fn(),
   compassUpdate: vi.fn(),
+  compassSetMode: vi.fn(),
   compassDestroy: vi.fn(),
   cullingUpdate: vi.fn(),
   cullingGetStats: vi.fn(),
@@ -72,7 +73,7 @@ vi.mock("@foss-earth/engine/layers", async importOriginal => ({
 vi.mock("@foss-earth/engine/compass", async importOriginal => ({
   ...await importOriginal<typeof import("@foss-earth/engine/compass")>(),
   createOrbitCompass: () => ({
-    update: mockState.compassUpdate, setScaleParams: mockState.compassSetScaleParams,
+    update: mockState.compassUpdate, setMode: mockState.compassSetMode, setScaleParams: mockState.compassSetScaleParams,
     isMesh: vi.fn(() => false), destroy: mockState.compassDestroy,
   }),
 }));
@@ -411,7 +412,8 @@ describe("createGlobeApp smoke behavior", () => {
     expect(root.querySelector('#perfMetricsPill [data-perf-metric="tiles"]')).toBeNull();
     expect(root.querySelector('#perfMetricsPill [data-perf-metric="memory"]')).toBeNull();
     expect(mockState.resolveAnchorHeight).toHaveBeenCalledWith({ x: 1, y: 0, z: 0 });
-    expect(mockState.compassUpdate).toHaveBeenCalledWith({ x: 9, y: 0, z: 0 }, 600);
+    expect(mockState.compassSetMode).toHaveBeenCalledWith("horizon");
+    expect(mockState.compassUpdate).toHaveBeenCalledWith({ x: 9, y: 0, z: 0 }, 600, { x: 6_378_737, y: 0, z: 0 });
     const browserData = app.browserDataTab;
     expect(browserData.querySelector<HTMLInputElement>('input[name="keepApiKeys"]')?.checked).toBe(true);
     expect(browserData.textContent).toContain("Google Maps and CARTO");
@@ -745,7 +747,7 @@ describe("createGlobeApp smoke behavior", () => {
     expect(controls("mouse")).toEqual(expect.arrayContaining(["input.mouse.orbitRate", "input.mouse.dragThreshold", "input.wheel.zoomRate"]));
     expect(controls("touch")).toEqual(expect.arrayContaining(["input.touch.orbitRate", "input.touch.panRate", "input.touch.zoomExponent"]));
     expect(controls("controller")).toContain("input.gamepad.deadzone");
-    expect(app.interfaceSections.map(({ id, title }) => [id, title])).toEqual([["toolbar", "Toolbar"], ["position", "Position readout"], ["log", "Log"]]);
+    expect(app.interfaceSections.map(({ id, title }) => [id, title])).toEqual([["compass", "Compass"], ["toolbar", "Toolbar"], ["position", "Position readout"], ["log", "Log"]]);
     expect(app.interfaceLead.querySelector("[data-settings-section=\"interface/theme\"]")).not.toBeNull();
     expect(app.interfaceLead.querySelector("[data-settings-section=\"interface/windows\"]")).not.toBeNull();
     expect([app.locationSearchSection.id, app.locationSearchSection.title, app.locationSearchSection.defaultOpen]).toEqual(["search", "Search", false]);
@@ -769,6 +771,17 @@ describe("createGlobeApp smoke behavior", () => {
     expect(app.timeTab.querySelectorAll(".foss-earth-dial")).toHaveLength(2);
     const performance = performanceSection(app);
     expect(performance.querySelector('[data-parameter^="interface.performanceHud."]')).toBeNull();
+    expect(performance.querySelector('[data-parameter="visualization.compass.radius"]')).toBeNull();
+    const compass = sectionElement(app.interfaceSections, "compass");
+    const mode = compass.querySelector<HTMLInputElement>('[data-parameter="visualization.compass.mode"] input[type="range"]');
+    expect(mode?.getAttribute("aria-valuetext")).toBe("Horizon");
+    expect(compass.querySelector('[data-parameter="visualization.compass.radius"]')).toBeNull();
+    if (mode) {
+      mode.value = "0";
+      mode.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    expect(compass.querySelectorAll('[data-parameter="visualization.compass.radius"] input[type="range"]')).toHaveLength(2);
+    expect(compass.querySelectorAll('[data-parameter="visualization.compass.distance"] input[type="range"]')).toHaveLength(2);
     const toolbar = sectionElement(app.interfaceSections, "toolbar");
     for (const { id: metric } of PERFORMANCE_METRIC_DEFINITIONS) {
       expect(toolbar.querySelector(`[data-parameter="interface.performanceHud.${metric}"]`)).not.toBeNull();
@@ -1014,21 +1027,20 @@ describe("createGlobeApp smoke behavior", () => {
 
     expect(tuner?.hidden).toBe(false);
 
-    const radiusScaleInput = root.querySelector<HTMLInputElement>('.compass-scale-tuner input[data-field="radiusScale"]');
+    const minRadius = root.querySelector<HTMLInputElement>('.compass-scale-tuner input[data-range="radius"][data-end="min"]');
     const applyButton = root.querySelector<HTMLButtonElement>(".compass-scale-tuner .poi-sprite-tuner-apply");
 
-    if (radiusScaleInput) radiusScaleInput.value = "0.05";
-    radiusScaleInput?.dispatchEvent(new Event("input", { bubbles: true }));
+    if (minRadius) minRadius.value = "12000";
+    minRadius?.dispatchEvent(new Event("input", { bubbles: true }));
     expect(applyButton?.hidden).toBe(false);
 
     applyButton?.click();
 
-    expect(mockState.compassSetScaleParams).toHaveBeenCalledWith({
-      radiusScale: 0.05,
-      minRadius: 750,
+    expect(mockState.compassSetScaleParams).toHaveBeenCalledWith(expect.objectContaining({
+      minRadius: 12_000,
       maxRadius: 240_000,
       labelSizeScale: 0.16,
-    });
+    }));
   });
 
   it("passes URL API keys through runtime startup", async () => {
@@ -1063,6 +1075,8 @@ describe("createGlobeApp smoke behavior", () => {
   it("exits POI tracking before north-up reset", async () => {
     const { root } = await createAppUnderTest();
 
+    expect(root.querySelector("#northButton text")?.getAttribute("fill")).toBe("currentColor");
+    expect(root.querySelector("#northButton polygon")?.getAttribute("fill")).toBe("#ef4444");
     root.querySelector<HTMLButtonElement>("#northButton")?.click();
 
     expect(mockState.poiExitTracking).toHaveBeenCalledTimes(1);
