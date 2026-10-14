@@ -33,3 +33,17 @@ describe("terrain decode workers", () => {
     expect(policy.terrainDecodeWorkers?.()).toBe(0);
   });
 });
+
+describe("destination terrain", () => {
+  const hit = (quality: number) => ({ point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 0, z: 1 }, distanceMeters: 0, heightMeters: 250, meshId: "tile", revision: 1, quality });
+  it("is ready from the elevation quality it asks for, that many levels lower with coarser elevation", () => {
+    const settings = createSettingsRegistry({ storage: null, deviceContext: { hardwareConcurrency: 6, deviceMemoryGiB: 8 } });
+    settings.register(FOSS_EARTH_PARAMETERS);
+    const policy = createEarthBrowserPolicy(settings).terrainPreparation!;
+    const ready = (quality: number) => policy.evaluate({ latDeg: 44.97, lonDeg: -93.23, radiusMeters: 1000 }, [hit(quality)], false, true).result !== null;
+    const minimum = settings.get<number>("map.preparation.minimumQuality");
+    expect([policy.requiredRasterQuality(), ready(minimum), ready(minimum - 1)]).toEqual([minimum, true, false]);
+    settings.set("map.terrain.coarserElevation", 3);
+    expect([policy.requiredRasterQuality(), ready(minimum - 3), ready(minimum - 4)]).toEqual([minimum - 3, true, false]);
+  });
+});

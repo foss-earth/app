@@ -66,12 +66,15 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
       groundHeightMeters + (request.altitudeAboveGroundMeters ?? (request.altitudeMeters === undefined ? n("map.preparation.defaultHeight") : 0)),
       groundHeightMeters + (request.clearanceMeters ?? n("map.preparation.defaultClearance"))),
   });
+  // Coarser elevation keeps every terrain tile that many levels from its own
+  // elevation, so a destination asks for that many levels less.
+  const requiredQuality = () => n("map.preparation.minimumQuality") - Math.max(0, Math.round(n("map.terrain.coarserElevation")) || 0);
   const terrainPreparation: TerrainPreparationPolicy = {
     ...budgets,
     fallback: altitude,
-    requiredRasterQuality: () => n("map.preparation.minimumQuality"),
+    requiredRasterQuality: requiredQuality,
     evaluate(request, samples, google, settled) {
-      const isReady = (hit: typeof samples[number]) => !!hit && Number.isFinite(hit.heightMeters) && (google ? settled : hit.quality >= n("map.preparation.minimumQuality"));
+      const isReady = (hit: typeof samples[number]) => !!hit && Number.isFinite(hit.heightMeters) && (google ? settled : hit.quality >= requiredQuality());
       const center = samples[0] ?? null;
       const centerReady = isReady(center);
       const centerHeight = centerReady ? altitude(request, center!.heightMeters).altitudeMeters : null;
