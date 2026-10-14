@@ -11,7 +11,7 @@ import {
 } from "@foss-earth/engine/settings";
 import { INTERFACE_PARAMETERS, INTERFACE_TAB, PERFORMANCE_HUD_METRICS, SETTINGS_TAB, TOOLBAR_BUTTONS } from "./interface";
 import { RENDERER_EXPERIMENT_IDS, RENDERER_OWNED_EXPERIMENT_PARAMETERS, RENDERER_PARAMETERS, RENDERER_TAB } from "@foss-earth/renderer/settings";
-import { SPHERE_SETTINGS_TAB, SPHERE_TAB, VIEWER_PARAMETERS, VIEWER_SECTION_TITLES, SCENES_TAB } from "@foss-earth/image-viewer/settings";
+import { SPHERE_SETTINGS_TAB, SPHERE_TAB, VIEWER_PARAMETERS, VIEWER_SECTION_TITLES, SCENES_TAB } from "@foss-earth/sphere-image/settings";
 import { SCENE_DOCUMENT_PARAMETERS, SCENE_SECTION_TITLES } from "@foss-earth/scenes";
 import { createImageResourceParameters, IMAGE_RESOURCE_SECTION_TITLES } from "@foss-earth/images/settings";
 import { TILED_CUBEMAP_PARAMETERS, keptGpuDefault } from "@foss-earth/sphere-tiled-cubemap/settings";

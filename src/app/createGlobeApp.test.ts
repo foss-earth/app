@@ -102,8 +102,8 @@ vi.mock("@foss-earth/engine/babylon", async importOriginal => ({
 }));
 
 // The rectangle image pass draws on a real engine; image tabs have their own tests.
-vi.mock("@foss-earth/image-viewer/babylon", async importOriginal => ({
-  ...await importOriginal<typeof import("@foss-earth/image-viewer/babylon")>(),
+vi.mock("@foss-earth/sphere-image/babylon", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/sphere-image/babylon")>(),
   createRectangleSurfaceRenderer: () => ({ available: true, unavailableReason: null, addSurface: () => ({ dispose() {} }), dispose() {} }),
 }));
 vi.mock("./positionSeaLevel", () => ({

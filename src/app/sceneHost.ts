@@ -3,13 +3,13 @@ import { bindEarthSceneMedia } from "./cacheCompatibility";
 import {
   createBuiltInRepresentations, createViewerSelection, validateViewerAsset,
   type SettledPublishedImageViewer, type ViewerImageInput,
-} from "@foss-earth/image-viewer";
-import { createImageViewer, type ViewerSettings } from "@foss-earth/image-viewer/viewer";
-import { createGlobeViewerProjection, createViewerSceneDescription } from "@foss-earth/image-viewer/globe";
-import { createSphereRenderer } from "@foss-earth/image-viewer/babylon";
-import { createViewerResources, type ComposedImageSource } from "@foss-earth/image-viewer/resources";
-import { createViewerTabs } from "@foss-earth/image-viewer/panels";
-import { VIEWER_EXPERIMENT_IDS } from "@foss-earth/image-viewer/settings";
+} from "@foss-earth/sphere-image";
+import { createImageViewer, type ViewerSettings } from "@foss-earth/sphere-image/viewer";
+import { createGlobeViewerProjection, createViewerSceneDescription } from "@foss-earth/sphere-image/globe";
+import { createSphereRenderer } from "@foss-earth/sphere-image/babylon";
+import { createViewerResources, type ComposedImageSource } from "@foss-earth/sphere-image/resources";
+import { createViewerTabs } from "@foss-earth/sphere-image/panels";
+import { VIEWER_EXPERIMENT_IDS } from "@foss-earth/sphere-image/settings";
 import {
   createImageSourceCache, mediaGroup, MIB, ResourceCapacityError,
   type ImageRepresentation, type MediaGroup, type ImageEstimate,

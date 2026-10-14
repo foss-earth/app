@@ -15,7 +15,7 @@ type WorldPresentationChoice = "auto" | "overlay" | "split";
 type ToolbarEdgeChoice = "auto" | "top" | "bottom";
 type WorldResize = "live" | "release";
 import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/browser";
-import type { ViewerTabs as SphereTabs, ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/image-viewer/panels";
+import type { ViewerTabs as SphereTabs, ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/sphere-image/panels";
 
 type SectionTabId = "controls" | "interface" | "settings";
 type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "about" | "bug-report" | "browser-data" | "panorama" | "panorama-settings";

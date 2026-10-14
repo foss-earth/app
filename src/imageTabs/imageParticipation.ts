@@ -5,7 +5,7 @@
  * has not hidden. Narrow-screen folding is presentation, not membership: the
  * snapshot keeps each side's own tabs.
  */
-import type { RectangleSide, RectangleSlotDocument } from "@foss-earth/image-viewer";
+import type { RectangleSide, RectangleSlotDocument } from "@foss-earth/sphere-image";
 import type { WindowSideSnapshot, WindowWorkspaceSnapshot } from "@foss-earth/ui/windowing";
 import { isImageInstanceTab, type ImageDocument } from "./imageDocuments";
 

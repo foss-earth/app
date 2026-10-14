@@ -10,7 +10,7 @@ import { createImageFileService, type EncodedImageFile, type ImageTransferLimits
 import type { RectangleImageRepresentationRecord } from "@foss-earth/rectangle-image";
 import { loadRectangleImage } from "@foss-earth/rectangle-image/browser";
 import { createRectangleUploadAdapter } from "@foss-earth/rectangle-image/babylon";
-import type { RectangleSurfaceTexture } from "@foss-earth/image-viewer/babylon";
+import type { RectangleSurfaceTexture } from "@foss-earth/sphere-image/babylon";
 import type { ImageTextureUploader } from "@foss-earth/renderer/babylon";
 import type { ImageDocument } from "./imageDocuments";
 

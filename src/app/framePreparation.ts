@@ -2,7 +2,7 @@
 import { createFeatureFramePreparation, createResourceFrameWork } from "@foss-earth/renderer";
 import type { GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
 import type { ImageTextureUploader, TextureTransferTracker } from "@foss-earth/renderer/babylon";
-import type { createImageViewer } from "@foss-earth/image-viewer/viewer";
+import type { createImageViewer } from "@foss-earth/sphere-image/viewer";
 export interface EarthFeatureFramePorts {
   viewer: Pick<ReturnType<typeof createImageViewer>, "onFrame">;
   isCurrent(): boolean;

@@ -8,7 +8,7 @@ export type { EquirectRepresentationRecord } from "@foss-earth/sphere-equirectan
 export type { TiledCubeRepresentationRecord } from "@foss-earth/sphere-tiled-cubemap";
 export type { SheetRecord, SheetPlaceRecord, ResolvedSheetPlace } from "@foss-earth/preview-sheets/core";
 import type { ImageRepresentation } from "@foss-earth/images";
-import type { BuiltInRepresentation } from "@foss-earth/image-viewer";
+import type { BuiltInRepresentation } from "@foss-earth/sphere-image";
 import type { CubeRepresentationRecord } from "@foss-earth/sphere-cubemap";
 import type { EquirectRepresentationRecord } from "@foss-earth/sphere-equirectangular";
 import type { TiledCubeRepresentationRecord } from "@foss-earth/sphere-tiled-cubemap";

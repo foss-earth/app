@@ -12,9 +12,9 @@ import {
   createRectangleCameraTarget, fitRectangleSurface, rectangleNativeStatus, rectanglePresentedDocuments, rectangleScaleLimits, rectangleSurfacePresentation,
   initialRectangleSurfaceState, nativeRectangleCamera, presentRectangleSurface, resizeRectangleSurface, setRectangleWipe, withRectangleCamera,
   type RectangleScaleLimits, type RectangleSide, type RectangleSlotDocument, type RectangleSurfaceState,
-} from "@foss-earth/image-viewer";
-import type { RectangleSampling, RectangleSurfaceDraw, RectangleSurfaceHandle, RectangleSurfaceTexture } from "@foss-earth/image-viewer/babylon";
-import { attachLookInput, createWheelGestureRouter, type LookInputBinding } from "@foss-earth/image-viewer/input";
+} from "@foss-earth/sphere-image";
+import type { RectangleSampling, RectangleSurfaceDraw, RectangleSurfaceHandle, RectangleSurfaceTexture } from "@foss-earth/sphere-image/babylon";
+import { attachLookInput, createWheelGestureRouter, type LookInputBinding } from "@foss-earth/sphere-image/input";
 import type { SurfaceGeometry, SurfaceGeometryPort } from "@foss-earth/ui/browser";
 import type { WindowSlotId, WorkspaceSnapshotSource } from "@foss-earth/ui/windowing";
 import { discoverFileImage, discoverUrlImage, type ImageDiscovery, type ImageDiscoveryPorts } from "./imageDiscovery";

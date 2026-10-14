@@ -1,6 +1,6 @@
 /** Earth composes the owning scene/image catalogs once; values stay in their owners. */
 import { SCENE_DOCUMENT_PARAMETERS, SCENE_SECTION_TITLES as SCENE_TITLES, SCENES_TAB } from "@foss-earth/scenes";
-import { VIEWER_PARAMETERS, VIEWER_SECTION_TITLES, SPHERE_TAB, SPHERE_SETTINGS_TAB } from "@foss-earth/image-viewer/settings";
+import { VIEWER_PARAMETERS, VIEWER_SECTION_TITLES, SPHERE_TAB, SPHERE_SETTINGS_TAB } from "@foss-earth/sphere-image/settings";
 import { createImageResourceParameters, IMAGE_RESOURCE_SECTION_TITLES } from "@foss-earth/images/settings";
 import { TILED_CUBEMAP_PARAMETERS, keptGpuDefault } from "@foss-earth/sphere-tiled-cubemap/settings";
 import { PREVIEW_SHEETS_PARAMETERS } from "@foss-earth/preview-sheets/settings";

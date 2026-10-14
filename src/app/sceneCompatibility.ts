@@ -12,7 +12,7 @@ import {
   createBuiltInRepresentations,
   validateViewerAsset,
   type BuiltInRepresentation,
-} from "@foss-earth/image-viewer";
+} from "@foss-earth/sphere-image";
 import { createPreviewSheetsExtensionHook } from "@foss-earth/preview-sheets/scene-extension";
 import { PREVIEW_SHEETS_EXTENSION, type SheetRecord } from "@foss-earth/preview-sheets";
 import { tiledCubeFilesWithLevel, type TiledCubeRepresentationRecord } from "@foss-earth/sphere-tiled-cubemap";

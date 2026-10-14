@@ -7,10 +7,10 @@ import { imagePoseMatrix, transpose3, mulMat3Mat3 } from "@foss-earth/images";
 import type { ResolvedSphere } from "@foss-earth/scenes";
 import type { SceneWorldPorts, ScenePlacement } from "@foss-earth/scenes/browser";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
-import type { PublishedImageViewer } from "@foss-earth/image-viewer";
-import { globeViewerMath, globeViewerPoses, createGlobeViewerNavigation } from "@foss-earth/image-viewer/globe";
-import { createGlobeViewerInput } from "@foss-earth/image-viewer/globe-browser";
-import type { ViewerNavigationLease } from "@foss-earth/image-viewer/viewer";
+import type { PublishedImageViewer } from "@foss-earth/sphere-image";
+import { globeViewerMath, globeViewerPoses, createGlobeViewerNavigation } from "@foss-earth/sphere-image/globe";
+import { createGlobeViewerInput } from "@foss-earth/sphere-image/globe-browser";
+import type { ViewerNavigationLease } from "@foss-earth/sphere-image/viewer";
 import { controlTakesKey } from "@felipegalind0/gamepad-tools/browser";
 import { attemptEarthCleanup } from "./nativeResources";
 

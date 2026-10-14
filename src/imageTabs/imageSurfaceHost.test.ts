@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BaseTexture } from "@babylonjs/core";
 import { createImageSessionBroker, MIB } from "@foss-earth/images";
-import type { RectangleSurfaceDraw } from "@foss-earth/image-viewer/babylon";
+import type { RectangleSurfaceDraw } from "@foss-earth/sphere-image/babylon";
 import type { SurfaceGeometry } from "@foss-earth/ui/browser";
 import type { WindowSideSnapshot, WindowSlotId, WindowWorkspaceSnapshot } from "@foss-earth/ui/windowing";
 import { OPEN_IMAGE_TAB, type ImageDocumentDescription } from "./imageDocuments";
