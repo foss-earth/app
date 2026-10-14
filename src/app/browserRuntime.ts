@@ -11,7 +11,7 @@ import { type RendererMode, type ReadinessPolicy, type ReadinessTimers } from "@
 import { observeResourceTiming, readHeapBytes } from "@foss-earth/renderer/browser";
 import { createMemorySource, createNetworkSource } from "@foss-earth/renderer/profiling";
 import { ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-earth/engine";
-import { createMapCache, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions, type TerrainDecodeWorkerPort } from "@foss-earth/engine/browser";
+import { createMapCache, mapCacheLimits, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions, type TerrainDecodeWorkerPort } from "@foss-earth/engine/browser";
 import { createBrowserGlobeBindings, loadBrowserGlobeGoogleProviders } from "@foss-earth/engine/browser-globe";
 import { createTerrainLightingAdapter, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
 import { createGlobeRuntimeBudgets } from "@foss-earth/engine/settings";
@@ -57,6 +57,16 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
   const settings = options.settings;
   const choice = settings.get("renderer.backend");
   const force = options.rendererForce ?? (choice === "webgpu" || choice === "webgl2" || choice === "webgl" ? choice : null);
+  const page = window.location.href;
+  // Both only observe while the frame budget measures.
+  const network = createNetworkSource({
+    observe: observeResourceTiming(window), owner: url => requestOwner(url, page), metered: METERED_REQUEST_OWNERS,
+  });
+  // Opened before the renderer, while the page is mostly idle: the first tile request waits for the saved index, and
+  // on a slow phone each storage step otherwise waited out a long shader compile, holding that request about 2 s.
+  const cache = createMapCache({ storage: () => window.caches, fetcher: meterMapFetch(window.fetch.bind(window), network, page),
+    now: Date.now, Response, Request, Headers, ...mapCacheLimits(id => settings.get(id)) });
+  cache.open().catch(() => { /* The first fetch meets the same failure. */ });
   const { renderer, scene } = await bootstrapGlobeRenderer(canvas, {
     force, antialias: settings.get("renderer.antialias") !== false,
     host: createBrowserRendererHost({ window, document }),
@@ -118,14 +128,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     const createCanvas = (width: number, height: number) => {
       const surface = document.createElement("canvas"); surface.width = width; surface.height = height; return surface;
     };
-    const page = window.location.href;
-    // Both only observe while the frame budget measures.
-    const network = createNetworkSource({
-      observe: observeResourceTiming(window), owner: url => requestOwner(url, page), metered: METERED_REQUEST_OWNERS,
-    });
     const memory = createMemorySource({ heapBytes: readHeapBytes(window) });
-    const cache = createMapCache({ storage: () => window.caches, fetcher: meterMapFetch(window.fetch.bind(window), network, page),
-      now: Date.now, Response, Request, Headers });
     detachResourcePolicy.push(bindEarthMapCache(cache));
     const imageBroker = broker = createImageSessionBroker(options.imageSessionLimits());
     const resources = native = createEarthNativeResources({ broker: imageBroker, scene,
