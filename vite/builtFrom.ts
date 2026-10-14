@@ -8,9 +8,11 @@ import {
   builtFrom as sharedBuiltFrom,
   describeBuild as sharedDescribeBuild,
   nodeBuildReader,
+  recordBuildInputs as sharedRecordBuildInputs,
   type BuiltFromOptions,
   type BuildPartInput,
   type DescribeBuildInput,
+  type RecordBuildInputsOptions,
 } from "@foss-earth/about/vite";
 export * from "@foss-earth/about/vite";
 
@@ -35,4 +37,8 @@ export function builtFrom(options: BuiltFromOptions = {}) {
 
 export function describeBuild(input: DescribeBuildInput) {
   return sharedDescribeBuild(withEarthSourcePolicy(input));
+}
+
+export function recordBuildInputs(options: RecordBuildInputsOptions) {
+  return sharedRecordBuildInputs(withEarthSourcePolicy(options));
 }

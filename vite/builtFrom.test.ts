@@ -46,7 +46,7 @@ function workspace(options: {
       if (command === "remote") return info.remote ?? null;
       if (command === "status") return info.changed ?? "";
       if (command === "branch") return info.pushed === false ? "" : "  origin/main";
-      if (command === "log") return info.log ?? `${info.head}\x1f2026-10-07T11:00:39-05:00\x1f2026-10-07\x1fThe latest change`;
+      if (command === "log") return info.log ?? `${info.head}\x1f2026-10-07T11:00:39-05:00\x1fThe latest change`;
       if (command === "ls-files") return info.tracked?.includes(rest.at(-1)!) ? rest.at(-1)! : null;
       return null;
     },
@@ -94,10 +94,10 @@ function flightWorkspace(pushed = true) {
     checkouts: {
       [app]: { head: HEAD, remote: "https://someone:ghp_secret@github.com/0SFS/0SFS.github.io.git", pushed },
       "/w/foss-earth": { head: EARTH, remote: "git@github.com:foss-earth/foss-earth.github.io.git", log: [
-        `${EARTH}\x1f2026-10-07T11:00:39-05:00\x1f2026-10-07\x1fThe latest change`,
-        `${"1".repeat(40)}\x1f2026-10-07T09:12:00-05:00\x1f2026-10-07\x1fThe one before it`,
-        `${"2".repeat(40)}\x1f2026-10-07T00:13:01-05:00\x1f2026-10-07\x1fThe day's first`,
-        `${"3".repeat(40)}\x1f2026-10-06T17:58:57-05:00\x1f2026-10-06\x1fThe day before's`,
+        `${EARTH}\x1f2026-10-07T11:00:39-05:00\x1fThe latest change`,
+        `${"1".repeat(40)}\x1f2026-10-07T09:12:00-05:00\x1fThe one before it`,
+        `${"2".repeat(40)}\x1f2026-10-07T00:13:01-05:00\x1fThe day's first`,
+        `${"3".repeat(40)}\x1f2026-10-06T17:58:57-05:00\x1fThe day before's`,
       ].join("\n") },
       "/w/pads": { head: PADS, remote: "https://github.com/Felipegalind0/gamepad-tools.git", changed: " M src/browser/source.ts", tracked: [] },
     },
@@ -191,7 +191,7 @@ describe("describeBuild", () => {
   it("keeps a commit's first line short", () => {
     const reader = flightWorkspace();
     const long = "Size the profile and controller dropdowns to their own text ".repeat(6);
-    reader.git = (dir, args) => (args[0] === "log" ? `${HEAD}\x1f2026-10-07T11:00:39-05:00\x1f2026-10-07\x1f${long}` : flightWorkspace().git(dir, args));
+    reader.git = (dir, args) => (args[0] === "log" ? `${HEAD}\x1f2026-10-07T11:00:39-05:00\x1f${long}` : flightWorkspace().git(dir, args));
     const tree = describeBuild({ root: "/w/0sfs", built: "", bundled: new Set(["/w/0sfs"]), reader });
     const subject = tree.app.history![0].subject;
     expect(subject.length).toBeLessThanOrEqual(160);
