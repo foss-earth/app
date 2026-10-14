@@ -57,8 +57,8 @@ describe("image document registry", () => {
     const a = registry.open(description("a")), copy = registry.duplicate(a.tabId)!;
     expect(imageTabDefinitions(registry.getSnapshot())).toEqual([
       { id: OPEN_IMAGE_TAB, label: "Open image" },
-      { id: a.tabId, label: "a", surface: { joinGroup: IMAGE_JOIN_GROUP } },
-      { id: copy.tabId, label: "a (2)", surface: { joinGroup: IMAGE_JOIN_GROUP } },
+      { id: a.tabId, label: "a", surface: { joinGroup: IMAGE_JOIN_GROUP }, icon: "image" },
+      { id: copy.tabId, label: "a (2)", surface: { joinGroup: IMAGE_JOIN_GROUP }, icon: "image" },
     ]);
   });
 });

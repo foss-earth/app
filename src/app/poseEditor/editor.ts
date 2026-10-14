@@ -62,7 +62,7 @@ export interface PoseEditorHost {
   afterFrame(listener: () => void): () => void;
   /** How far a press may move and still count as a click, from `input.mouse.dragThreshold`. */
   dragThresholdPx(): number;
-  /** The photograph's tab, "360: <title>". Placement is appended at its bottom. */
+  /** The photograph's tab, titled with the photograph's title. Placement is appended at its bottom. */
   tab: HTMLElement;
 }
 
@@ -359,7 +359,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   function publishEditTab(): void {
     if (!selected) { setPoseEditTitle(null); return; }
     const entry = host.controller.state().status?.entries.find(item => item.id === selected);
-    setPoseEditTitle(entry ? `360: ${entry.title}` : null);
+    setPoseEditTitle(entry?.title ?? null);
   }
 
   function stopEdit(): void {

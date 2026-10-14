@@ -121,6 +121,6 @@ export function imageTabDefinitions(snapshot: ImageDocumentsSnapshot): WindowTab
     const count = (seen.get(tab.documentId) ?? 0) + 1;
     seen.set(tab.documentId, count);
     const title = snapshot.documents.get(tab.documentId)?.title ?? "Image";
-    return { id: tab.tabId, label: count > 1 ? `${title} (${count})` : title, surface: { joinGroup: IMAGE_JOIN_GROUP } };
+    return { id: tab.tabId, label: count > 1 ? `${title} (${count})` : title, surface: { joinGroup: IMAGE_JOIN_GROUP }, icon: "image" as const };
   })];
 }

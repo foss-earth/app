@@ -157,11 +157,12 @@ export interface WindowOverlayProps<TabId extends string = never> {
   onBugReportShow?: () => void;
   /**
    * A sphere's tabs, from `createSphereTabs`. Entering a sphere opens its
-   * tab, titled "360: <title>", minimized while the camera flies in and shown
-   * once the sphere is on screen; closing that tab leaves it. Editing a
-   * photograph from the map opens the same tab there, and closing it leaves
-   * editing. Inside one the tabs about the map are hidden and 360 image
-   * settings is offered; each comes back where it was when the context returns.
+   * tab, titled with the image's title and marked with a sphere, minimized
+   * while the camera flies in and shown once the sphere is on screen; closing
+   * that tab leaves it. Editing a photograph from the map opens the same tab
+   * there, and closing it leaves editing. Inside one the tabs about the map
+   * are hidden and 360 image settings is offered; each comes back where it
+   * was when the context returns.
    */
   sphereTabs?: SphereTabs;
   locationSearchProvider?: LocationSearchProvider;
@@ -277,7 +278,8 @@ export function WindowOverlay<TabId extends string = never>({
     ...(logIsTab ? [{ id: "log" as const, label: "Log" }] : []),
     ...sectionIds.map(id => ({ id, label: sectionLabels[id] })),
     ...additionalTabs.filter(tab => !builtIn.has(tab.id)),
-    ...elementIds.map(id => ({ id, label: elementLabels[id] })),
+    // The 360 photograph's tab takes the world's place, as an image tab does.
+    ...elementIds.map(id => ({ id, label: elementLabels[id], ...(id === "panorama" ? { icon: "sphere" as const } : {}) })),
   ];
   const restorable = new Set(tabDefinitions.filter(tab => tab.id !== "log" && !SPHERE_ONLY.has(tab.id) && tab.available !== false).map(tab => tab.id));
   const geometry = useMemo(() => browserOverlayGeometry(window, () => {
