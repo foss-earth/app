@@ -1,5 +1,5 @@
 import { renderPerformanceChips, browserHudBarLayoutPorts, createToolbarInterfaceSection, createPositionInterfaceSection } from "@foss-earth/toolbar/browser";
-import { PANORAMA_GAMEPAD_ACTIONS, createPanoramaProfileContribution } from "@foss-earth/360";
+import { SPHERE_GAMEPAD_ACTIONS, createSphereProfileContribution } from "@foss-earth/image-viewer";
 import { createEarthDevHost, type EarthDevContribution, type EarthDevTab } from "./devHost";
 import { createMapSourceHud } from "@foss-earth/engine/panels";
 import { connectMapDetailLog } from "@foss-earth/engine/panels";
@@ -8,8 +8,8 @@ import { createBrowserInputSource } from "@felipegalind0/gamepad-tools/browser";
 import { BindingRuntime, createProfileStore, DEFAULT_BINDING_TRANSFORM } from "@felipegalind0/gamepad-tools/core";
 import { mountBindingEditor, type BindingEditorHandle } from "@felipegalind0/gamepad-tools/ui";
 import "@felipegalind0/gamepad-tools/styles.css";
-import { Matrix, Vector3 } from "@babylonjs/core";
-import { attachWorldOcclusion, type BabylonRuntime } from "@foss-earth/engine/babylon";
+import { Matrix, Vector3, Viewport } from "@babylonjs/core";
+import { attachWorldOcclusion, cameraViewportFromTop, type BabylonRuntime } from "@foss-earth/engine/babylon";
 import { createEarthBrowserRuntime } from "./browserRuntime";
 import { createEarthBrowserPolicy } from "./browserPolicy";
 import { createEarthFeatureFramePreparation } from "./framePreparation";
@@ -34,6 +34,7 @@ import { createSavedSettingsSection } from "@foss-earth/ui/browser";
 import { createAppFilesSection, describeAppFiles } from "@foss-earth/ui/browser";
 import { createDiagnosticsSection } from "@foss-earth/ui/browser";
 import { createBugReportPanel } from "@foss-earth/ui/browser";
+import { createBrowserDataPanel } from "@foss-earth/ui/browser";
 import { stepKind } from "@foss-earth/ui/diagnostics";
 import { reportSecrets, startAppDiagnostics, type AppDiagnostics } from "./appDiagnostics";
 import { issueReporterFromBuild } from "./issueReporting";
@@ -88,16 +89,24 @@ import { fitHudBar, type HudBarFitItem } from "@foss-earth/toolbar/browser";
 import { attachFullscreenButton, browserFullscreenPort } from "@foss-earth/toolbar/browser";
 import { createBrowserPositionSeaLevelPort } from "./positionSeaLevel";
 import { createSceneHud, attachMapDownloadSpeed, setMapSourceLabel, attachTileStreamingActivity } from "@foss-earth/toolbar/browser";
-import type { ViewerTabs as PanoramaTabs } from "@foss-earth/360/panels";
+import type { ViewerTabs as SphereTabs } from "@foss-earth/image-viewer/panels";
 import { connectSceneLog } from "@foss-earth/scenes/browser";
 import type { SceneController, SceneExample } from "@foss-earth/scenes/browser";
 import { SCENE_EXAMPLES } from "../scenes/examples";
-import type { MediaStore } from "@foss-earth/images";
+import { MIB, type ImageSessionBroker, type MediaStore } from "@foss-earth/images";
+import { createRectangleSurfaceRenderer, type RectangleSurfaceDraw } from "@foss-earth/image-viewer/babylon";
+import { isSafariGestureSupported } from "@foss-earth/engine/browser";
+import { observeSurfaceGeometry } from "@foss-earth/ui/browser";
+import type { ImageTabId } from "../imageTabs/imageDocuments";
+import { createRectangleImageSourceLoader } from "../imageTabs/imageSources";
+import { createImageSurfaceHost, type ImageSurfaceHost } from "../imageTabs/imageSurfaceHost";
+import { textureReadiness } from "./textureReadiness";
 import { createEarthSceneHost } from "./sceneHost";
 import { attemptEarthCleanup } from "./nativeResources";
+import { attachShellWorldViewport } from "./worldViewport";
 import { bindEarthTheme } from "../theme/theme";
-import { effectiveOrbRadius, type PanoramaRenderer } from "@foss-earth/360/babylon";
-import * as panoramaMath from "@foss-earth/360";
+import { effectiveOrbRadius, type SphereRenderer } from "@foss-earth/image-viewer/babylon";
+import * as sphereMath from "@foss-earth/image-viewer";
 import type { PoiSpriteSizeParams } from "@foss-earth/engine/visualization-tuners";
 import type { OrbitCompassScaleParams } from "@foss-earth/engine/compass";
 
@@ -107,17 +116,21 @@ declare global {
     __fossEarthPanoramaTest?: {
       runtime: BabylonRuntime;
       scenes: SceneController;
-      readonly renderer: PanoramaRenderer | null;
+      readonly renderer: SphereRenderer | null;
       /** The app's settings: the check resets automatic map detail before it times frames. */
       settings: ReturnType<typeof getAppSettings>;
       /** The CPU reference the check holds the GPU's output against. */
-      math: typeof panoramaMath & { effectiveOrbRadius: typeof effectiveOrbRadius };
+      math: typeof sphereMath & { effectiveOrbRadius: typeof effectiveOrbRadius };
       /** The images kept between visits: scripts/validation/scene-revisit.mjs reads and clears them. */
       media: MediaStore;
       /** The visit's trail and report: scripts/validation/diagnostics.mjs reads them. */
       diagnostics: AppDiagnostics;
       /** Whether this page is the published one: scripts/validation/published-version.mjs reads it. */
       publishedVersion: PublishedVersionWatch;
+      /** Image tabs, for the browser checks of docs/proposals/shared-image-viewer-implementation.md §11. */
+      images: { host: ImageSurfaceHost; broker: ImageSessionBroker; readonly overlay: WindowOverlayHandle<"dev" | ImageTabId> | null;
+        /** What the image surface draws this frame: its framebuffer rectangle, camera and wipe. */
+        draw(): RectangleSurfaceDraw | null };
     };
   }
 }
@@ -141,6 +154,8 @@ export interface GlobeAppHandle extends GlobeHandle {
   aboutTab: HTMLElement;
   /** The report form's one home, prepared when this tab is first shown. */
   bugReportTab: HTMLElement;
+  /** Review and clear this site's browser data, keeping API keys by default. */
+  browserDataTab: HTMLElement;
   onBugReportShow(): void;
   /** The basemap and elevation choice, for the host's Map tab. */
   mapTab: HTMLElement;
@@ -150,10 +165,12 @@ export interface GlobeAppHandle extends GlobeHandle {
   skyTab: HTMLElement;
   /** The dials that set the time the Sun is placed for, for the host's Date and time tab. */
   timeTab: HTMLElement;
-  /** Scenes to load and their panoramas, for the host's Scenes tab. */
+  /** Scenes to load and their spheres, for the host's Scenes tab. */
   scenesTab: HTMLElement;
-  /** The panorama's own tab and 360 image settings, for the window overlay's `panoramaTabs`. */
-  panoramaTabs: PanoramaTabs;
+  /** The sphere's own tab and 360 image settings, for the window overlay's `sphereTabs`. */
+  sphereTabs: SphereTabs;
+  /** Image tabs: their documents, surface and window contents, for the window overlay. */
+  imageTabs: ImageSurfaceHost;
   /** The mounted scene, if any, and loading another. */
   scenes: SceneController;
   readonly devTab: EarthDevTab | null;
@@ -190,10 +207,10 @@ export interface GlobeAppOptions {
    * its tabs: \u2699 Settings, input method Controls, the position Location,
    * and the renderer and map chips their own tabs.
    */
-  overlayApiRef?: { current: WindowOverlayHandle<"dev"> | null };
+  overlayApiRef?: { current: WindowOverlayHandle<"dev" | ImageTabId> | null };
 }
 
-/** Pixel offset from the projected sphere centre to the top-right exit button. */
+/** Pixel offset from the projected orb centre to the top-right exit button. */
 const POI_EXIT_BTN_OFFSET_PX = 22;
 /** The site's GitHub repository, whose latest deploy About names. */
 
@@ -480,6 +497,8 @@ export async function createGlobeApp(
   });
   const runtime = browser.runtime;
   cleanup.push(() => runtime.destroy());
+  // The canvas fills the shell; the world is drawn where the overlay leaves it.
+  cleanup.push(attachShellWorldViewport(canvas, document.documentElement, runtime.requestRender));
   const worldOcclusion = attachWorldOcclusion(runtime.scene, canvas);
   cleanup.push(() => worldOcclusion.dispose());
   const afterFrameUi = runtime.scene.onAfterRenderObservable.add(ui.emit);
@@ -629,13 +648,13 @@ export async function createGlobeApp(
   }) : null;
   cleanup.push(() => statusHud?.destroy());
   const globePositionTitle = hudStatusEl?.title ?? "";
-  let showingPanoramaPosition = false;
+  let showingSpherePosition = false;
   const syncPositionEditing = (): void => {
-    statusHud?.setEditable(locationTabOpen && !showingPanoramaPosition);
+    statusHud?.setEditable(locationTabOpen && !showingSpherePosition);
   };
   const showPositionContext = (inside: boolean): void => {
-    if (inside === showingPanoramaPosition) return;
-    showingPanoramaPosition = inside;
+    if (inside === showingSpherePosition) return;
+    showingSpherePosition = inside;
     syncPositionEditing();
     if (!hudStatusEl) return;
     hudStatusEl.setAttribute("aria-label", inside ? "Picture position and view" : "Position readout");
@@ -698,7 +717,7 @@ export async function createGlobeApp(
   const onRendererPillClick = (): void => toggleTab("renderer");
   cleanup.push(() => inputModeHud?.destroy());
   const onStatusClick = (): void => {
-    if (showingPanoramaPosition) options.overlayApiRef?.current?.openOrSelectTab("panorama");
+    if (showingSpherePosition) options.overlayApiRef?.current?.openOrSelectTab("panorama");
     else toggleTab("location");
   };
   const onBugReportClick = (): void => toggleTab("bug-report");
@@ -803,10 +822,10 @@ export async function createGlobeApp(
 
   const gamepadSource = createBrowserInputSource({ target: window });
   cleanup.push(() => gamepadSource.dispose());
-  // A navigation lease, such as an entered panorama, selects its own controller context.
+  // A navigation lease, such as an entered sphere, selects its own controller context.
   const gamepadAdapter = createGlobeGamepadAdapter(runtime, {
     onResetNorth: resetNorth,
-    featureActions: PANORAMA_GAMEPAD_ACTIONS,
+    featureActions: SPHERE_GAMEPAD_ACTIONS,
     getContext: () => runtime.getNavigationState()?.inputContext ?? "globe",
   });
   // The lease owns the camera: a tracked point must not move it meanwhile.
@@ -814,10 +833,10 @@ export async function createGlobeApp(
   cleanup.push(offNavigationChange);
   const selectedGamepadSlot = (): number => gamepadSource.getSelectedDevice()?.slot ?? 0;
   const stickDeadzone = (): number => settings.get<number>("input.gamepad.deadzone");
-  const panoramaProfile = createPanoramaProfileContribution(DEFAULT_BINDING_TRANSFORM);
+  const sphereProfile = createSphereProfileContribution(DEFAULT_BINDING_TRANSFORM);
   const gamepadRuntime = new BindingRuntime({
     adapter: gamepadAdapter,
-    profile: createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), panoramaProfile),
+    profile: createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), sphereProfile),
   });
   // Every stick bound to a navigation rate, the standard one or the user's own, takes the deadzone.
   cleanup.push(() => gamepadRuntime.dispose());
@@ -842,7 +861,7 @@ export async function createGlobeApp(
           {
             id: "standard",
             label: STANDARD_GLOBE_PROFILE_NAME,
-            create: () => createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), panoramaProfile),
+            create: () => createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), sphereProfile),
           },
         ],
       })
@@ -934,6 +953,8 @@ export async function createGlobeApp(
   cleanup.push(() => presets.destroy());
   const savedSettings = createSavedSettingsSection(settings, document);
   cleanup.push(() => savedSettings.destroy());
+  const browserData = createBrowserDataPanel(document);
+  cleanup.push(() => browserData.destroy());
   // The app's own files, kept by its service worker as Settings → App files asks.
   const appFiles = keepAppFiles(settings);
   cleanup.push(() => appFiles.dispose());
@@ -1028,7 +1049,7 @@ export async function createGlobeApp(
   // Scenes: one mounted at a time; `?scene=<id>` loads one the app offers, else the host's initial scene.
   const appBaseUrl = new URL(import.meta.env.BASE_URL ?? "/", window.location.href).href;
   const params = new URLSearchParams(window.location.search);
-  const panoramaTest = params.get("panoramaTest") === "1";
+  const sphereTest = params.get("panoramaTest") === "1";
   const sceneHost = createEarthSceneHost({
     browser, settings, canvas, ui, readinessPolicy: browserPolicy.readinessPolicy,
     examples: options.scenes ?? SCENE_EXAMPLES,
@@ -1049,22 +1070,54 @@ export async function createGlobeApp(
   cleanup.push(offSceneLog);
   const offSceneTrail = scenes.subscribe(state => diagnostics.sceneChanged(state));
   cleanup.push(offSceneTrail);
-  const panoramaTabs = sceneHost.tabs;
-  // While a panorama is entered, its credit takes the map's place at the bar's right end.
+  const sphereTabs = sceneHost.tabs;
+  // Image tabs: rectangle images opened from a window's +, drawn after the world on their tab's body.
+  const imageLimits = () => ({ responseBytes: settings.get<number>("scene.panorama.responseMiB") * MIB,
+    timeoutMs: settings.get<number>("scene.panorama.requestTimeout") * 1000 });
+  const maxTextureSide = () => runtime.engine.getCaps().maxTextureSize;
+  const rectangleRenderer = createRectangleSurfaceRenderer(runtime.scene, { requestRender: () => runtime.requestRender(),
+    onError: text => { gameLog.print({ text: `Images: ${text}`, tone: "error" }); } });
+  cleanup.push(() => rectangleRenderer.dispose());
+  // The last surface read, for the test hook.
+  let readSurface: (() => RectangleSurfaceDraw | null) | null = null;
+  const imageTabs = createImageSurfaceHost({
+    window, canvas,
+    renderer: { unavailableReason: rectangleRenderer.unavailableReason, addSurface: read => { readSurface = read; return rectangleRenderer.addSurface(read); } },
+    load: createRectangleImageSourceLoader({ window, broker: browser.broker, uploader: browser.native.uploader, limits: imageLimits, maxTextureSide,
+      whenReady: textureReadiness(browser.timers, browserPolicy.readinessPolicy) }),
+    observeGeometry: element => observeSurfaceGeometry(element, canvas),
+    onBeforeRender(callback) {
+      const observer = runtime.scene.onBeforeRenderObservable.add(callback);
+      return () => { runtime.scene.onBeforeRenderObservable.remove(observer); };
+    },
+    requestRender: () => runtime.requestRender(),
+    nowMs: browser.clock.nowMs,
+    inputMode: () => { const mode = runtime.getInputMode(); return mode === "touch" ? "auto" : mode; },
+    safariGestures: isSafariGestureSupported({ userAgent: window.navigator.userAgent, hasGestureEvent: "GestureEvent" in window }),
+    onDeviceLost: listener => runtime.onDeviceLost(listener),
+    onDeviceRestored: listener => runtime.onDeviceRestored(listener),
+    keptGpuBytes: settings.get<number>("scene.panorama.keptGpuMiB") * MIB,
+    discovery: { broker: browser.broker, limits: imageLimits, fetch: window.fetch.bind(window), maxTextureSide, baseUrl: appBaseUrl },
+  });
+  cleanup.push(() => imageTabs.dispose());
+  // While a sphere is entered, its credit takes the map's place at the bar's right end.
   const sceneHud = mapSourceSlot ? createSceneHud({ controller: scenes, container: mapSourceSlot, mapSource: mapSourceHud?.element, createExternalLinkIcon }) : null;
   const requestedScene = params.get("scene") ?? options.initialScene;
   cleanup.push(() => sceneHud?.destroy());
   if (requestedScene) void scenes.load(requestedScene, { exampleId: true });
-  if (panoramaTest) {
+  if (sphereTest) {
     window.__fossEarthPanoramaTest = {
       runtime,
       scenes,
       get renderer() { return sceneHost.renderer; },
       settings,
-      math: { ...panoramaMath, effectiveOrbRadius },
+      math: { ...sphereMath, effectiveOrbRadius },
       media: sceneHost.media,
       diagnostics,
       publishedVersion,
+      // Image tabs, their window workspace and the shared pools they charge.
+      images: { host: imageTabs, broker: browser.broker, get overlay() { return options.overlayApiRef?.current ?? null; },
+        draw: () => readSurface?.() ?? null },
     };
   }
   cleanup.push(() => { if (window.__fossEarthPanoramaTest?.scenes === scenes) delete window.__fossEarthPanoramaTest; });
@@ -1168,10 +1221,9 @@ export async function createGlobeApp(
       const poiCanvas = poiEngine.getRenderingCanvas();
       if (orbitTarget && poiCamera && poiCanvas) {
         const txMatrix = runtime.scene.getTransformMatrix();
-        const vp = poiCamera.viewport.toGlobal(
-          poiEngine.getRenderWidth(),
-          poiEngine.getRenderHeight(),
-        );
+        // Project measures its viewport from the top, the camera's from the bottom.
+        const fromTop = cameraViewportFromTop(poiCamera, poiEngine.getRenderWidth(), poiEngine.getRenderHeight());
+        const vp = new Viewport(fromTop.x, fromTop.y, fromTop.width, fromTop.height);
         const sp = Vector3.Project(orbitTarget, Matrix.IdentityReadOnly, txMatrix, vp);
         if (sp.z > 0 && sp.z < 1) {
           const rect = poiCanvas.getBoundingClientRect();
@@ -1225,13 +1277,15 @@ export async function createGlobeApp(
     settingsSections,
     aboutTab: about.element,
     bugReportTab: bugReportPanel.element,
+    browserDataTab: browserData.element,
     onBugReportShow: () => bugReportPanel.show(),
     mapTab: mapPanel.element,
     rendererTab: rendererPanel.element,
     skyTab: skyPanel.element,
     timeTab: timePanel.element,
     scenesTab: scenesPanel.element,
-    panoramaTabs,
+    sphereTabs,
+    imageTabs,
     scenes,
     get devTab() { return dev.tab; },
     onTabVisibility(tabId, visible) {

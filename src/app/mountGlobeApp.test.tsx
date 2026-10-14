@@ -2,15 +2,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRoot } from "react-dom/client";
 import { createGlobeApp, type GlobeAppHandle } from "./createGlobeApp";
-import { trackViewportInsets } from "@foss-earth/ui/browser";
+import { trackViewportInsets, markBrowserAppReady } from "@foss-earth/ui/browser";
+import { wantsReportOnly, showReportOnly } from "./reportOnly";
 import { mountGlobeApp } from "./mountGlobeApp";
 
 vi.mock("react-dom/client", () => ({ createRoot: vi.fn() }));
 vi.mock("./createGlobeApp", () => ({ createGlobeApp: vi.fn(), getAppIdentity: vi.fn() }));
-vi.mock("@foss-earth/ui/browser", async importOriginal => ({ ...await importOriginal<typeof import("@foss-earth/ui/browser")>(), trackViewportInsets: vi.fn() }));
+vi.mock("@foss-earth/ui/browser", async importOriginal => ({ ...await importOriginal<typeof import("@foss-earth/ui/browser")>(), trackViewportInsets: vi.fn(), markBrowserAppReady: vi.fn() }));
 vi.mock("../shell/WindowOverlay", () => ({ WindowOverlay: () => null }));
 vi.mock("../settings/appSettings", () => ({ getAppSettings: vi.fn() }));
-vi.mock("./reportOnly", () => ({ wantsReportOnly: () => false, showReportOnly: vi.fn() }));
+vi.mock("./reportOnly", () => ({ wantsReportOnly: vi.fn(() => false), showReportOnly: vi.fn() }));
 
 describe("mounted globe resource lifetime", () => {
   const order: string[] = [];
@@ -21,12 +22,22 @@ describe("mounted globe resource lifetime", () => {
   const render = vi.fn();
   beforeEach(() => {
     vi.clearAllMocks(); order.length = 0;
+    vi.mocked(wantsReportOnly).mockReturnValue(false);
     unmount.mockImplementation(() => { order.push("overlay"); });
     dispose.mockImplementation(() => { order.push("viewport"); });
     root = document.createElement("main"); root.innerHTML = '<div class="globe-shell"></div>';
     vi.mocked(createGlobeApp).mockResolvedValue({ destroy } as unknown as GlobeAppHandle);
     vi.mocked(trackViewportInsets).mockReturnValue({ refresh() {}, dispose });
     vi.mocked(createRoot).mockReturnValue({ render, unmount });
+  });
+
+  it("marks the report-only page ready without starting the globe", () => {
+    vi.mocked(wantsReportOnly).mockReturnValue(true);
+    void mountGlobeApp(root);
+    expect(showReportOnly).toHaveBeenCalledOnce();
+    expect(markBrowserAppReady).toHaveBeenCalledWith(document);
+    expect(createGlobeApp).not.toHaveBeenCalled();
+    expect(trackViewportInsets).not.toHaveBeenCalled();
   });
 
   it("unmounts the overlay and releases viewport observation before app resources, once", async () => {

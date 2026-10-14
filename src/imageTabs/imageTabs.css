@@ -1,0 +1,215 @@
+/* The image tabs. The surface itself is transparent: the renderer draws the image there, under the page. */
+
+.foss-earth-image-open {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+.foss-earth-image-open p {
+  margin: 0;
+}
+.foss-earth-image-open__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.foss-earth-image-open__address {
+  flex: 1 1 16em;
+  min-width: 0;
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 4px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.35);
+  color: inherit;
+  font: inherit;
+}
+.foss-earth-image-open__note,
+.foss-earth-image-open__status {
+  opacity: 0.72;
+}
+.foss-earth-image-open__error,
+.foss-earth-image-note--problem {
+  color: #fca5a5;
+}
+
+.foss-earth-image-button {
+  min-height: 28px;
+  padding: 4px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.35);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.foss-earth-image-button:hover:not(:disabled) {
+  border-color: rgba(148, 163, 184, 0.6);
+}
+.foss-earth-image-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.foss-earth-image-button:focus-visible,
+.foss-earth-image-open__address:focus-visible {
+  outline: 2px solid var(--globe-accent, #60a5fa);
+  outline-offset: 2px;
+}
+
+.foss-earth-image-tab {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.foss-earth-image-toolbar {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  background: rgba(8, 15, 27, 0.94);
+  font-size: 12px;
+}
+.foss-earth-image-toolbar__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.foss-earth-image-toolbar__field {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.foss-earth-image-toolbar__field select {
+  min-height: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.35);
+  color: inherit;
+  font: inherit;
+}
+.foss-earth-image-toolbar__readout {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.foss-earth-image-toolbar__unit {
+  opacity: 0.72;
+}
+.foss-earth-image-note {
+  margin: 4px 0 0;
+  opacity: 0.8;
+}
+
+.foss-earth-image-surface {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  outline: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.foss-earth-image-surface:active {
+  cursor: grabbing;
+}
+.foss-earth-image-surface:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--globe-accent, #60a5fa);
+}
+
+.foss-earth-image-wipe {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.foss-earth-image-wipe__handle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 28px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: ew-resize;
+  touch-action: none;
+}
+.foss-earth-image-wipe__handle:focus-visible {
+  outline: 2px solid var(--globe-accent, #60a5fa);
+  outline-offset: 2px;
+}
+
+.foss-earth-image-label {
+  position: absolute;
+  top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  max-width: calc(50% - 28px);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(8, 15, 27, 0.72);
+  color: #e2e8f0;
+  font-size: 11px;
+  pointer-events: none;
+}
+.foss-earth-image-label--left,
+.foss-earth-image-label--single {
+  left: 8px;
+}
+.foss-earth-image-label--single {
+  max-width: calc(100% - 16px);
+}
+.foss-earth-image-label--right {
+  right: 8px;
+}
+.foss-earth-image-label__title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.foss-earth-image-label__size {
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
+}
+
+.foss-earth-image-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: min(32em, calc(100% - 32px));
+  margin: 0;
+  padding: 8px 12px;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
+  background: rgba(8, 15, 27, 0.85);
+  color: #e2e8f0;
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+:root[data-theme="light"] .foss-earth-image-toolbar {
+  background: #fff;
+}
+:root[data-theme="light"] .foss-earth-image-button,
+:root[data-theme="light"] .foss-earth-image-open__address,
+:root[data-theme="light"] .foss-earth-image-toolbar__field select {
+  border-color: rgba(71, 85, 105, 0.35);
+  background: rgba(241, 245, 249, 0.9);
+}
+:root[data-theme="light"] .foss-earth-image-open__error,
+:root[data-theme="light"] .foss-earth-image-note--problem {
+  color: #b91c1c;
+}

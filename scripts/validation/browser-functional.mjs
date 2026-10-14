@@ -140,7 +140,7 @@ export function observeMapHudLayout() {
 }
 
 export function assertMenu(observed, dev) {
-  const required = ['Location', 'Controls', 'Interface', 'Settings', 'Map', 'Renderer', 'Sky', 'Date and time', 'Scenes', 'About', 'Bug report'];
+  const required = ['Location', 'Controls', 'Interface', 'Settings', 'Map', 'Renderer', 'Sky', 'Date and time', 'Scenes', 'About', 'Bug report', 'Browser data'];
   for (const label of required) if (!observed.labels.includes(label)) throw new Error(`The standard app is missing its ${label} tab.`);
   if (observed.labels.includes('Dev') !== dev) throw new Error('The Dev tab did not follow the explicit ?dev=1 opt-in.');
   if (observed.labels.some(label => label === 'Flight' || label === 'Aircraft' || label === 'Campus')) throw new Error('A consumer implementation appeared in Earth tab composition.');

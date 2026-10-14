@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BabylonRuntime } from "@foss-earth/engine/babylon";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import { pointGeodetic } from "@foss-earth/engine";
-import type { ResolvedPanorama } from "@foss-earth/scenes";
+import type { ResolvedSphere } from "@foss-earth/scenes";
 import { createEarthSceneWorld, createEarthViewerInput } from "./sceneWorld";
 
 vi.mock("@foss-earth/engine/browser", async original => ({
@@ -61,7 +61,7 @@ describe("Earth geographic scene lifecycle", () => {
     const { make, runtime } = fixture();
     runtime.surface.sample = () => ({ heightMeters: 250, revision: 3 });
     const world = make();
-    const entity: ResolvedPanorama = {
+    const entity: ResolvedSphere = {
       id: "orb", type: "panorama", assetId: "asset", title: "Orb", links: [],
       capture: { longitudeDeg: 0, latitudeDeg: 0, height: { meters: 30, datum: "WGS84-ellipsoid" } },
       imagePose: { headingDeg: 0, pitchDeg: 0, rollDeg: 0 },
@@ -76,7 +76,7 @@ describe("Earth geographic scene lifecycle", () => {
     world.setPoseEdit(entity.id, { longitudeDeg: 0, latitudeDeg: 1, heightMeters: 30, headingDeg: 0, pitchDeg: 0, offsetM: 0 });
     const moved = world.posePlacement(entity.id);
     expect(pointGeodetic(moved!.placement.marker!).latitudeDeg).toBeGreaterThan(0.9);
-    const ground: ResolvedPanorama = { ...entity, id: "ground", capture: { longitudeDeg: 0, latitudeDeg: 0, height: null }, marker: { mode: "ground-relative", eastM: 0, northM: 0, offsetM: 10 } };
+    const ground: ResolvedSphere = { ...entity, id: "ground", capture: { longitudeDeg: 0, latitudeDeg: 0, height: null }, marker: { mode: "ground-relative", eastM: 0, northM: 0, offsetM: 10 } };
     world.watchPlacement(ground, { radiusMeters: 8 }, () => {});
     world.setPoseEdit(ground.id, { longitudeDeg: 0, latitudeDeg: 0, heightMeters: null, headingDeg: 0, pitchDeg: 0, offsetM: 40 });
     expect(pointGeodetic(world.posePlacement(ground.id)!.placement.marker!).heightMeters).toBeCloseTo(290, 0);

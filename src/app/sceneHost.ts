@@ -1,16 +1,15 @@
 /** Earth application composition: one supplied world, renderer and image session. */
 import { bindEarthSceneMedia } from "./cacheCompatibility";
-import type { BaseTexture } from "@babylonjs/core";
 import {
   createBuiltInRepresentations, createViewerSelection, validateViewerAsset,
   type SettledPublishedImageViewer, type ViewerImageInput,
-} from "@foss-earth/360";
-import { createImageViewer, type ViewerSettings } from "@foss-earth/360/viewer";
-import { createGlobeViewerProjection, createViewerSceneDescription } from "@foss-earth/360/globe";
-import { createPanoramaRenderer } from "@foss-earth/360/babylon";
-import { createViewerResources, type ComposedImageSource } from "@foss-earth/360/resources";
-import { createViewerTabs } from "@foss-earth/360/panels";
-import { VIEWER_EXPERIMENT_IDS } from "@foss-earth/360/settings";
+} from "@foss-earth/image-viewer";
+import { createImageViewer, type ViewerSettings } from "@foss-earth/image-viewer/viewer";
+import { createGlobeViewerProjection, createViewerSceneDescription } from "@foss-earth/image-viewer/globe";
+import { createSphereRenderer } from "@foss-earth/image-viewer/babylon";
+import { createViewerResources, type ComposedImageSource } from "@foss-earth/image-viewer/resources";
+import { createViewerTabs } from "@foss-earth/image-viewer/panels";
+import { VIEWER_EXPERIMENT_IDS } from "@foss-earth/image-viewer/settings";
 import {
   createImageSourceCache, mediaGroup, MIB, ResourceCapacityError,
   type ImageRepresentation, type MediaGroup, type ImageEstimate,
@@ -21,7 +20,7 @@ import {
 } from "@foss-earth/images/browser";
 import { createPreviewSheetSources } from "@foss-earth/preview-sheets/browser";
 import { createPreviewSheetsExtensionHook } from "@foss-earth/preview-sheets/scene-extension";
-import { type TiledCubeRepresentationRecord } from "@foss-earth/tiled-cubemap";
+import { type TiledCubeRepresentationRecord } from "@foss-earth/sphere-tiled-cubemap";
 import {
   createBrowserSceneHistory, createSceneController, createSavedImagesSection, loadScene,
   type SceneExample, type SceneFailure,
@@ -29,7 +28,8 @@ import {
 import { createScenesPanel, createSceneHotspots } from "@foss-earth/scenes/panel";
 import { NAVIGATION_PRESENTATION_LAYER } from "@foss-earth/engine/babylon";
 import { ecef } from "@foss-earth/engine";
-import { checkUntilSettled, type ReadinessPolicy } from "@foss-earth/renderer";
+import { worldViewportClientRect } from "@foss-earth/engine/browser";
+import type { ReadinessPolicy } from "@foss-earth/renderer";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import type { createEarthBrowserRuntime } from "./browserRuntime";
 import type { createEarthUiHost } from "./uiHost";
@@ -38,6 +38,7 @@ import {
   earthViewerMath, earthViewerPoses,
 } from "./sceneWorld";
 import { attemptEarthCleanup } from "./nativeResources";
+import { textureReadiness } from "./textureReadiness";
 import { poseEditEnabled } from "./poseEditor/poseGate";
 
 export interface EarthSceneHostOptions {
@@ -104,7 +105,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const retirementErrors: unknown[] = [];
   const report = (input: ViewerImageInput | null, kind: SceneFailure["kind"], error: unknown) => {
     const cause = error instanceof Error ? error.message : String(error);
-    failure?.({ kind, panorama: input ? { id: input.id, title: input.title } : null,
+    failure?.({ kind, sphere: input ? { id: input.id, title: input.title } : null,
       cause, message: input ? `${input.title}: ${cause}` : `Panoramas could not be drawn: ${cause}` });
   };
   try {
@@ -169,7 +170,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         ? viewer.currentSources(input.id) : { preview: null, shown: null };
     };
     const choice = createViewerSelection({ representations, maxTextureSide,
-      viewportHeightDevicePx: () => canvas.getBoundingClientRect().height * devicePixelsPerCss(), current, imageName,
+      viewportHeightDevicePx: () => worldViewportClientRect(canvas).height * devicePixelsPerCss(), current, imageName,
       parameters: () => ({ previewFaces: range("previewFaceRange"), previewFovDeg: n("previewFov"), previewDensity: n("previewDensity"),
         immersionWidth: detailCap(), immersionDensity: typeof settings.get("scene.panorama.immersionDensity") === "number" ? n("immersionDensity") : null,
         preference: settings.get("scene.panorama.representation") }),
@@ -181,24 +182,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         return fitsGpu && fitsOverlap ? null : `${imageName(representation)} does not fit the current source/transition memory limits.`;
       },
     });
-    const whenReady = (texture: BaseTexture, signal: AbortSignal) => new Promise<void>((resolve, reject) => {
-      if (signal.aborted) { reject(signal.reason); return; }
-      if (texture.isReady()) { resolve(); return; }
-      let ended = false, stop = () => {};
-      const finish = (failed: boolean, error?: unknown) => {
-        if (ended) return; ended = true; stop(); signal.removeEventListener("abort", abort);
-        if (failed) reject(error); else resolve();
-      };
-      const abort = () => finish(true, signal.reason);
-      signal.addEventListener("abort", abort, { once: true });
-      try {
-        stop = checkUntilSettled(1, () => {
-          try { return texture.isReady() ? 0 : 1; }
-          catch (error) { finish(true, error); return 0; }
-        }, () => finish(false), browser.timers, options.readinessPolicy);
-      } catch (error) { finish(true, error); }
-      if (signal.aborted) abort();
-    });
+    const whenReady = textureReadiness(browser.timers, options.readinessPolicy);
     const resources = createViewerResources({ broker, cache, files: service(null),
       filesFor: (input, representation) => service(mediaGroup(input.asset, representation)),
       previewForTiles(input) {
@@ -220,11 +204,11 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         }, outlines: () => settings.get("scene.panorama.tileOutlines") === true },
     });
     cleanup.push(() => resources.retire());
-    const experiments = () => ({ bookkeeping: settings.get(VIEWER_EXPERIMENT_IDS.panoramaBookkeeping) === true,
+    const experiments = () => ({ bookkeeping: settings.get(VIEWER_EXPERIMENT_IDS.sphereBookkeeping) === true,
       opaqueImmersion: settings.get(VIEWER_EXPERIMENT_IDS.opaqueImmersion) === true,
-      shaders: settings.get(VIEWER_EXPERIMENT_IDS.panoramaShaders) === true });
-    const renderer = createPanoramaRenderer(runtime.scene, { getCamera: () => runtime.scene.activeCamera,
-      viewportHeightCssPx: () => canvas.getBoundingClientRect().height,
+      shaders: settings.get(VIEWER_EXPERIMENT_IDS.sphereShaders) === true });
+    const renderer = createSphereRenderer(runtime.scene, { getCamera: () => runtime.scene.activeCamera,
+      viewportHeightCssPx: () => worldViewportClientRect(canvas).height,
       presentationLayerMask: NAVIGATION_PRESENTATION_LAYER, appearance: appearance(),
       getPresentationView: runtime.getPresentationView, requestRender: runtime.requestRender,
       profiler: browser.composition.profile.profiler, experiments: experiments(), onError: error => report(null, "image", error) });
@@ -233,7 +217,11 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     const input = createEarthViewerInput(runtime, canvas, engineLeaseFor, browser.clock.nowMs);
     cleanup.push(() => input.dispose());
     viewer = createImageViewer({ renderer, resources, world: earthViewerMath, poses: earthViewerPoses, navigation, input: input.input,
-      settings: viewerSettings, now: browser.clock.nowMs, devicePixelsPerCss,
+      settings: viewerSettings, now: browser.clock.nowMs,       devicePixelsPerCss,
+      viewport: () => {
+        const rect = worldViewportClientRect(canvas);
+        return rect.width > 0 && rect.height > 0 ? { width: rect.width, height: rect.height } : null;
+      },
       createAbortController: () => new AbortController(), requestRender: runtime.requestRender,
       signal: browser.signal, onRetirementError: error => report(null, "image", error),
       holdRendering() { runtime.beginContinuous(); let released = false; return () => { if (!released) { released = true; runtime.endContinuous(); } }; },
@@ -305,7 +293,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         poseEditor = mountPoseEditor({
           document: canvas.ownerDocument, canvas, baseUrl: options.baseUrl, sceneUrl: () => sceneUrl, controller, viewer, world: sceneWorld, renderer, runtime,
           dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
-          tab: tabs.panorama,
+          tab: tabs.sphere,
           beforeFrame(listener) {
             const observer = runtime.scene.onBeforeRenderObservable.add(listener, undefined, true);
             return () => { runtime.scene.onBeforeRenderObservable.remove(observer); };

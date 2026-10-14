@@ -1,4 +1,4 @@
-.foss-earth-panorama-return {
+.foss-earth-sphere-return {
   position: fixed;
   left: 50%;
   bottom: calc(var(--foss-hud-bottom) + var(--foss-hud-bar-height, 28px) + 12px);
@@ -10,11 +10,11 @@
   pointer-events: auto;
 }
 
-html[data-world-presentation="split"] .foss-earth-panorama-return {
+html[data-world-presentation="split"] .foss-earth-sphere-return {
   bottom: calc(12px + max(var(--foss-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)));
 }
 
-.foss-earth-panorama-tab {
+.foss-earth-sphere-tab {
   display: grid;
   gap: 4px;
 }

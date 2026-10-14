@@ -22,14 +22,11 @@
   touch-action: none;
 }
 
-/* The phone band owns the top of the screen, so the drawing buffer is only the world under it. */
-html[data-world-presentation="split"] .globe-canvas {
-  position: absolute;
-  top: var(--foss-canvas-top, var(--foss-world-top, 0px));
-  left: 0;
-  width: 100%;
-  height: calc(100% - var(--foss-canvas-top, var(--foss-world-top, 0px)));
-}
+/*
+ * The canvas fills the shell in every presentation. Under the split band the
+ * world takes only the part below it, as its viewport (src/app/worldViewport.ts),
+ * and other surfaces draw into the windows above.
+ */
 
 .foss-earth-overlay-root {
   position: absolute;

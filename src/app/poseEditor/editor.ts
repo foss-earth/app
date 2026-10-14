@@ -1,7 +1,8 @@
 /** Local-only gizmo for placing a photograph. The dev server loads it; the published site does not. */
 import { dot, enuFrame, length, sub, type Vec3 } from "@foss-earth/engine";
+import { worldViewportClientRect } from "@foss-earth/engine/browser";
 import type { SceneController, SceneEntryStatus, ScenePlacement, SceneStatus } from "@foss-earth/scenes/browser";
-import type { PanoramaPoseEdit } from "../sceneWorld";
+import type { SpherePoseEdit } from "../sceneWorld";
 import "./pose-editor.css";
 import {
   POSE_HANDLES, axisShift, axisSpin, axisTravel, clampLatitude, clampPitch, gizmoArmMeters, gizmoPolylines, insideGizmoAnchor,
@@ -47,7 +48,7 @@ export interface PoseEditorHost {
     setImageOpacity(id: string | null, opacity: number): void;
   };
   world: {
-    setPoseEdit(id: string, edit: PanoramaPoseEdit | null): ScenePlacement | null;
+    setPoseEdit(id: string, edit: SpherePoseEdit | null): ScenePlacement | null;
     posePlacement(id: string): ScenePlacement | null;
   };
   renderer: { cameraFrame(): { eye: Vec3; view: ViewFrame["view"] } | null };
@@ -272,7 +273,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (inside) host.runtime.syncPresentedCamera();
   }
 
-  function editOf(draft: Draft): PanoramaPoseEdit {
+  function editOf(draft: Draft): SpherePoseEdit {
     return {
       longitudeDeg: draft.longitudeDeg, latitudeDeg: draft.latitudeDeg,
       heightMeters: draft.mode === "capture-relative" ? draft.heightMeters : null,
@@ -418,7 +419,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (!frame || !anchor || !draft) return;
     const baseline = selected ? baselines.get(selected) : null;
     if (phase === "immersive" && selected && baseline && changed(baseline, draft)) applyPlacement(selected, draft, host.world.posePlacement(selected));
-    const rect = host.canvas.getBoundingClientRect();
+    const rect = worldViewportClientRect(host.canvas);
     const enu = enuFrame(draft.longitudeDeg, draft.latitudeDeg);
     const distance = length(sub(anchor, frame.eye));
     const arm = gizmoArmMeters(distance, frame.view.verticalFovRad, rect.height);
@@ -486,7 +487,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const frame = frameOf(scene.phase);
     const anchor = frame ? anchorOf(scene.phase, frame) : null;
     if (!frame || !anchor) return;
-    const rect = host.canvas.getBoundingClientRect();
+    const rect = worldViewportClientRect(host.canvas);
     const rayAt = (x: number, y: number) => viewRay(frame, (x - rect.left) / Math.max(1, rect.width), (y - rect.top) / Math.max(1, rect.height));
     const enu = enuFrame(draft.longitudeDeg, draft.latitudeDeg);
     const turned = rotateHeading(enu.east, enu.north, axisHeading());

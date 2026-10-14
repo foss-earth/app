@@ -19,7 +19,7 @@ describe("scene pose files", () => {
     expect(scenePublicPath("examples/notes.txt", "http://localhost:5173/app/")).toBeNull();
   });
 
-  it("writes one panorama's place and leaves its height when the edit does not include one", () => {
+  it("writes one sphere's place and leaves its height when the edit does not include one", () => {
     const written = writePose(scene(), {
       entityId: "orb", longitudeDeg: -93.235, latitudeDeg: 44.974, headingDeg: 359.99996, pitchDeg: -2.5, offsetM: 12.3456,
     });

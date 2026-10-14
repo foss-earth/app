@@ -29,7 +29,7 @@ describe("GPU memory owners", () => {
     expect(gpuMemoryOwner("night-lights")).toBe("sky/night lights");
     expect(gpuMemoryOwner("sky-dome")).toBe("sky/dome");
     expect(gpuMemoryOwner("orbit-compass-label-N-texture")).toBe("interface/compass");
-    expect(gpuMemoryOwner("panorama-orb-viewer-1:umn-test-orb")).toBe("panoramas");
+    expect(gpuMemoryOwner("sphere-orb-viewer-1:umn-test-orb")).toBe("panoramas");
     expect(gpuMemoryOwner("umn-single/record-1")).toBe("panoramas");
     expect(gpuMemoryOwner("https://basemap.nationalmap.gov/tile/1/2/3")).toBe("map/imagery");
     expect(gpuMemoryOwner("something else")).toBeNull();

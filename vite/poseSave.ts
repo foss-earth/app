@@ -1,4 +1,4 @@
-/** Writes a panorama's place into a scene file. The dev server only: builds and preview never install it. */
+/** Writes a sphere's place into a scene file. The dev server only: builds and preview never install it. */
 import { readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
@@ -71,7 +71,7 @@ function isPoseWrite(value: unknown): value is PoseWrite & { file: string } {
     && [record.longitudeDeg, record.latitudeDeg, record.headingDeg, record.pitchDeg, record.offsetM].every(item => typeof item === "number");
 }
 
-/** Answers GET with `{ok:true}` and POST by rewriting one panorama in a public scene file. */
+/** Answers GET with `{ok:true}` and POST by rewriting one sphere in a public scene file. */
 export function poseSaveMiddleware(publicDir: string): Connect.NextHandleFunction {
   return (req, res, next) => {
     const url = (req.originalUrl ?? req.url ?? "").split("?")[0];

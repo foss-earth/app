@@ -69,7 +69,7 @@ export { createDateTimePanel, fixedTimeValues, instantInUse, type DateTimePanelH
 export { createFrameBudgetPanel, type FrameBudgetPanelHandle, type FrameBudgetPanelOptions } from "@foss-earth/renderer/panel";
 export { createSceneHotspots, createScenesPanel, type ScenePanelElement as ScenesPanelHandle } from "@foss-earth/scenes/panel";
 export { createSceneHud, type SceneHudHandle } from "@foss-earth/toolbar/browser";
-export { createViewerTabs as createPanoramaTabs, type ViewerTabs as PanoramaTabs, type ViewerPanelPorts as PanoramaTabsOptions, type ViewerTabsSnapshot as PanoramaTabsSnapshot } from "@foss-earth/360/panels";
+export { createViewerTabs as createSphereTabs, type ViewerTabs as SphereTabs, type ViewerPanelPorts as SphereTabsOptions, type ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/image-viewer/panels";
 export { connectSceneLog } from "@foss-earth/scenes/browser";
 export { PANEL_SECTIONS_OPEN_STORAGE_KEY } from "../app/shellCompatibility";
 export { SAVED_WORKSPACE_STORAGE_KEY } from "@foss-earth/ui/windowing";

@@ -11,6 +11,22 @@ The landing page is in
 assembles this application's compiled build at `/app/`. Known application UX
 follow-ups are in [the TODO list](docs/todo.md).
 
+Open **+ → Browser data** to review clearing this site's saved settings, window
+layout, stored media and app caches, then reload. **Keep API keys** starts checked;
+uncheck it to remove the saved Google Maps and CARTO keys too. The review runs
+on a separate page before deleting data. This clears data for the current site
+origin, including other apps hosted on that origin.
+
+After two failed or stalled starts, the page offers **Clear browser data** as a recovery
+option. The recovery code is included in the HTML, so the option can appear even
+when the application bundle fails to load. You can also open the app address with
+`?resetBrowserData=1` to reach the review directly. A successful start resets the
+failure count; data is cleared only after confirmation.
+
+The browser's HTTP cache and cookies hidden from JavaScript require the browser's
+own site-data controls. The review explains this and reports any storage it could
+not clear.
+
 ## Development
 
 Clone the Earth repositories side by side in a `foss-earth` folder, with
@@ -98,11 +114,11 @@ content and feature composition. The libraries own the rest:
 - Renderer: presentation and lifecycle.
 - Sky: Sky and Date and time.
 - Scenes: scene documents and placements.
-- 360: panorama viewing.
+- 360: sphere viewing.
 - Image structures and preview preparation each have their own library.
 - About and Dev receive application data and contributions. `?dev=1` enables Dev.
 
-Inside a panorama, the position readout uses the picture's capture coordinates
+Inside a sphere, the position readout uses the picture's capture coordinates
 and height, with live heading, pitch and vertical FOV in degrees. Unknown capture
 height shows a dash. Clicking the readout opens the picture's tab; leaving the
 picture restores the globe's position, camera altitude and zoom distance.

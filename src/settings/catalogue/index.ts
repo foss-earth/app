@@ -11,13 +11,13 @@ import {
 } from "@foss-earth/engine/settings";
 import { INTERFACE_PARAMETERS, INTERFACE_TAB, PERFORMANCE_HUD_METRICS, SETTINGS_TAB, TOOLBAR_BUTTONS } from "./interface";
 import { RENDERER_EXPERIMENT_IDS, RENDERER_OWNED_EXPERIMENT_PARAMETERS, RENDERER_PARAMETERS, RENDERER_TAB } from "@foss-earth/renderer/settings";
-import { PANORAMA_SETTINGS_TAB, PANORAMA_TAB, VIEWER_PARAMETERS, VIEWER_SECTION_TITLES, SCENES_TAB } from "@foss-earth/360/settings";
+import { SPHERE_SETTINGS_TAB, SPHERE_TAB, VIEWER_PARAMETERS, VIEWER_SECTION_TITLES, SCENES_TAB } from "@foss-earth/image-viewer/settings";
 import { SCENE_DOCUMENT_PARAMETERS, SCENE_SECTION_TITLES } from "@foss-earth/scenes";
 import { createImageResourceParameters, IMAGE_RESOURCE_SECTION_TITLES } from "@foss-earth/images/settings";
-import { TILED_CUBEMAP_PARAMETERS, keptGpuDefault } from "@foss-earth/tiled-cubemap/settings";
+import { TILED_CUBEMAP_PARAMETERS, keptGpuDefault } from "@foss-earth/sphere-tiled-cubemap/settings";
 import { PREVIEW_SHEETS_PARAMETERS } from "@foss-earth/preview-sheets/settings";
 import { SKY_PARAMETERS, SKY_SECTION_TITLES, SKY_TAB, TIME_TAB } from "@foss-earth/sky/settings";
-export { CONTROLS_TAB, INTERFACE_TAB, MAP_TAB, PANORAMA_SETTINGS_TAB, PANORAMA_TAB, RENDERER_TAB, SCENES_TAB, SETTINGS_TAB, SKY_TAB, TIME_TAB, PERFORMANCE_HUD_METRICS, TOOLBAR_BUTTONS };
+export { CONTROLS_TAB, INTERFACE_TAB, MAP_TAB, SPHERE_SETTINGS_TAB, SPHERE_TAB, RENDERER_TAB, SCENES_TAB, SETTINGS_TAB, SKY_TAB, TIME_TAB, PERFORMANCE_HUD_METRICS, TOOLBAR_BUTTONS };
 export { SKY_MODELS, VIEWPOINT_SURFACE_LIGHTING_CHOICE, type SkyModel } from "@foss-earth/sky/settings";
 export { POSITION_ALTITUDE_ID, POSITION_ALTITUDE_UNIT_ID, POSITION_COORDINATE_LABELS_ID, POSITION_SEA_LEVEL_GRID_ID, TOOLBAR_EDIT_PRIORITIES_ID, TOOLBAR_PRIORITIES, toolbarPriorityParameterId } from "./interface";
 export type { AltitudeReference, AltitudeUnit, CoordinateLabels, ToolbarItemId, ToolbarVisibility } from "./interface";

@@ -44,7 +44,7 @@ export function scenePublicPath(sceneUrl: string, baseUrl: string): string | nul
   return relative;
 }
 
-/** Applies one panorama's place and orientation. The rest of the document is kept. */
+/** Applies one sphere's place and orientation. The rest of the document is kept. */
 export function writePose(scene: unknown, edit: PoseWrite): { ok: true; scene: Record<string, unknown> } | { ok: false; error: string } {
   if (!isRecord(scene) || !Array.isArray(scene.entities)) return fail("The scene file has no entities.");
   if (!edit.entityId || typeof edit.entityId !== "string") return fail("The photograph has no id.");

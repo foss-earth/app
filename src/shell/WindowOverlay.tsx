@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { WindowOverlay as SharedWindowOverlay, AdoptedElement, SectionsPanel, type PanelSection } from "@foss-earth/ui/react";
 import { browserOverlayGeometry, browserOverlayLayout, createTabPresetSave } from "@foss-earth/ui/browser";
-import type { WindowTabDefinition, WindowOverlayLogSize } from "@foss-earth/ui/windowing";
+import type { WindowTabDefinition, WindowOverlayLogSize, WindowSlotId, WorkspaceSnapshotSource } from "@foss-earth/ui/windowing";
 import type { SettingsRegistry, SettingsStorage } from "@foss-earth/ui/settings";
 import { createLocationDraftStore, LOCATION_PLACE_DRAFT_KEY, type LocationDraftStore, type GeodeticLocation, type LocationSearchProvider, type LocationHostDataCodec } from "@foss-earth/engine";
 import { LocationPanel, type LocationPanelContribution } from "@foss-earth/engine/react";
@@ -15,16 +15,16 @@ type WorldPresentationChoice = "auto" | "overlay" | "split";
 type ToolbarEdgeChoice = "auto" | "top" | "bottom";
 type WorldResize = "live" | "release";
 import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/browser";
-import type { ViewerTabs as PanoramaTabs, ViewerTabsSnapshot as PanoramaTabsSnapshot } from "@foss-earth/360/panels";
+import type { ViewerTabs as SphereTabs, ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/image-viewer/panels";
 
 type SectionTabId = "controls" | "interface" | "settings";
-type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "about" | "bug-report" | "panorama" | "panorama-settings";
+type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "about" | "bug-report" | "browser-data" | "panorama" | "panorama-settings";
 type BuiltInTabId = "location" | SectionTabId | ElementTabId;
-const HIDDEN_IN_PANORAMA: ReadonlySet<string> = new Set(["map", "sky", "time"]);
-const PANORAMA_ONLY: ReadonlySet<string> = new Set(["panorama", "panorama-settings"]);
+const HIDDEN_IN_SPHERE: ReadonlySet<string> = new Set(["map", "sky", "time"]);
+const SPHERE_ONLY: ReadonlySet<string> = new Set(["panorama", "panorama-settings"]);
 /** On the map, editing a photograph shows its tab and keeps 360 image settings hidden. */
-const PANORAMA_SETTINGS_ONLY: ReadonlySet<string> = new Set(["panorama-settings"]);
-const OUTSIDE_PANORAMA: PanoramaTabsSnapshot = { title: null, onScreen: false };
+const SPHERE_SETTINGS_ONLY: ReadonlySet<string> = new Set(["panorama-settings"]);
+const OUTSIDE_SPHERE: SphereTabsSnapshot = { title: null, onScreen: false };
 const DEFAULT_LOCATION: GeodeticLocation = { latDeg: 44.977753, lonDeg: -93.265011 };
 
 function subscribePositionReadout(onChange: () => void): () => void {
@@ -69,8 +69,8 @@ function browserStorage(): SettingsStorage | null {
   try { return typeof localStorage === "undefined" ? null : localStorage; } catch { return null; }
 }
 /** Fit the photograph; the optional sections stay available in the scrollable body. */
-function measurePanoramaPhotograph(body: HTMLElement): number | null {
-  const photograph = body.querySelector<HTMLElement>(".foss-earth-panorama-photograph");
+function measureSpherePhotograph(body: HTMLElement): number | null {
+  const photograph = body.querySelector<HTMLElement>(".foss-earth-sphere-photograph");
   const wrapper = photograph?.closest<HTMLElement>(".foss-earth-element-tab");
   if (!photograph || !wrapper) return null;
   const rect = photograph.getBoundingClientRect();
@@ -80,7 +80,7 @@ function measurePanoramaPhotograph(body: HTMLElement): number | null {
   const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
   const photographHeight = rect.bottom - body.getBoundingClientRect().top + body.scrollTop + paddingBottom;
   // Even an empty description needs enough scrolling space to show an optional section's heading.
-  const summary = body.querySelector<HTMLElement>(".foss-earth-panorama-tab .foss-earth-panel-section__title");
+  const summary = body.querySelector<HTMLElement>(".foss-earth-sphere-tab .foss-earth-panel-section__title");
   const minimumHeight = (summary?.getBoundingClientRect().height ?? 0) + paddingTop + paddingBottom;
   return Math.max(photographHeight, minimumHeight);
 }
@@ -102,6 +102,14 @@ export interface WindowOverlayHandle<TabId extends string = never> {
    */
   toggleTab(tabId: BuiltInTabId | TabId): void;
   closeTab(tabId: BuiltInTabId | TabId): void;
+  /**
+   * Opens a tab on `slotId`'s side and selects it there, such as a document
+   * opened from that side's +; a tab already open is selected where it is. A
+   * tab added to `additionalTabs` in the same update opens once it arrives.
+   */
+  openTabInSlot(tabId: BuiltInTabId | TabId, slotId: WindowSlotId): void;
+  /** What each side holds and shows, and the side the person last used. */
+  readonly workspace: WorkspaceSnapshotSource<BuiltInTabId | TabId | "log">;
 }
 
 export interface WindowOverlayProps<TabId extends string = never> {
@@ -110,6 +118,12 @@ export interface WindowOverlayProps<TabId extends string = never> {
   /** Hosts supply tab contents; the shared overlay owns both window slots. */
   additionalTabs?: readonly WindowTabDefinition<TabId>[];
   renderAdditionalTab?: (tabId: TabId) => ReactNode;
+  /**
+   * The one body for two selected tabs of the same `surface.joinGroup`, one in
+   * each window. It spans both columns and the space between them, under the
+   * tab strips. While they are joined the log is a tab.
+   */
+  renderJoinedTabs?: (tabs: { left: TabId; right: TabId }) => ReactNode;
   /**
    * Adds the shared Controls tab, built from these collapsible sections. A host
    * that already supplies its own `controls` tab leaves this out.
@@ -137,17 +151,19 @@ export interface WindowOverlayProps<TabId extends string = never> {
   aboutTab?: HTMLElement;
   /** The one Bug report tab, from `createBugReportPanel`; also available under +. */
   bugReportTab?: HTMLElement;
+  /** Review and clear the site's stored data, keeping API keys by default. */
+  browserDataTab?: HTMLElement;
   /** Prepare a report when its tab becomes visible; hidden or minimized tabs do not call it. */
   onBugReportShow?: () => void;
   /**
-   * A panorama's tabs, from `createPanoramaTabs`. Entering a panorama opens its
+   * A sphere's tabs, from `createSphereTabs`. Entering a sphere opens its
    * tab, titled "360: <title>", minimized while the camera flies in and shown
-   * once the panorama is on screen; closing that tab leaves it. Editing a
+   * once the sphere is on screen; closing that tab leaves it. Editing a
    * photograph from the map opens the same tab there, and closing it leaves
    * editing. Inside one the tabs about the map are hidden and 360 image
    * settings is offered; each comes back where it was when the context returns.
    */
-  panoramaTabs?: PanoramaTabs;
+  sphereTabs?: SphereTabs;
   locationSearchProvider?: LocationSearchProvider;
   /** @deprecated The flight host supplies its own Location contribution. */
   enableAirportPresets?: boolean;
@@ -166,10 +182,10 @@ export interface WindowOverlayProps<TabId extends string = never> {
 
 
 export function WindowOverlay<TabId extends string = never>({
-  getViewState, setViewState, additionalTabs = [], renderAdditionalTab,
+  getViewState, setViewState, additionalTabs = [], renderAdditionalTab, renderJoinedTabs,
   controlsSections, interfaceSections, interfaceLead, settingsSections, locationSearchSection,
-  mapTab, rendererTab, skyTab, timeTab, scenesTab, aboutTab, bugReportTab,
-  onBugReportShow, panoramaTabs, locationSearchProvider,
+  mapTab, rendererTab, skyTab, timeTab, scenesTab, aboutTab, bugReportTab, browserDataTab,
+  onBugReportShow, sphereTabs, locationSearchProvider,
   enableAirportPresets = false, locationContribution, locationHostDataCodec,
   locationDraft, observeLocation, settings: suppliedSettings, storage: suppliedStorage,
   overlayApiRef, onBeforeCloseTab, onTabVisibility,
@@ -224,18 +240,18 @@ export function WindowOverlay<TabId extends string = never>({
     const timer = window.setInterval(listener, 100);
     return () => window.clearInterval(timer);
   }, [observeLocation]);
-  const subscribePanorama = useCallback((listener: () => void) => panoramaTabs?.subscribe(listener) ?? (() => {}), [panoramaTabs]);
-  const getPanorama = useCallback(() => panoramaTabs?.getSnapshot() ?? OUTSIDE_PANORAMA, [panoramaTabs]);
-  const panorama = useSyncExternalStore(subscribePanorama, getPanorama, getPanorama);
+  const subscribeSphere = useCallback((listener: () => void) => sphereTabs?.subscribe(listener) ?? (() => {}), [sphereTabs]);
+  const getSphere = useCallback(() => sphereTabs?.getSnapshot() ?? OUTSIDE_SPHERE, [sphereTabs]);
+  const sphere = useSyncExternalStore(subscribeSphere, getSphere, getSphere);
   const poseTitle = useSyncExternalStore(subscribePoseEditTitle, poseEditTitle, () => null);
-  const insidePanorama = panorama.title !== null;
-  const editingOnMap = poseTitle !== null && !insidePanorama;
+  const insideSphere = sphere.title !== null;
+  const editingOnMap = poseTitle !== null && !insideSphere;
   useEffect(() => {
     const api = overlayApiRef?.current;
     if (!api) return;
     if (editingOnMap) api.openOrSelectTab("panorama");
-    else if (!insidePanorama) api.closeTab("panorama");
-  }, [editingOnMap, insidePanorama, overlayApiRef]);
+    else if (!insideSphere) api.closeTab("panorama");
+  }, [editingOnMap, insideSphere, overlayApiRef]);
   const sectionTabs: Partial<Record<SectionTabId, readonly PanelSection[]>> = {
     ...(controlsSections ? { controls: controlsSections } : {}),
     ...(interfaceSections ? { interface: interfaceSections } : {}),
@@ -246,11 +262,12 @@ export function WindowOverlay<TabId extends string = never>({
     ...(skyTab ? { sky: skyTab } : {}), ...(timeTab ? { time: timeTab } : {}),
     ...(scenesTab ? { scenes: scenesTab } : {}), ...(aboutTab ? { about: aboutTab } : {}),
     ...(bugReportTab ? { "bug-report": bugReportTab } : {}),
-    ...(panoramaTabs ? { panorama: panoramaTabs.panorama, "panorama-settings": panoramaTabs.settings } : {}),
+    ...(browserDataTab ? { "browser-data": browserDataTab } : {}),
+    ...(sphereTabs ? { "panorama": sphereTabs.sphere, "panorama-settings": sphereTabs.settings } : {}),
   };
   const sectionLabels: Record<SectionTabId, string> = { controls: "Controls", interface: "Interface", settings: "Settings" };
   const elementLabels: Record<ElementTabId, string> = {
-    map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", about: "About", "bug-report": "Bug report", panorama: panorama.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
+    map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", about: "About", "bug-report": "Bug report", "browser-data": "Browser data", "panorama": sphere.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
   };
   const sectionIds = (Object.keys(sectionLabels) as SectionTabId[]).filter(id => sectionTabs[id]);
   const elementIds = (Object.keys(elementLabels) as ElementTabId[]).filter(id => elementTabs[id]);
@@ -262,7 +279,7 @@ export function WindowOverlay<TabId extends string = never>({
     ...additionalTabs.filter(tab => !builtIn.has(tab.id)),
     ...elementIds.map(id => ({ id, label: elementLabels[id] })),
   ];
-  const restorable = new Set(tabDefinitions.filter(tab => tab.id !== "log" && !PANORAMA_ONLY.has(tab.id) && tab.available !== false).map(tab => tab.id));
+  const restorable = new Set(tabDefinitions.filter(tab => tab.id !== "log" && !SPHERE_ONLY.has(tab.id) && tab.available !== false).map(tab => tab.id));
   const geometry = useMemo(() => browserOverlayGeometry(window, () => {
     const bar = document.querySelector(".hud-bar")?.getBoundingClientRect();
     return bar && bar.height > 0 ? bar.top : null;
@@ -283,14 +300,15 @@ export function WindowOverlay<TabId extends string = never>({
     logSize={logSize}
     layoutPort={layout}
     restorableTabs={restorable}
-    context={{ active: insidePanorama, ready: panorama.onScreen, baseOnlyTabs: HIDDEN_IN_PANORAMA as ReadonlySet<OverlayTabId>, contextOnlyTabs: (editingOnMap ? PANORAMA_SETTINGS_ONLY : PANORAMA_ONLY) as ReadonlySet<OverlayTabId>, entryTabId: "panorama", measureEntry: measurePanoramaPhotograph }}
+    context={{ active: insideSphere, ready: sphere.onScreen, baseOnlyTabs: HIDDEN_IN_SPHERE as ReadonlySet<OverlayTabId>, contextOnlyTabs: (editingOnMap ? SPHERE_SETTINGS_ONLY : SPHERE_ONLY) as ReadonlySet<OverlayTabId>, entryTabId: "panorama", measureEntry: measureSpherePhotograph }}
     overlayApiRef={overlayApiRef}
+    surfaces={renderJoinedTabs ? { renderJoined: ({ left, right }) => renderJoinedTabs({ left: left as TabId, right: right as TabId }), logTab: "log" } : undefined}
     onBeforeCloseTab={onBeforeCloseTab}
     focus={{ onClose(tabId) {
       if (tabId !== "panorama") return;
-      const inside = (panoramaTabs?.getSnapshot().title ?? null) !== null;
+      const inside = (sphereTabs?.getSnapshot().title ?? null) !== null;
       requestPoseEditStop();
-      if (inside) panoramaTabs?.leave();
+      if (inside) sphereTabs?.leave();
     } }}
     presentation={{
       choice: presentationChoice,
@@ -309,8 +327,9 @@ export function WindowOverlay<TabId extends string = never>({
         const logElement = document.getElementById("app-log");
         return logElement ? <AdoptedElement element={logElement} className="foss-earth-log-tab" /> : null;
       }
-      const what = tabDefinitions.find(tab => tab.id === tabId)?.label ?? tabId;
-      const save = tabId === "settings" ? null : <TabPresetSave settings={settings} tab={tabId} what={what} />;
+      const definition = tabDefinitions.find(tab => tab.id === tabId);
+      // A surface fills its body; it has no settings footer to save.
+      const save = tabId === "settings" || tabId === "browser-data" || definition?.surface ? null : <TabPresetSave settings={settings} tab={tabId} what={definition?.label ?? tabId} />;
       const sections = sectionTabs[tabId as SectionTabId];
       if (sections) return <SectionsPanel sections={sections} storage={storage} leading={tabId === "interface" ? interfaceLead : undefined} footer={save} />;
       const element = elementTabs[tabId as ElementTabId];
@@ -331,6 +350,6 @@ export function WindowOverlay<TabId extends string = never>({
       </>;
     }}
   />
-    {panorama.onScreen && <button type="button" className="hud-chip hud-chip-button foss-earth-panorama-return" onClick={() => panoramaTabs?.leave()}>Return to map</button>}
+    {sphere.onScreen && <button type="button" className="hud-chip hud-chip-button foss-earth-sphere-return" onClick={() => sphereTabs?.leave()}>Return to map</button>}
   </>;
 }

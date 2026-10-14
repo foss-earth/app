@@ -101,6 +101,11 @@ vi.mock("@foss-earth/engine/babylon", async importOriginal => ({
   }),
 }));
 
+// The rectangle image pass draws on a real engine; image tabs have their own tests.
+vi.mock("@foss-earth/image-viewer/babylon", async importOriginal => ({
+  ...await importOriginal<typeof import("@foss-earth/image-viewer/babylon")>(),
+  createRectangleSurfaceRenderer: () => ({ available: true, unavailableReason: null, addSurface: () => ({ dispose() {} }), dispose() {} }),
+}));
 vi.mock("./positionSeaLevel", () => ({
   createBrowserPositionSeaLevelPort: () => ({
     read: () => ({ baseMeters: 0 }), subscribe: () => () => {}, dispose: () => {},
@@ -121,7 +126,7 @@ vi.mock("./sceneHost", async () => {
       },
     });
     return { controller, panel: { element: document.createElement("div") },
-      tabs: { panorama: document.createElement("div"), settings: document.createElement("div") },
+      tabs: { sphere: document.createElement("div"), settings: document.createElement("div") },
       viewer: { onFrame: () => false }, renderer: null, media: null,
       isCurrent: () => true, dispose: () => controller.destroy(),
     };
@@ -407,6 +412,13 @@ describe("createGlobeApp smoke behavior", () => {
     expect(root.querySelector('#perfMetricsPill [data-perf-metric="memory"]')).toBeNull();
     expect(mockState.resolveAnchorHeight).toHaveBeenCalledWith({ x: 1, y: 0, z: 0 });
     expect(mockState.compassUpdate).toHaveBeenCalledWith({ x: 9, y: 0, z: 0 }, 600);
+    const browserData = app.browserDataTab;
+    expect(browserData.querySelector<HTMLInputElement>('input[name="keepApiKeys"]')?.checked).toBe(true);
+    expect(browserData.textContent).toContain("Google Maps and CARTO");
+    const review = browserData.querySelector("a");
+    expect(review?.textContent).toBe("Clear browser data");
+    expect(review?.getAttribute("href")).toContain("resetBrowserData=1");
+    expect(review?.getAttribute("href")).not.toContain("keepApiKeys");
   });
 
   it("keeps the FPS chip mounted across frame updates so its animation can advance", async () => {

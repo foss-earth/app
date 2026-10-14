@@ -14,7 +14,7 @@ const fixtureRoot = path.join(owner, "fixtures", "public-app-consumer");
 const routes = [".", "./runtime", "./shell", "./input", "./input-mode.css", "./shell.css", "./windowing", "./windowing.css", "./layers", "./lights", "./cameraMath", "./diagnostics", "./heights", "./diagnosticDrawing", "./mapDetailPolicy", "./perf", "./scenes", "./scenes/schema.json", "./settings", "./sky", "./weather", "./smoothElevation", "./style.css", "./vite"];
 const runtimeVersions = {
   "foss-earth": "0.1.0",
-  ...Object.fromEntries(["ui", "renderer", "engine", "toolbar", "about", "dev", "sky", "weather", "images", "360", "scenes", "cubemap", "equirectangular", "tiled-cubemap", "preview-sheets"].map(name => [`@foss-earth/${name}`, "0.1.0"])),
+  ...Object.fromEntries(["ui", "renderer", "engine", "toolbar", "about", "dev", "sky", "weather", "images", "rectangle-image", "image-viewer", "scenes", "sphere-cubemap", "sphere-equirectangular", "sphere-tiled-cubemap", "preview-sheets"].map(name => [`@foss-earth/${name}`, "0.1.0"])),
   "@felipegalind0/gamepad-tools": "0.1.0", "@babylonjs/core": "8.56.2", "@babylonjs/loaders": "8.56.2",
   "3d-tiles-renderer": "0.4.24", "react": "19.2.6", "react-dom": "19.2.6",
 };

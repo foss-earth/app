@@ -12,10 +12,10 @@ import {
   createBuiltInRepresentations,
   validateViewerAsset,
   type BuiltInRepresentation,
-} from "@foss-earth/360";
+} from "@foss-earth/image-viewer";
 import { createPreviewSheetsExtensionHook } from "@foss-earth/preview-sheets/scene-extension";
 import { PREVIEW_SHEETS_EXTENSION, type SheetRecord } from "@foss-earth/preview-sheets";
-import { tiledCubeFilesWithLevel, type TiledCubeRepresentationRecord } from "@foss-earth/tiled-cubemap";
+import { tiledCubeFilesWithLevel, type TiledCubeRepresentationRecord } from "@foss-earth/sphere-tiled-cubemap";
 import type { SceneValidation, ValidatedScene } from "../scenes/format";
 
 export type { SceneLimits, SceneFileReport };

@@ -66,9 +66,9 @@ export function gpuMemoryOwner(name: string): string | null {
   if (name === "night-lights") return "sky/night lights";
   if (name.startsWith("sky-")) return `sky/${name.slice(4).replace(/-/g, " ")}`;
   if (name.startsWith("light-points")) return "sky/light points";
-  if (name.startsWith("panorama") || name.startsWith("preview-sheet")) return "panoramas";
+  if (name.startsWith("sphere-") || name.startsWith("preview-sheet")) return "panoramas";
   if (name.startsWith("orbit-compass")) return "interface/compass";
-  // Map tiles are uploaded under their URL, panorama images under "asset/record".
+  // Map tiles are uploaded under their URL, sphere images under "asset/record".
   if (/^https?:\/\//.test(name)) return "map/imagery";
   if (/^[\w.-]+\/[\w.-]+/.test(name)) return "panoramas";
   return null;

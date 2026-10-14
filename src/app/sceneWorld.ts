@@ -1,16 +1,16 @@
 /** Earth owns authored placement/settings; public Engine/360 own the reusable bindings. */
 import { captureRelativeMarker, groundQueryPoint, groundRelativeMarker, enuFrame, ecefToEnuMatrix,
   length, sub, createGlobeOverviewBinding, type NavigationLease } from "@foss-earth/engine";
-import type { WheelGestureWatch } from "@foss-earth/engine/browser";
+import { worldViewportClientRect, type WheelGestureWatch } from "@foss-earth/engine/browser";
 import type { BabylonRuntime } from "@foss-earth/engine/babylon";
 import { imagePoseMatrix, transpose3, mulMat3Mat3 } from "@foss-earth/images";
-import type { ResolvedPanorama } from "@foss-earth/scenes";
+import type { ResolvedSphere } from "@foss-earth/scenes";
 import type { SceneWorldPorts, ScenePlacement } from "@foss-earth/scenes/browser";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
-import type { PublishedImageViewer } from "@foss-earth/360";
-import { globeViewerMath, globeViewerPoses, createGlobeViewerNavigation } from "@foss-earth/360/globe";
-import { createGlobeViewerInput } from "@foss-earth/360/globe-browser";
-import type { ViewerNavigationLease } from "@foss-earth/360/viewer";
+import type { PublishedImageViewer } from "@foss-earth/image-viewer";
+import { globeViewerMath, globeViewerPoses, createGlobeViewerNavigation } from "@foss-earth/image-viewer/globe";
+import { createGlobeViewerInput } from "@foss-earth/image-viewer/globe-browser";
+import type { ViewerNavigationLease } from "@foss-earth/image-viewer/viewer";
 import { controlTakesKey } from "@felipegalind0/gamepad-tools/browser";
 import { attemptEarthCleanup } from "./nativeResources";
 
@@ -27,11 +27,15 @@ export function createEarthViewerInput(runtime: BabylonRuntime, canvas: HTMLCanv
 ) {
   return createGlobeViewerInput(runtime, canvas, engineLeaseFor, {
     nowMs, controlTakesKey, abortReason: () => new DOMException("Cancelled by input.", "AbortError"),
+    surfaceRect: () => {
+      const rect = worldViewportClientRect(canvas);
+      return rect.width > 0 && rect.height > 0 ? rect : null;
+    },
   });
 }
 
 /** A live placement edit. Null height keeps the photograph's authored capture height. */
-export interface PanoramaPoseEdit {
+export interface SpherePoseEdit {
   longitudeDeg: number;
   latitudeDeg: number;
   heightMeters: number | null;
@@ -50,7 +54,7 @@ export function createEarthSceneWorld(
   canvas: HTMLCanvasElement, viewer: Pick<PublishedImageViewer, "status" | "isPlacementFrozen">,
 ): SceneWorldPorts & {
   dispose(): void; whenSettled(): Promise<void>;
-  setPoseEdit(id: string, edit: PanoramaPoseEdit | null): ScenePlacement | null;
+  setPoseEdit(id: string, edit: SpherePoseEdit | null): ScenePlacement | null;
   posePlacement(id: string): ScenePlacement | null;
 } {
   const hostWindow = canvas.ownerDocument.defaultView;
@@ -64,10 +68,10 @@ export function createEarthSceneWorld(
     abortReason: () => new DOMException("Cancelled by input or camera change.", "AbortError"),
   });
   type Cached = { result: ScenePlacement; revision: number | null; stamp: string };
-  const cache = new WeakMap<ResolvedPanorama, Cached>();
-  const edits = new Map<string, PanoramaPoseEdit>();
-  const watches = new Set<{ entity: ResolvedPanorama; radiusMeters: number; changed(next: ScenePlacement): void }>();
-  function sourceOf(entity: ResolvedPanorama): { capture: ResolvedPanorama["capture"]; pose: ResolvedPanorama["imagePose"]; marker: ResolvedPanorama["marker"]; stamp: string } {
+  const cache = new WeakMap<ResolvedSphere, Cached>();
+  const edits = new Map<string, SpherePoseEdit>();
+  const watches = new Set<{ entity: ResolvedSphere; radiusMeters: number; changed(next: ScenePlacement): void }>();
+  function sourceOf(entity: ResolvedSphere): { capture: ResolvedSphere["capture"]; pose: ResolvedSphere["imagePose"]; marker: ResolvedSphere["marker"]; stamp: string } {
     const edit = edits.get(entity.id);
     if (!edit) return { capture: entity.capture, pose: entity.imagePose, marker: entity.marker, stamp: "authored" };
     const height = edit.heightMeters === null ? entity.capture.height ?? null
@@ -79,10 +83,10 @@ export function createEarthSceneWorld(
       stamp: `${edit.longitudeDeg}|${edit.latitudeDeg}|${edit.heightMeters}|${edit.headingDeg}|${edit.pitchDeg}|${edit.offsetM}`,
     };
   }
-  function contentOf(source: { capture: ResolvedPanorama["capture"]; pose: ResolvedPanorama["imagePose"] }) {
+  function contentOf(source: { capture: ResolvedSphere["capture"]; pose: ResolvedSphere["imagePose"] }) {
     return mulMat3Mat3(transpose3(imagePoseMatrix(source.pose)), ecefToEnuMatrix(enuFrame(source.capture.longitudeDeg, source.capture.latitudeDeg)));
   }
-  function update(entity: ResolvedPanorama, radiusMeters: number): { item: Cached; changed: boolean } {
+  function update(entity: ResolvedSphere, radiusMeters: number): { item: Cached; changed: boolean } {
     const source = sourceOf(entity);
     let item = cache.get(entity);
     if (!item) {
@@ -172,7 +176,7 @@ export function createEarthSceneWorld(
   return {
     resolvePlacement(entity, { radiusMeters }) { return update(entity, radiusMeters).item.result; },
     watchPlacement(entity, { radiusMeters }, changed) { const watch = { entity, radiusMeters, changed }; watches.add(watch); return () => { watches.delete(watch); }; },
-    setPoseEdit(id: string, edit: PanoramaPoseEdit | null): ScenePlacement | null {
+    setPoseEdit(id: string, edit: SpherePoseEdit | null): ScenePlacement | null {
       if (disposed) return null;
       if (edit) edits.set(id, edit); else edits.delete(id);
       return publish(id);
