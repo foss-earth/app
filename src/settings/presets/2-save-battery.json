@@ -11,6 +11,7 @@
     "map.detail.terrain.default": 8,
     "map.terrain.coarserElevation": 1,
     "map.imagery.gpuBudget": 64,
+    "map.loader.requests": 6,
     "map.imagery.concurrentRequests": 3,
     "map.imagery.refineAtRest": 1.2,
     "map.google.downloads": 8,
