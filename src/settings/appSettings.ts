@@ -34,6 +34,8 @@ export function getAppSettings(): SettingsRegistry {
   registry.register(FOSS_EARTH_PARAMETERS);
   for (const [tab, section, title] of FOSS_EARTH_SECTION_TITLES) registry.setSectionTitle(tab, section, title);
   registry.migrateLegacy(FOSS_EARTH_MIGRATIONS);
+  // Ids that are no longer parameters, and values saved under them. Registered settings stay.
+  registry.dropStale();
   registry.registerPresets(BUILT_IN_PRESETS);
   // The engine owns the zoom point presets; they set those four choices only.
   registry.registerPresets(NAVIGATION_ANCHOR_PRESETS);

@@ -104,6 +104,7 @@ import type { ImageTabId } from "../imageTabs/imageDocuments";
 import { createRectangleImageSourceLoader } from "../imageTabs/imageSources";
 import { createImageSurfaceHost, type ImageSurfaceHost } from "../imageTabs/imageSurfaceHost";
 import { textureReadiness } from "./textureReadiness";
+import { randomId } from "./randomId";
 import { createEarthSceneHost } from "./sceneHost";
 import { attemptEarthCleanup } from "./nativeResources";
 import { attachShellWorldViewport } from "./worldViewport";
@@ -603,7 +604,7 @@ export async function createGlobeApp(
   const mapPanel = createMapSourcePanel({
     document, InputElement: HTMLInputElement, ui: ui.publicUi, refresh: ui.refresh, panelStorage: ui.storage,
     cache: { inspect: browser.cache.inspect, clear: browser.cache.clear, nowMs: () => performance.now(), refreshIntervalMs: () => settings.get<number>("map.cache.inspectInterval"), rowLimit: () => settings.get<number>("map.cache.rowsShown") },
-    detailPanel: { createTrack: ui.createTrack, idSuffix: () => crypto.randomUUID() },
+    detailPanel: { createTrack: ui.createTrack, idSuffix: randomId },
     detail: mapDetail,
     rasterSources: RASTER_BASE_MAP_SOURCES,
     terrainSources: TERRAIN_SOURCES,

@@ -51,7 +51,11 @@ npm install
 npm run dev
 ```
 
-and open `http://localhost:5173/app/`. The other commands are `npm run typecheck`,
+and open `http://localhost:5173/app/`. `npm run dev -- --host` also serves it
+on the LAN, so a phone on the same Wi-Fi can open `http://<this-machine>:5173/app/`.
+That page is plain HTTP, so `crypto.randomUUID` is missing. `randomId` in
+`src/app/randomId.ts` uses `crypto.getRandomValues` instead, and startup depends
+on that. The other commands are `npm run typecheck`,
 `npm run lint`, `npm test`, `npm run build` (output in `dist/`, built for the
 `/app/` route) and `npm run preview`.
 

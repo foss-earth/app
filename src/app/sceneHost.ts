@@ -1,5 +1,6 @@
 /** Earth application composition: one supplied world, renderer and image session. */
 import { bindEarthSceneMedia } from "./cacheCompatibility";
+import { randomId } from "./randomId";
 import {
   createBuiltInRepresentations, createViewerSelection, validateViewerAsset,
   type SettledPublishedImageViewer, type ViewerImageInput,
@@ -239,7 +240,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       minimumOverviewPreparationRadiusMeters: () => settings.get<number>("scene.overview.minimumPreparationRadius") }, canvas, viewer);
     // Viewer releases navigation before the geographic host restores its configured FOV.
     const sceneWorld = world;
-    const history = createBrowserSceneHistory(window), sessionId = window.crypto.randomUUID();
+    const history = createBrowserSceneHistory(window), sessionId = randomId();
     const controller = createSceneController({ examples: options.examples, baseUrl: options.baseUrl, canvas,
       dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
       load(url, callbacks) {
