@@ -12,6 +12,7 @@
     "map.imagery.gpuBudget": 512,
     "map.google.cacheBytes": { "min": 512, "max": 768 },
     "map.terrain.maxTiles": 1024,
+    "map.terrain.coarserElevation": 0,
     "map.focus.mode": "both",
     "map.focus.radius": 5000,
     "sky.dome.zenithSamples": 64,

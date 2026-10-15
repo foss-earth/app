@@ -98,7 +98,7 @@ import type { SceneController, SceneExample } from "@foss-earth/scenes/browser";
 import { SCENE_EXAMPLES } from "../scenes/examples";
 import { MIB, type ImageSessionBroker, type MediaStore } from "@foss-earth/images";
 import { createRectangleSurfaceRenderer, type RectangleSurfaceDraw } from "@foss-earth/sphere-image/babylon";
-import { isSafariGestureSupported } from "@foss-earth/engine/browser";
+import { isSafariGestureSupported, type TerrainDecodeWorkers } from "@foss-earth/engine/browser";
 import { observeSurfaceGeometry } from "@foss-earth/ui/browser";
 import type { ImageTabId } from "../imageTabs/imageDocuments";
 import { createRectangleImageSourceLoader } from "../imageTabs/imageSources";
@@ -135,6 +135,8 @@ declare global {
       images: { host: ImageSurfaceHost; broker: ImageSessionBroker; readonly overlay: WindowOverlayHandle<"dev" | ImageTabId> | null;
         /** What the image surface draws this frame: its framebuffer rectangle, camera and wipe. */
         draw(): RectangleSurfaceDraw | null };
+      /** Elevation decode workers and tiles decoded on the page: the perf bench reads them. Null without workers. */
+      terrainDecode(): ReturnType<TerrainDecodeWorkers["stats"]> | null;
     };
   }
 }
@@ -1164,6 +1166,7 @@ export async function createGlobeApp(
       // Image tabs, their window workspace and the shared pools they charge.
       images: { host: imageTabs, broker: browser.broker, get overlay() { return options.overlayApiRef?.current ?? null; },
         draw: () => readSurface?.() ?? null },
+      terrainDecode: () => browser.bindings.terrainDecodeStats(),
     };
   }
   cleanup.push(() => { if (window.__fossEarthPanoramaTest?.scenes === scenes) delete window.__fossEarthPanoramaTest; });
