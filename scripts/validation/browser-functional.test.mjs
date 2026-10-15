@@ -54,10 +54,11 @@ test('actual map HUD geometry rejects misplaced, stretched, stacked and clipped 
     items: [{ id: 'northButton', ...box(0, 532, 30, 28) }, { id: 'helpButton', ...box(30, 532, 30, 28) }] };
   assert.doesNotThrow(() => assertMapHudLayout(flush));
   assert.throws(() => assertMapHudLayout({ ...flush, rail: box(800, 532, 41, 28) }));
-  const attached = { ...flush, viewport: { width: 800, height: 560 }, hiddenCount: 2, bar: box(0, 532, 400, 28),
-    slot: box(60, 532, 180, 28), group: box(60, 532, 180, 28), chip: box(60, 532, 180, 28), rail: box(66, 532, 41, 28) };
-  assert.doesNotThrow(() => assertMapHudLayout(attached));
-  assert.throws(() => assertMapHudLayout({ ...attached, slot: box(220, 532, 180, 28), group: box(220, 532, 180, 28), chip: box(220, 532, 180, 28), rail: box(226, 532, 41, 28) }));
+  const separate = { ...flush, viewport: { width: 800, height: 560 }, hiddenCount: 2, bar: box(0, 532, 400, 28),
+    slot: box(220, 532, 180, 28), group: box(220, 532, 180, 28), chip: box(220, 532, 180, 28), rail: box(226, 532, 41, 28) };
+  assert.doesNotThrow(() => assertMapHudLayout(separate));
+  const attached = { ...separate, slot: box(60, 532, 180, 28), group: box(60, 532, 180, 28), chip: box(60, 532, 180, 28), rail: box(66, 532, 41, 28) };
+  assert.throws(() => assertMapHudLayout(attached));
   const flushExpanded = { ...flush, layout: 'expanded', direction: 'column', bar: box(0, 504, 1100, 56),
     north: box(0, 532, 30, 28), items: [{ id: 'northButton', ...box(0, 532, 30, 28) }],
     slot: box(700, 504, 400, 56), group: box(700, 504, 400, 56), chip: box(700, 504, 400, 56), rail: box(706, 505, 388, 28) };

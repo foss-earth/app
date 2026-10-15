@@ -95,13 +95,7 @@ export function assertMapHudLayout(observed, expected = 'compact') {
   for (const box of [...observed.items, observed.slot]) {
     if (Math.abs(box.bottom - observed.bar.bottom) > 1.25) throw new Error('A toolbar control left the bottom row.');
   }
-  const last = [...observed.items].sort((a, b) => a.left - b.left || a.top - b.top).at(-1);
-  if (observed.hiddenCount === 0) {
-    if (Math.abs(observed.slot.right - observed.bar.right) > 1.25 || Math.abs(observed.slot.bottom - observed.bar.bottom) > 1.25) throw new Error('The map controls are not at the bottom-right end.');
-  } else {
-    const gap = observed.slot.left - last.right;
-    if (gap < -1.25 || gap > 8) throw new Error('The map source is not directly after the last shown control.');
-  }
+  if (Math.abs(observed.slot.right - observed.bar.right) > 1.25 || Math.abs(observed.slot.bottom - observed.bar.bottom) > 1.25) throw new Error('The map controls are not at the bottom-right end.');
   const centre = box => (box.top + box.bottom) / 2;
   const railInside = observed.rail.left >= observed.chip.left - 1.25 && observed.rail.right <= observed.chip.right + 1.25 && observed.rail.right > observed.chip.left + 1;
   if (expected === 'compact') {

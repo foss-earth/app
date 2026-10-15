@@ -58,7 +58,7 @@ import { MAX_PITCH_DEG } from "@foss-earth/engine";
 import { ecefToGeodetic, RAD_TO_DEG } from "@foss-earth/engine";
 import { createStatusHud, type CameraAltitude, type StatusHudHandle } from "@foss-earth/toolbar/browser";
 import { surfaceHeightDatum } from "@foss-earth/engine";
-import { PERFORMANCE_METRIC_DEFINITIONS, MAP_SOURCE_HUD_LAYOUT_ID, TOOLBAR_BOTTOM_CLEARANCE_ID, type PerformanceMetricId } from "@foss-earth/toolbar";
+import { PERFORMANCE_METRIC_DEFINITIONS, MAP_SOURCE_HUD_LAYOUT_ID, MAP_SOURCE_JOIN_ID, TOOLBAR_BOTTOM_CLEARANCE_ID, hudBarEndPlace, type PerformanceMetricId } from "@foss-earth/toolbar";
 import { createNorthButton, type NorthButtonHandle } from "@foss-earth/toolbar/browser";
 import { createHelpModal, type HelpModalHandle } from "@foss-earth/toolbar/browser";
 import { HUD_BUTTON_IDS, hudButtonParameterId, type HudButtonId } from "@foss-earth/toolbar";
@@ -768,6 +768,7 @@ export async function createGlobeApp(
   applyHudButtonVisibility();
   const fittingIds = new Set([
     MAP_SOURCE_HUD_LAYOUT_ID,
+    MAP_SOURCE_JOIN_ID,
     TOOLBAR_EDIT_PRIORITIES_ID,
     ...HUD_BUTTON_IDS.map(hudButtonParameterId),
     ...PERFORMANCE_HUD_METRICS.map(([metric]) => `interface.performanceHud.${metric}`),
@@ -791,7 +792,9 @@ export async function createGlobeApp(
       .sort((a, b) => a.priority - b.priority);
     for (const item of core.slice(0, 2)) item.reserveSpace = true;
     return items;
-  }, browserHudBarLayoutPorts(window)) : null;
+  }, browserHudBarLayoutPorts(window), {
+    endPlace: () => hudBarEndPlace(settings.has(MAP_SOURCE_JOIN_ID) ? settings.get(MAP_SOURCE_JOIN_ID) : "off"),
+  }) : null;
   const applyCompassHeight = (): void => {
     const meters = compassHeightOffset();
     anchorHeights.setHeightOffset(meters);
