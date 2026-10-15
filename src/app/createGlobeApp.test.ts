@@ -471,7 +471,7 @@ describe("createGlobeApp smoke behavior", () => {
       sceneId: "fixture", revision: "1", title: "Fixture", generation: 1, hovered: null,
       phase: "immersive", active: entry.id, target: null,
       view: { headingDeg: 350, pitchDeg: -12, verticalFovDeg: 75 },
-      entries: [entry], groups: [], credits: [], overview: "none", warnings: [],
+      entries: [entry], groups: [], layers: [], credits: [], overview: "none", warnings: [],
       renderingAvailable: true, unavailableReason: null, lastError: null,
     };
     vi.spyOn(app.scenes, "state").mockImplementation(() => ({ ...controllerState, status }));

@@ -20,7 +20,7 @@ function entry(id: string, over: Partial<SceneEntryStatus> = {}): SceneEntryStat
 function status(over: Partial<SceneStatus> = {}): SceneStatus {
   return {
     phase: "overview", active: null, target: null, sceneId: "umn-twin-cities", revision: "rev-1", title: "Twin Cities",
-    generation: 1, hovered: null, entries: [entry("northrop-mall"), entry("coffman")], groups: [], credits: [],
+    generation: 1, hovered: null, entries: [entry("northrop-mall"), entry("coffman")], groups: [], layers: [], credits: [],
     overview: "none", warnings: [], renderingAvailable: true, unavailableReason: null, lastError: null, view: null, ...over,
   };
 }
