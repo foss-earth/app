@@ -763,6 +763,8 @@ describe("createGlobeApp smoke behavior", () => {
       .map(element => element.getAttribute("data-parameter"));
     expect(controls("camera")).toEqual(expect.arrayContaining([
       "camera.fieldOfView", "camera.pitchLimits", "camera.zoomLimits", "camera.inertiaDecay", "input.globeAnchorRotation", "visualization.compass.heightOffset",
+      "camera.eyeContact", "camera.eyeContactAcceleration", "camera.eyeClearance",
+      "camera.unifiedInertia", "camera.panForce", "camera.orbitForce", "camera.zoomForce", "camera.orbitInPlace",
     ]));
     expect(controls("mouse")).toEqual(expect.arrayContaining(["input.mouse.orbitRate", "input.mouse.dragThreshold", "input.wheel.zoomRate"]));
     expect(controls("touch")).toEqual(expect.arrayContaining(["input.touch.orbitRate", "input.touch.panRate", "input.touch.zoomExponent"]));
