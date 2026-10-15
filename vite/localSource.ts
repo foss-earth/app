@@ -8,6 +8,20 @@ interface Manifest {
   exports?: Record<string, string | { source?: string }>;
 }
 
+/**
+ * The query without the optimizer's `v=` version. Vite gives it to the files of
+ * an excluded package and the browser keeps those for a year, which suits an
+ * installed build. A checkout changes under the same version, so a browser that
+ * kept a module ran it beside newer ones that need what it lacks.
+ */
+function withoutVersion(suffix: string): string {
+  if (!suffix.startsWith("?")) return suffix;
+  const hashAt = suffix.indexOf("#");
+  const query = suffix.slice(1, hashAt < 0 ? undefined : hashAt);
+  const kept = query.split("&").filter(part => !/^v=[\w.-]+$/.test(part)).join("&");
+  return (kept ? `?${kept}` : "") + (hashAt < 0 ? "" : suffix.slice(hashAt));
+}
+
 /** Use linked CSS source and serve watched scripts with Earth's installed dependencies. */
 export function localSource(options: { root?: string } = {}): Plugin {
   const root = realpathSync(options.root ?? path.resolve(import.meta.dirname, ".."));
@@ -82,7 +96,7 @@ export function localSource(options: { root?: string } = {}): Plugin {
         return resolved;
       }
       if (!sourceFile(canonical)) return resolved;
-      return { ...resolved, id: canonical + resolved.id.slice(file.length) };
+      return { ...resolved, id: canonical + withoutVersion(resolved.id.slice(file.length)) };
     },
   };
 }

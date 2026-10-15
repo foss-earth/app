@@ -40,6 +40,8 @@ import {
 import { attemptEarthCleanup } from "./nativeResources";
 import { textureReadiness } from "./textureReadiness";
 import { poseEditEnabled } from "./poseEditor/poseGate";
+import { createPoseOverrides, openPoseStorage } from "./poseEditor/poseOverrides";
+import { POSE_STORAGE_KEY } from "./poseEditor/poseStore";
 
 export interface EarthSceneHostOptions {
   browser: Awaited<ReturnType<typeof createEarthBrowserRuntime>>;
@@ -50,6 +52,8 @@ export interface EarthSceneHostOptions {
   baseUrl: string;
   readinessPolicy: ReadinessPolicy;
   openSettings(): void;
+  /** Filename prefix for a pose export. Defaults to `foss-earth-poses`. */
+  poseExportPrefix?: string;
 }
 
 export function createEarthSceneHost(options: EarthSceneHostOptions) {
@@ -275,36 +279,63 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         return reading ? { shown: reading.representation, loading: reading.loading, limitation: reading.limitation, progress: reading.progress } : null;
       }, externalLinkIcon: ui.externalLinkIcon, openSettings: options.openSettings });
     cleanup.push(() => tabs.destroy());
-    if (import.meta.env.DEV && import.meta.env.MODE !== "test" && poseEditEnabled(true, window.location.search)) {
-      let sceneUrl: string | null = null;
-      let poseEditor: { dispose(): void } | null = null;
-      let poseEditorGone = false;
-      const load = controller.load.bind(controller);
-      controller.load = async (input, loadOptions) => {
-        const ok = await load(input, loadOptions);
-        if (ok) {
-          const example = loadOptions?.exampleId ? controller.examples.find(entry => entry.id === input.trim()) : undefined;
-          sceneUrl = example?.url ?? input;
-        }
-        return ok;
+    if (import.meta.env.MODE !== "test") {
+      const editing = poseEditEnabled(window.location.search);
+      const overrides = createPoseOverrides({
+        baseUrl: options.baseUrl,
+        controller,
+        world: sceneWorld,
+        viewer: {
+          reposition: (id, edit) => { viewer.reposition(id, edit); },
+          syncPresentedCamera: () => { runtime.syncPresentedCamera(); },
+        },
+        persist: editing,
+        storage: openPoseStorage(window),
+        schedule: (run, delayMs) => {
+          const timer = window.setTimeout(run, delayMs);
+          return { cancel: () => window.clearTimeout(timer) };
+        },
+      });
+      const onStorage = (event: StorageEvent) => {
+        if (event.key !== null && event.key !== POSE_STORAGE_KEY) return;
+        try { overrides.observeExternal(window.localStorage.getItem(POSE_STORAGE_KEY)); }
+        catch { overrides.observeExternal(event.newValue); }
       };
-      void import("./poseEditor/editor").then(({ mountPoseEditor }) => {
-        if (poseEditorGone) return;
-        poseEditor = mountPoseEditor({
-          document: canvas.ownerDocument, canvas, baseUrl: options.baseUrl, sceneUrl: () => sceneUrl, controller, viewer, world: sceneWorld, renderer, runtime,
-          dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
-          tab: tabs.sphere,
-          beforeFrame(listener) {
-            const observer = runtime.scene.onBeforeRenderObservable.add(listener, undefined, true);
-            return () => { runtime.scene.onBeforeRenderObservable.remove(observer); };
-          },
-          afterFrame(listener) {
-            const observer = runtime.scene.onAfterRenderObservable.add(listener);
-            return () => { runtime.scene.onAfterRenderObservable.remove(observer); };
-          },
-        });
-      }).catch(error => report(null, "image", error));
-      cleanup.push(() => { poseEditorGone = true; poseEditor?.dispose(); });
+      const flushEditing = () => { if (editing) overrides.flush(); };
+      const onVisibility = () => { if (document.visibilityState === "hidden") flushEditing(); };
+      window.addEventListener("storage", onStorage);
+      window.addEventListener("pagehide", flushEditing);
+      document.addEventListener("visibilitychange", onVisibility);
+      cleanup.push(() => {
+        window.removeEventListener("storage", onStorage);
+        window.removeEventListener("pagehide", flushEditing);
+        document.removeEventListener("visibilitychange", onVisibility);
+        overrides.dispose();
+      });
+      if (editing) {
+        let poseEditor: { dispose(): void } | null = null;
+        let poseEditorGone = false;
+        void import("./poseEditor/editor").then(({ mountPoseEditor }) => {
+          if (poseEditorGone) return;
+          poseEditor = mountPoseEditor({
+            document: canvas.ownerDocument, canvas, baseUrl: options.baseUrl,
+            sceneUrl: () => overrides.scene()?.sceneUrl ?? null,
+            controller, overrides, exportPrefix: options.poseExportPrefix,
+            viewer, world: sceneWorld, renderer, runtime,
+            dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
+            tab: tabs.sphere,
+            beforeFrame(listener) {
+              const observer = runtime.scene.onBeforeRenderObservable.add(listener, undefined, true);
+              return () => { runtime.scene.onBeforeRenderObservable.remove(observer); };
+            },
+            afterFrame(listener) {
+              const observer = runtime.scene.onAfterRenderObservable.add(listener);
+              return () => { runtime.scene.onAfterRenderObservable.remove(observer); };
+            },
+          });
+        }).catch(error => report(null, "image", error));
+        cleanup.push(() => { poseEditorGone = true; poseEditor?.dispose(); });
+      }
     }
     const hotspots = createSceneHotspots({ document, controller, container: canvas.parentElement ?? canvas });
     cleanup.push(() => hotspots.destroy());

@@ -43,17 +43,28 @@
   max-width: 100%;
 }
 
-.pose-editor-field input {
+.pose-editor-field input,
+.pose-editor-reference {
   flex: 0 0 auto;
+  box-sizing: border-box;
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: inherit;
+  background: transparent;
+}
+
+.pose-editor-field input {
   width: calc(var(--pose-chars, 1) * 1ch + 1.6em);
   max-width: calc(var(--pose-chars, 1) * 1ch + 1.6em);
   min-width: 0;
-  box-sizing: border-box;
-  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
-  border-radius: 6px;
-  padding: 2px 4px;
-  color: inherit;
-  background: transparent;
+}
+
+.pose-editor-reference {
+  width: min(18em, 100%);
+  max-width: 100%;
+  font: inherit;
 }
 
 .pose-editor-axis input {
@@ -102,11 +113,20 @@
   opacity: 0.72;
 }
 
-.pose-editor-actions button {
+.pose-editor-actions button,
+.pose-editor-replace,
+.pose-editor-body > .pose-editor-copy {
+  min-height: 44px;
   border-radius: 999px;
-  padding: 3px 9px;
+  padding: 8px 12px;
   font: inherit;
   cursor: pointer;
+}
+
+.pose-editor-actions button:disabled,
+.pose-editor-replace:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 
 .pose-editor-reset {
@@ -115,15 +135,30 @@
   background: transparent;
 }
 
-.pose-editor-save {
+.pose-editor-save,
+.pose-editor-export,
+.pose-editor-download,
+.pose-editor-copy {
   border: 1px solid var(--globe-accent, #60a5fa);
   color: inherit;
   background: color-mix(in srgb, var(--globe-accent, #60a5fa) 18%, transparent);
 }
 
-.pose-editor-actions button:disabled {
-  cursor: default;
-  opacity: 0.4;
+.pose-editor-clear,
+.pose-editor-replace {
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  color: inherit;
+  background: transparent;
+}
+
+.pose-editor-export-text {
+  flex-basis: 100%;
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  user-select: text;
+  margin: 0;
+  font-size: 12px;
 }
 
 .pose-gizmo {
@@ -138,6 +173,8 @@
 
 .pose-gizmo [data-handle] {
   pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
   cursor: grab;
 }
 
@@ -149,7 +186,7 @@
 .pose-gizmo-hit {
   fill: none;
   stroke: transparent;
-  stroke-width: 16;
+  stroke-width: 44;
   pointer-events: stroke;
 }
 

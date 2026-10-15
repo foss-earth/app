@@ -4,21 +4,25 @@ import { build as viteBuild, createServer, defaultClientConditions, normalizePat
 import { expect, it } from "vitest";
 import { localSource } from "./localSource";
 
-it("serves linked source live across hosts and resolves its dependencies from Earth", async () => {
+const write = (file: string, contents: string | object) => {
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, typeof contents === "string" ? contents : JSON.stringify(contents));
+};
+const link = (from: string, to: string) => {
+  mkdirSync(path.dirname(to), { recursive: true });
+  symlinkSync(from, to, "dir");
+};
+const scratchFolder = () => {
   const build = path.resolve(import.meta.dirname, "../build");
   mkdirSync(build, { recursive: true });
-  const scratch = realpathSync(mkdtempSync(path.join(build, "local-source-")));
+  return realpathSync(mkdtempSync(path.join(build, "local-source-")));
+};
+
+it("serves linked source live across hosts and resolves its dependencies from Earth", async () => {
+  const scratch = scratchFolder();
   const host = path.join(scratch, "host");
   const earth = path.join(scratch, "earth");
   const ui = path.join(scratch, "ui");
-  const write = (file: string, contents: string | object) => {
-    mkdirSync(path.dirname(file), { recursive: true });
-    writeFileSync(file, typeof contents === "string" ? contents : JSON.stringify(contents));
-  };
-  const link = (from: string, to: string) => {
-    mkdirSync(path.dirname(to), { recursive: true });
-    symlinkSync(from, to, "dir");
-  };
   write(path.join(host, "package.json"), { name: "tour-fixture", type: "module" });
   write(path.join(host, "src/main.ts"), 'import "./style.css"; export * from "foss-earth";');
   write(path.join(host, "src/style.css"), '@import "foss-earth/style.css";');
@@ -127,6 +131,58 @@ it("serves linked source live across hosts and resolves its dependencies from Ea
     expect(stylesheets[0]).toContain("--fixture-log-source:live");
     expect(stylesheets[0]).toContain("--fixture-nested-source:after");
     expect(stylesheets[0]).not.toContain("--fixture-ui-stale-build");
+  } finally {
+    await server.close();
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}, 10_000);
+
+it("leaves the optimizer's version off linked source, which changes under one version", async () => {
+  // Vite versions an excluded package's files with the optimizer's hash and the
+  // browser keeps them for a year. A checkout changes under the same hash: on
+  // 2026-10-14 a browser ran the app's new createGlobeApp with its old compass.
+  const scratch = scratchFolder();
+  const host = path.join(scratch, "host");
+  const earth = path.join(scratch, "earth");
+  const ui = path.join(scratch, "ui");
+  write(path.join(host, "package.json"), { name: "tour-fixture", type: "module" });
+  write(path.join(earth, "package.json"), {
+    name: "foss-earth", type: "module", exports: { ".": "./src/index.ts" }, dependencies: { "@foss-earth/ui": "file:../ui" },
+  });
+  write(path.join(earth, "src/index.ts"), 'export * from "@foss-earth/ui"; export * from "./more";');
+  write(path.join(earth, "src/more.ts"), "export const more = 1;");
+  write(path.join(ui, "package.json"), {
+    name: "@foss-earth/ui", type: "module", exports: {
+      ".": { source: "./src/index.ts", import: "./dist/index.js" },
+      "./details": { source: "./src/details.ts", import: "./dist/details.js" },
+    },
+  });
+  const uiFile = normalizePath(path.join(ui, "src/index.ts"));
+  write(uiFile, 'export const mode = "source";');
+  write(path.join(ui, "src/details.ts"), 'export const details = "source";');
+  link(earth, path.join(host, "node_modules/foss-earth"));
+  link(ui, path.join(earth, "node_modules/@foss-earth/ui"));
+
+  const server = await createServer({
+    configFile: false,
+    root: host,
+    logLevel: "silent",
+    resolve: { conditions: ["source", ...defaultClientConditions], preserveSymlinks: true },
+    server: { middlewareMode: true, hmr: false, fs: { allow: [host] } },
+    plugins: [localSource({ root: earth })],
+  });
+  try {
+    const optimizer = server.environments.client.depsOptimizer;
+    await optimizer?.scanProcessing;
+    expect(optimizer?.metadata.browserHash).toMatch(/^\w+$/);
+    const earthFile = normalizePath(path.join(earth, "src/index.ts"));
+    const resolve = (id: string) => server.environments.client.pluginContainer.resolveId(id, earthFile);
+    expect((await resolve("@foss-earth/ui"))?.id).toBe(uiFile);
+    expect((await resolve("@foss-earth/ui/details?raw"))?.id).toBe(normalizePath(path.join(ui, "src/details.ts")) + "?raw");
+    const code = (await server.transformRequest(`/@fs${earthFile}`))?.code ?? "";
+    expect(code).toContain(`/@fs${uiFile}"`);
+    expect(code).toMatch(/\/more\.ts"/);
+    expect(code).not.toMatch(/[?&]v=/);
   } finally {
     await server.close();
     rmSync(scratch, { recursive: true, force: true });

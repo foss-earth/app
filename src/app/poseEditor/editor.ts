@@ -1,8 +1,7 @@
-/** Local-only gizmo for placing a photograph. The dev server loads it; the published site does not. */
+/** Placement gizmo. It loads only when the address has exactly one `dev=1`, including on the published site. */
 import { dot, enuFrame, length, sub, type Vec3 } from "@foss-earth/engine";
 import { worldViewportClientRect } from "@foss-earth/engine/browser";
-import type { SceneController, SceneEntryStatus, ScenePlacement, SceneStatus } from "@foss-earth/scenes/browser";
-import type { SpherePoseEdit } from "../sceneWorld";
+import type { SceneController, SceneStatus } from "@foss-earth/scenes/browser";
 import "./pose-editor.css";
 import {
   POSE_HANDLES, axisShift, axisSpin, axisTravel, clampLatitude, clampPitch, gizmoArmMeters, gizmoPolylines, insideGizmoAnchor,
@@ -11,8 +10,12 @@ import {
 } from "./poseMath";
 import { scenePublicPath } from "./poseFile";
 import { bindPoseEditStop, setPoseEditTitle } from "./poseEditTab";
+import type { PoseOverrides } from "./poseOverrides";
+import { DEFAULT_POSE_EXPORT_PREFIX, poseExportFilename, type DesiredNumbers } from "./poseStore";
 
 const SAVE_URL = "/__foss-earth/pose";
+const LONG_PRESS_MS = 500;
+const CONFIRM_MS = 5000;
 const HANDLE_COLOR: Record<PoseHandle, string> = {
   east: "#ff5a5a", north: "#4aa3ff", up: "#3dde8a", heading: "#3dde8a", pitch: "#ff5a5a", spin: "#f4efe4",
 };
@@ -26,30 +29,21 @@ const HANDLE_TITLE: Record<PoseHandle, string> = {
   spin: "Slide along the arc to turn the red and blue arrows",
 };
 
-interface Draft {
-  longitudeDeg: number;
-  latitudeDeg: number;
-  headingDeg: number;
-  pitchDeg: number;
-  offsetM: number;
-  heightMeters: number | null;
-  mode: "ground-relative" | "capture-relative";
-}
-
 export interface PoseEditorHost {
   document: Document;
   canvas: HTMLCanvasElement;
   baseUrl: string;
   sceneUrl(): string | null;
   controller: SceneController;
+  overrides: PoseOverrides;
+  /** Filename prefix for an export. The default is `foss-earth-poses`. */
+  exportPrefix?: string;
   viewer: {
-    describeImage?(id: string): { placement: { marker: Vec3 | null }; details?: { capture?: { heightMeters: number | null } | null } | null } | null;
-    reposition(id: string, edit: { placement: ScenePlacement["placement"]; capture?: { latitudeDeg: number; longitudeDeg: number; heightMeters: number | null } }): void;
+    describeImage?(id: string): { placement: { marker: Vec3 | null } } | null;
     setImageOpacity(id: string | null, opacity: number): void;
   };
   world: {
-    setPoseEdit(id: string, edit: SpherePoseEdit | null): ScenePlacement | null;
-    posePlacement(id: string): ScenePlacement | null;
+    posePlacement(id: string): { placement: { marker: Vec3 | null } } | null;
   };
   renderer: { cameraFrame(): { eye: Vec3; view: ViewFrame["view"] } | null };
   runtime: {
@@ -66,31 +60,18 @@ export interface PoseEditorHost {
   tab: HTMLElement;
 }
 
-function draftFrom(entry: SceneEntryStatus): Draft | null {
-  if (!entry.supported || !entry.capture || !entry.pose || !entry.marker) return null;
-  return {
-    longitudeDeg: entry.capture.longitudeDeg, latitudeDeg: entry.capture.latitudeDeg,
-    headingDeg: entry.pose.headingDeg, pitchDeg: entry.pose.pitchDeg,
-    offsetM: entry.marker.offsetM, heightMeters: entry.capture.heightMeters, mode: entry.marker.mode,
-  };
+interface Draft {
+  longitudeDeg: number;
+  latitudeDeg: number;
+  headingDeg: number;
+  pitchDeg: number;
+  offsetM: number;
+  heightMeters: number | null;
+  mode: "ground-relative" | "capture-relative";
 }
 
 function copyDraft(draft: Draft): Draft {
   return { ...draft };
-}
-
-function shortestHeading(from: number, to: number): number {
-  const delta = Math.abs(wrapHeading(to - from));
-  return Math.min(delta, 360 - delta);
-}
-
-function changed(from: Draft, to: Draft): boolean {
-  return shortestHeading(from.headingDeg, to.headingDeg) > 1e-4
-    || Math.abs(from.pitchDeg - to.pitchDeg) > 1e-4
-    || Math.abs(from.latitudeDeg - to.latitudeDeg) > 1e-8
-    || Math.abs(from.longitudeDeg - to.longitudeDeg) > 1e-8
-    || Math.abs(from.offsetM - to.offsetM) > 1e-3
-    || Math.abs((from.heightMeters ?? 0) - (to.heightMeters ?? 0)) > 1e-3;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(document: Document, name: K, className: string, text?: string): HTMLElementTagNameMap[K] {
@@ -149,8 +130,8 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   const fields = element(document, "div", "pose-editor-fields");
   const altitudeLabel = element(document, "span", "", "Above the ground");
   const inputs = {
-    latitudeDeg: field(document, fields, "Latitude"),
-    longitudeDeg: field(document, fields, "Longitude"),
+    latitudeDeg: field(document, fields, "Capture latitude"),
+    longitudeDeg: field(document, fields, "Capture longitude"),
     altitude: field(document, fields, altitudeLabel),
     headingDeg: field(document, fields, "Heading"),
     pitchDeg: field(document, fields, "Pitch"),
@@ -169,16 +150,45 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   axisWrap.append(axisInput, axisReset);
   axisRow.append(axisWrap);
   fields.append(axisRow);
-  const hint = element(document, "p", "pose-editor-hint", "Drag the axes to move the photograph and the rings to turn it. Hover a red or blue arrow to lengthen it, then click it and slide the arc on either side to turn those two. Click the ground to stop editing. See through shows the map already loaded.");
+  const hint = element(document, "p", "pose-editor-hint", "Drag the axes to move the photograph and the rings to turn it. Hover a red or blue arrow to lengthen it, then click it and slide the arc on either side to turn those two. Click the ground to stop editing. See through shows the map already loaded. Hotspot directions and the opening view update after the corrections are imported and the scenes are rebuilt.");
+  const offsetHint = element(document, "p", "pose-editor-hint", "");
+  const northRow = element(document, "label", "pose-editor-see");
+  const north = document.createElement("input");
+  north.type = "checkbox";
+  north.setAttribute("aria-label", "North checked");
+  northRow.append(north, element(document, "span", "", "North checked"));
+  const referenceRow = element(document, "label", "pose-editor-field");
+  referenceRow.append(element(document, "span", "", "Checked against"));
+  const reference = document.createElement("input");
+  reference.type = "text";
+  reference.className = "pose-editor-reference";
+  reference.setAttribute("aria-label", "Checked against");
+  referenceRow.append(reference);
   const actions = element(document, "div", "pose-editor-actions");
   const reset = element(document, "button", "pose-editor-reset", "Reset");
   reset.type = "button";
   const save = element(document, "button", "pose-editor-save", "Save place");
   save.type = "button";
-  actions.append(reset, save);
+  const share = element(document, "button", "pose-editor-export", "Export");
+  share.type = "button";
+  const download = element(document, "button", "pose-editor-download", "Download");
+  download.type = "button";
+  const copy = element(document, "button", "pose-editor-copy", "Copy JSON");
+  copy.type = "button";
+  const clear = element(document, "button", "pose-editor-clear", "Clear saved edits");
+  clear.type = "button";
+  actions.append(reset, save, share, download, copy, clear);
+  const replace = element(document, "button", "pose-editor-replace", "Replace unreadable saved data");
+  replace.type = "button";
+  const copyOriginal = element(document, "button", "pose-editor-copy", "Copy original saved text");
+  copyOriginal.type = "button";
+  const persistent = element(document, "p", "pose-editor-status", "");
+  persistent.setAttribute("role", "status");
   const status = element(document, "p", "pose-editor-status", "");
   status.setAttribute("role", "status");
-  body.append(see, fields, hint, actions, status);
+  const exported = element(document, "pre", "pose-editor-export pose-editor-export-text");
+  exported.hidden = true;
+  body.append(see, fields, northRow, referenceRow, hint, offsetHint, actions, replace, copyOriginal, persistent, status, exported);
   panel.append(summary, body);
   host.tab.append(panel);
   const overlay = svg(document, "svg");
@@ -211,21 +221,28 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   overlay.style.display = "none";
   document.body.append(overlay);
 
-  const baselines = new Map<string, Draft>();
-  const drafts = new Map<string, Draft>();
   const opacityOf = new Map<string, number>();
   let sceneKey = "";
+  let followed: string | null = null;
+  let suspended = false;
+  let suspendedId: string | null = null;
   let selected: string | null = null;
   let note = "";
   let saving = false;
   let probe: boolean | null = null;
   let worldVisible = false;
-  let appliedKey = "";
+  let gesture = 0;
   let drag: { handle: PoseHandle; pointerId: number; x: number; y: number; startX: number; startY: number; moved: boolean } | null = null;
   let spinArm: "east" | "north" | null = null;
   let hoverHandle: PoseHandle | null = null;
   const HOVER_REACH = 1.22;
   const axisHeadingOf = new Map<string, number>();
+  let clearArmedUntil = 0;
+  let replaceArmedUntil = 0;
+  let confirmToken = 0;
+  let arm: { pointerId: number; id: string; x: number; y: number; timer: number } | null = null;
+  let suppressMenu = false;
+  const view = document.defaultView;
 
   const stop = (event: Event) => event.stopPropagation();
   panel.addEventListener("pointerdown", stop, true);
@@ -241,7 +258,28 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   }
 
   function currentDraft(): Draft | null {
-    return selected ? drafts.get(selected) ?? null : null;
+    if (!selected) return null;
+    const base = host.overrides.baseline(selected);
+    if (!base) return null;
+    const edit = host.overrides.record(selected);
+    if (!edit) {
+      return {
+        longitudeDeg: base.longitudeDeg, latitudeDeg: base.latitudeDeg, headingDeg: base.headingDeg,
+        pitchDeg: base.pitchDeg, offsetM: base.offsetM, heightMeters: base.heightMeters, mode: base.mode,
+      };
+    }
+    return {
+      longitudeDeg: edit.capture.longitudeDeg, latitudeDeg: edit.capture.latitudeDeg,
+      headingDeg: edit.imagePose.headingDeg, pitchDeg: edit.imagePose.pitchDeg,
+      offsetM: edit.marker.offsetM, heightMeters: edit.capture.heightMeters, mode: edit.mode,
+    };
+  }
+
+  function desiredOf(draft: Draft): DesiredNumbers {
+    return {
+      mode: draft.mode, longitudeDeg: draft.longitudeDeg, latitudeDeg: draft.latitudeDeg, heightMeters: draft.heightMeters,
+      headingDeg: draft.headingDeg, pitchDeg: draft.pitchDeg, offsetM: draft.offsetM,
+    };
   }
 
   function opacityFor(id: string): number {
@@ -273,41 +311,6 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (inside) host.runtime.syncPresentedCamera();
   }
 
-  function editOf(draft: Draft): SpherePoseEdit {
-    return {
-      longitudeDeg: draft.longitudeDeg, latitudeDeg: draft.latitudeDeg,
-      heightMeters: draft.mode === "capture-relative" ? draft.heightMeters : null,
-      headingDeg: wrapHeading(draft.headingDeg), pitchDeg: clampPitch(draft.pitchDeg), offsetM: draft.offsetM,
-    };
-  }
-
-  function captureOf(draft: Draft): { latitudeDeg: number; longitudeDeg: number; heightMeters: number | null } {
-    const authored = selected ? host.viewer.describeImage?.(selected)?.details?.capture?.heightMeters ?? null : null;
-    return {
-      latitudeDeg: draft.latitudeDeg, longitudeDeg: wrapLongitude(draft.longitudeDeg),
-      heightMeters: draft.mode === "capture-relative" ? draft.heightMeters : authored,
-    };
-  }
-
-  function markerKey(placement: ScenePlacement["placement"] | null): string {
-    if (!placement?.marker) return "";
-    return `${placement.marker.join(",")}|${placement.content.flat().join(",")}`;
-  }
-
-  function applyPlacement(id: string, draft: Draft, placement: ScenePlacement | null): void {
-    const next = placement?.state === "placed" ? placement.placement : null;
-    const key = markerKey(next);
-    if (!next?.marker || key === appliedKey) return;
-    appliedKey = key;
-    host.viewer.reposition(id, { placement: next, capture: captureOf(draft) });
-    if (host.controller.state().status?.phase === "immersive") host.runtime.syncPresentedCamera();
-  }
-
-  function publish(id: string, draft: Draft): void {
-    const placed = host.world.setPoseEdit(id, editOf(draft));
-    applyPlacement(id, draft, placed ?? host.world.posePlacement(id));
-  }
-
   function writeFields(draft: Draft | null): void {
     const active = document.activeElement;
     const write = (input: HTMLInputElement, text: string) => {
@@ -324,35 +327,94 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const arrowTurn = Math.min(arrowHeading, 360 - arrowHeading);
     axisReset.disabled = !draft || arrowTurn < 1e-3;
     write(axisInput, draft ? arrowHeading.toFixed(3) : "");
-    if (!draft) return;
+    if (!draft) {
+      for (const input of Object.values(inputs)) write(input, "");
+      return;
+    }
     altitudeLabel.textContent = draft.mode === "ground-relative" ? "Above the ground" : "Above the ellipsoid";
     write(inputs.latitudeDeg, draft.latitudeDeg.toFixed(6));
     write(inputs.longitudeDeg, draft.longitudeDeg.toFixed(6));
-    write(inputs.altitude, (draft.mode === "ground-relative" ? draft.offsetM : draft.heightMeters ?? 0).toFixed(2));
+    write(inputs.altitude, draft.mode === "ground-relative" ? draft.offsetM.toFixed(2) : draft.heightMeters === null ? "" : draft.heightMeters.toFixed(2));
     write(inputs.headingDeg, draft.headingDeg.toFixed(3));
     write(inputs.pitchDeg, draft.pitchDeg.toFixed(3));
+  }
+
+  function cancelConfirmations(): void {
+    confirmToken += 1;
+    clearArmedUntil = 0;
+    replaceArmedUntil = 0;
+  }
+
+  function armExpiry(): void {
+    const token = confirmToken;
+    view?.setTimeout(() => {
+      if (token !== confirmToken) return;
+      clearArmedUntil = 0;
+      replaceArmedUntil = 0;
+      paint();
+    }, CONFIRM_MS);
+  }
+
+  function cancelArm(): void {
+    if (arm && view) view.clearTimeout(arm.timer);
+    arm = null;
+  }
+
+  function cancelGestures(): void {
+    gesture += 1;
+    drag = null;
+    cancelArm();
+  }
+
+  function thresholdPx(): number {
+    const threshold = host.dragThresholdPx();
+    return Number.isFinite(threshold) && threshold >= 0 ? threshold : 4;
   }
 
   function paint(): void {
     const scene = host.controller.state().status;
     const draft = currentDraft();
-    const baseline = selected ? baselines.get(selected) ?? null : null;
-    const dirty = Boolean(draft && baseline && changed(baseline, draft));
+    const record = selected ? host.overrides.record(selected) : null;
+    const baseline = selected ? host.overrides.baseline(selected) : null;
     const file = sceneFile();
-    const showing = Boolean(draft && editingHere(scene));
-    if (showing && panel.hidden) panel.scrollIntoView({ block: "nearest" });
-    panel.hidden = !showing;
+    const showing = Boolean(selected && editingHere(scene));
+    if (showing && !panel.open) panel.scrollIntoView?.({ block: "nearest" });
+    panel.hidden = false;
+    panel.open = showing || host.overrides.counts().scene > 0;
     const percent = Math.round((selected ? opacityFor(selected) : 1) * 100);
     if (document.activeElement !== opacity) opacity.value = String(100 - percent);
     opacityReadout.textContent = `${100 - percent}%`;
     opacity.disabled = !draft;
     writeFields(draft);
-    reset.disabled = !dirty || saving;
-    save.disabled = !dirty || saving || probe !== true || !file;
+    const counts = host.overrides.counts();
+    const storeStatus = host.overrides.status();
+    const now = Date.now();
+    reset.disabled = !record || saving;
+    save.hidden = !file;
+    save.disabled = !record || saving || probe !== true || !file;
+    share.disabled = counts.all === 0;
+    download.disabled = counts.all === 0;
+    copy.disabled = counts.all === 0;
+    clear.disabled = counts.scene === 0;
+    clear.textContent = now < clearArmedUntil ? `Clear ${counts.scene} edits for this scene` : `Clear saved edits (${counts.scene})`;
+    replace.hidden = !storeStatus.canReplaceSaved;
+    replace.textContent = now < replaceArmedUntil ? "Discard unreadable records and replace them" : "Replace unreadable saved data";
+    copyOriginal.hidden = !storeStatus.originalText;
+    north.disabled = !draft;
+    reference.disabled = !draft;
+    if (document.activeElement !== north) north.checked = record ? record.imagePose.aligned : baseline?.aligned === true;
+    if (document.activeElement !== reference) reference.value = record?.verification.orientation?.checkedAgainst ?? "";
+    const east = Math.abs(baseline?.eastM ?? 0);
+    const northOffset = Math.abs(baseline?.northM ?? 0);
+    offsetHint.hidden = !draft || (east < 1e-3 && northOffset < 1e-3);
+    offsetHint.textContent = "The marker's east and north are display offsets. Capture longitude and latitude above are the photograph's place.";
+    const lines = [...storeStatus.messages];
+    if (counts.all > 0) lines.unshift(`${counts.all} saved edit${counts.all === 1 ? "" : "s"} in this browser.`);
+    persistent.textContent = lines.join(" ");
     if (note) status.textContent = note;
-    else if (!file && scene && draft) status.textContent = "This scene is not a file in the app, so its place cannot be saved.";
-    else if (probe === false) status.textContent = "Saving works on the local dev server, not on the published site.";
-    else status.textContent = dirty ? "Save writes the scene file on this computer." : "";
+    else if (file && probe === true) status.textContent = record ? "Save place writes this local scene file. Export keeps a copy you can take with you." : "Save place writes a local scene file. Export keeps edits from every scene.";
+    else if (counts.all > 0) status.textContent = "Export keeps a copy of these edits. Keep that file as a backup.";
+    else status.textContent = "";
     publishEditTab();
   }
 
@@ -363,10 +425,26 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   }
 
   function stopEdit(): void {
-    if (!selected) return;
+    if (!selected && !suspended) return;
+    cancelGestures();
+    cancelConfirmations();
+    suspended = true;
+    suspendedId = followed;
     selected = null;
     spinArm = null;
     hoverHandle = null;
+    note = "";
+    syncOpacity();
+    paint();
+  }
+
+  function armPhoto(id: string): void {
+    if (!host.overrides.baseline(id)) return;
+    cancelConfirmations();
+    if (selected !== id) spinArm = null;
+    suspended = false;
+    suspendedId = null;
+    selected = id;
     note = "";
     syncOpacity();
     paint();
@@ -376,17 +454,38 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     return selected ? axisHeadingOf.get(selected) ?? 0 : 0;
   }
 
-  function remember(scene: SceneStatus): void {
-    const key = `${scene.sceneId}:${scene.revision}:${scene.generation}`;
-    if (key === sceneKey) return;
-    for (const id of drafts.keys()) host.world.setPoseEdit(id, null);
-    sceneKey = key; baselines.clear(); drafts.clear(); opacityOf.clear(); axisHeadingOf.clear(); spinArm = null; hoverHandle = null; appliedKey = ""; note = ""; selected = null;
-    for (const entry of scene.entries) {
-      const draft = draftFrom(entry);
-      if (!draft) continue;
-      baselines.set(entry.id, draft); drafts.set(entry.id, copyDraft(draft));
+  function syncFromHost(): void {
+    const scene = host.controller.state().status;
+    const identity = host.overrides.scene();
+    const key = identity ? `${identity.sceneId}\n${identity.sceneUrl}\n${identity.revision}` : "";
+    if (key !== sceneKey) {
+      cancelGestures();
+      cancelConfirmations();
+      opacityOf.clear();
+      axisHeadingOf.clear();
+      selected = null;
+      suspended = false;
+      suspendedId = null;
+      followed = null;
+      sceneKey = key;
+      spinArm = null;
+      hoverHandle = null;
+      note = "";
     }
-    syncOpacity();
+    const active = scene?.phase === "immersive" ? scene.active : null;
+    if (active !== followed) {
+      cancelGestures();
+      if (followed) { opacityOf.delete(followed); axisHeadingOf.delete(followed); }
+      host.viewer.setImageOpacity(null, 1);
+      followed = active;
+      if (!(suspended && active === suspendedId) && active && host.overrides.baseline(active)) {
+        suspended = false;
+        suspendedId = null;
+        if (selected !== active) spinArm = null;
+        selected = active;
+        note = "";
+      }
+    }
   }
 
   function sceneFile(): string | null {
@@ -417,8 +516,6 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const anchor = frame && draft ? anchorOf(phase, frame) : null;
     overlay.style.display = frame && anchor && draft ? "" : "none";
     if (!frame || !anchor || !draft) return;
-    const baseline = selected ? baselines.get(selected) : null;
-    if (phase === "immersive" && selected && baseline && changed(baseline, draft)) applyPlacement(selected, draft, host.world.posePlacement(selected));
     const rect = worldViewportClientRect(host.canvas);
     const enu = enuFrame(draft.longitudeDeg, draft.latitudeDeg);
     const distance = length(sub(anchor, frame.eye));
@@ -484,6 +581,8 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const draft = currentDraft();
     const scene = host.controller.state().status;
     if (!draft || !selected || !scene) return;
+    const token = gesture;
+    const id = selected;
     const frame = frameOf(scene.phase);
     const anchor = frame ? anchorOf(scene.phase, frame) : null;
     if (!frame || !anchor) return;
@@ -526,15 +625,19 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
       if (handle === "heading") next.headingDeg = wrapHeading(next.headingDeg + delta);
       else next.pitchDeg = clampPitch(next.pitchDeg + delta);
     }
-    drafts.set(selected, next); note = ""; publish(selected, next); paint();
+    if (gesture !== token || selected !== id) return;
+    note = "";
+    host.overrides.setNumbers(id, desiredOf(next));
+    paint();
   }
 
-  function commitNumber(key: "latitudeDeg" | "longitudeDeg" | "headingDeg" | "pitchDeg" | "altitude"): void {
+  function commitNumber(key: "latitudeDeg" | "longitudeDeg" | "headingDeg" | "pitchDeg" | "altitude"): boolean {
     const draft = currentDraft();
-    if (!draft || !selected) return;
+    if (!draft || !selected) return true;
     const input = inputs[key];
-    const value = Number(input.value);
-    if (!Number.isFinite(value)) { paint(); return; }
+    const text = input.value.trim();
+    const value = Number(text);
+    if (!text || !Number.isFinite(value)) { note = "Enter a number."; paint(); return false; }
     const next = copyDraft(draft);
     if (key === "latitudeDeg") next.latitudeDeg = clampLatitude(value);
     else if (key === "longitudeDeg") next.longitudeDeg = wrapLongitude(value);
@@ -542,7 +645,62 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     else if (key === "pitchDeg") next.pitchDeg = clampPitch(value);
     else if (next.mode === "ground-relative") next.offsetM = value;
     else next.heightMeters = value;
-    drafts.set(selected, next); note = ""; publish(selected, next); paint();
+    note = "";
+    host.overrides.setNumbers(selected, desiredOf(next));
+    host.overrides.flush();
+    paint();
+    return true;
+  }
+
+  function commitAxis(): boolean {
+    if (!selected) return true;
+    const text = axisInput.value.trim();
+    const value = Number(text);
+    if (!text || !Number.isFinite(value)) { note = "Enter a number."; paint(); return false; }
+    axisHeadingOf.set(selected, wrapHeading(value));
+    paint();
+    host.runtime.requestRender();
+    return true;
+  }
+
+  function commitReference(): boolean {
+    if (!selected || !north.checked) return true;
+    const against = reference.value.trim();
+    if (!against) { note = "Enter what you checked north against."; paint(); return false; }
+    const record = host.overrides.record(selected);
+    if (record?.verification.orientation) host.overrides.setReference(selected, against);
+    else host.overrides.confirm(selected, against);
+    return true;
+  }
+
+  function commitFocused(): boolean {
+    const active = document.activeElement;
+    if (active === axisInput) return commitAxis();
+    if (active === reference) return commitReference();
+    for (const key of ["latitudeDeg", "longitudeDeg", "headingDeg", "pitchDeg", "altitude"] as const) {
+      if (active === inputs[key]) return commitNumber(key);
+    }
+    return true;
+  }
+
+  function preparedExport(): { text: string; filename: string; disclosures: readonly string[] } | null {
+    cancelConfirmations();
+    if (!commitFocused()) return null;
+    host.overrides.flush();
+    const iso = new Date().toISOString();
+    const exportedDocument = host.overrides.exportDocument(iso);
+    return {
+      text: exportedDocument.text,
+      disclosures: exportedDocument.disclosures,
+      filename: poseExportFilename(host.exportPrefix ?? DEFAULT_POSE_EXPORT_PREFIX, iso),
+    };
+  }
+
+  function showText(text: string, message: string): void {
+    exported.hidden = false;
+    exported.textContent = text;
+    note = message;
+    paint();
   }
 
   for (const key of ["latitudeDeg", "longitudeDeg", "headingDeg", "pitchDeg", "altitude"] as const) {
@@ -550,60 +708,161 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     inputs[key].addEventListener("input", () => fitInput(inputs[key]));
   }
   axisInput.addEventListener("input", () => fitInput(axisInput));
-  axisInput.addEventListener("change", () => {
-    if (!selected) return;
-    const value = Number(axisInput.value);
-    if (!Number.isFinite(value)) { paint(); return; }
-    axisHeadingOf.set(selected, wrapHeading(value));
-    paint();
-    host.runtime.requestRender();
-  });
+  axisInput.addEventListener("change", () => { commitAxis(); });
   axisReset.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     if (!selected) return;
+    cancelConfirmations();
     axisHeadingOf.set(selected, 0);
     paint();
     host.runtime.requestRender();
   });
   opacity.addEventListener("input", () => {
     if (!selected) return;
+    cancelConfirmations();
     opacityOf.set(selected, 1 - Number(opacity.value) / 100);
     note = ""; syncOpacity(); paint();
   });
-  reset.addEventListener("click", () => {
+  north.addEventListener("change", () => {
     if (!selected) return;
-    const baseline = baselines.get(selected);
-    if (!baseline) return;
-    drafts.set(selected, copyDraft(baseline)); appliedKey = ""; note = "";
-    const placed = host.world.setPoseEdit(selected, null);
-    applyPlacement(selected, baseline, placed ?? host.world.posePlacement(selected));
+    cancelConfirmations();
+    if (north.checked) {
+      const against = reference.value.trim();
+      if (!against) { note = "Enter what you checked north against."; paint(); return; }
+      host.overrides.confirm(selected, against);
+      note = "North checked against the reference you entered.";
+    } else {
+      host.overrides.unconfirm(selected);
+      note = "North is not checked for this edit.";
+    }
+    paint();
+  });
+  reference.addEventListener("change", () => { commitReference(); paint(); });
+  reset.addEventListener("click", () => {
+    if (!commitFocused() || !selected) return;
+    cancelConfirmations();
+    host.overrides.reset(selected);
+    const persistence = host.overrides.status().persistence;
+    note = persistence === "blocked" || persistence === "foreign"
+      ? "Reset in this session. Persistence is blocked, so the saved edit may return on reload."
+      : "Reset to the published place.";
     paint();
   });
   save.addEventListener("click", () => {
+    if (!commitFocused()) return;
     const draft = currentDraft();
     const file = sceneFile();
     if (!draft || !selected || !file || probe !== true) return;
+    cancelConfirmations();
     saving = true; paint();
     const body: Record<string, unknown> = {
       file, entityId: selected, longitudeDeg: wrapLongitude(draft.longitudeDeg), latitudeDeg: clampLatitude(draft.latitudeDeg),
       headingDeg: wrapHeading(draft.headingDeg), pitchDeg: clampPitch(draft.pitchDeg), offsetM: draft.offsetM,
     };
-    if (draft.mode === "capture-relative") body.heightMeters = draft.heightMeters;
+    if (draft.mode === "capture-relative" && draft.heightMeters !== null) body.heightMeters = draft.heightMeters;
+    const id = selected;
     void fetch(new URL(SAVE_URL, window.location.origin), {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
     }).then(async response => {
       const payload = await response.json() as { ok?: boolean; error?: string };
       note = payload.ok ? "Saved into the scene file. Reload to update the status bar." : (payload.error ?? "The place could not be saved.");
-      if (payload.ok && selected) {
-        const saved = drafts.get(selected);
-        if (saved) baselines.set(selected, copyDraft(saved));
-      }
+      if (payload.ok) host.overrides.noteFileSaved(id);
     }).catch(() => { note = "The place could not be saved."; }).finally(() => { saving = false; paint(); });
+  });
+  share.addEventListener("click", () => {
+    const prepared = preparedExport();
+    if (!prepared) return;
+    const file = new File([prepared.text], prepared.filename, { type: "application/json" });
+    const nav = view?.navigator;
+    const canShare = Boolean(nav && typeof nav.canShare === "function" && nav.canShare({ files: [file] }) && nav.share);
+    if (!canShare || !nav?.share) {
+      note = "Sharing is not available here. Use Download or Copy, and keep a backup.";
+      paint();
+      return;
+    }
+    void nav.share({ files: [file], title: prepared.filename }).then(() => {
+      note = `Shared ${prepared.filename}. Keep the exported file as a backup.`;
+      paint();
+    }, (error: unknown) => {
+      note = error instanceof DOMException && error.name === "AbortError"
+        ? "Share cancelled. The edits are still here."
+        : "Share failed. Use Download or Copy, and keep a backup.";
+      paint();
+    });
+  });
+  download.addEventListener("click", () => {
+    const prepared = preparedExport();
+    if (!prepared || !view) return;
+    const blob = new Blob([prepared.text], { type: "application/json" });
+    const url = view.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = prepared.filename; link.hidden = true;
+    document.body.append(link); link.click(); link.remove();
+    view.setTimeout(() => view.URL.revokeObjectURL(url), 1500);
+    exported.hidden = true;
+    const extra = prepared.disclosures.length ? ` ${prepared.disclosures.join(" ")}` : "";
+    note = `Download requested for ${prepared.filename}. Keep the exported file as a backup.${extra}`;
+    paint();
+  });
+  copy.addEventListener("click", () => {
+    const prepared = preparedExport();
+    if (!prepared) return;
+    const write = view?.navigator.clipboard?.writeText(prepared.text);
+    if (!write) { showText(prepared.text, `Copy failed. Select the JSON below and keep ${prepared.filename} as a backup.`); return; }
+    void write.then(() => {
+      exported.hidden = true;
+      note = `Copied ${prepared.filename}. Keep the exported file as a backup.`;
+      paint();
+    }, () => showText(prepared.text, `Copy failed. Select the JSON below and keep ${prepared.filename} as a backup.`));
+  });
+  clear.addEventListener("click", () => {
+    if (!commitFocused()) return;
+    const now = Date.now();
+    if (now >= clearArmedUntil) {
+      replaceArmedUntil = 0;
+      confirmToken += 1;
+      clearArmedUntil = now + CONFIRM_MS;
+      armExpiry();
+      note = "Tap Clear again to remove this scene's saved edits. Other scenes stay.";
+      paint();
+      return;
+    }
+    clearArmedUntil = 0;
+    const result = host.overrides.clearScene();
+    note = result.blocked
+      ? "Cleared this scene in this session. Persistence is still blocked, so this may not last past a reload."
+      : "Cleared this scene's saved edits.";
+    paint();
+  });
+  replace.addEventListener("click", () => {
+    if (!commitFocused()) return;
+    const now = Date.now();
+    if (now >= replaceArmedUntil) {
+      clearArmedUntil = 0;
+      confirmToken += 1;
+      replaceArmedUntil = now + CONFIRM_MS;
+      armExpiry();
+      note = "This replaces the unreadable saved text with the edits in this session. Unreadable records are discarded. Copy the original first if you need it.";
+      paint();
+      return;
+    }
+    replaceArmedUntil = 0;
+    const result = host.overrides.replaceSaved();
+    note = result.ok ? "Replaced the unreadable saved data with this session's edits." : result.message;
+    paint();
+  });
+  copyOriginal.addEventListener("click", () => {
+    const text = host.overrides.status().originalText;
+    if (!text) return;
+    const write = view?.navigator.clipboard?.writeText(text);
+    if (!write) { showText(text, "Copy failed. The original saved text is below."); return; }
+    void write.then(() => { note = "Copied the original saved text."; paint(); }, () => showText(text, "Copy failed. The original saved text is below."));
   });
 
   overlay.addEventListener("pointerdown", event => {
     if (!(event instanceof PointerEvent)) return;
+    if (drag && event.pointerId !== drag.pointerId) { event.preventDefault(); event.stopPropagation(); return; }
     const handle = (event.target as Element | null)?.closest?.("[data-handle]")?.getAttribute("data-handle");
     if (!handle || !(POSE_HANDLES as readonly string[]).includes(handle)) return;
     event.preventDefault(); event.stopPropagation();
@@ -613,24 +872,24 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   overlay.addEventListener("pointermove", event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     event.preventDefault(); event.stopPropagation();
-    const threshold = host.dragThresholdPx();
-    const limit = Number.isFinite(threshold) && threshold >= 0 ? threshold : 4;
-    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= limit) drag.moved = true;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= thresholdPx()) drag.moved = true;
     if (!drag.moved) return;
     const from = drag;
     nudge(from.handle, from.x, from.y, event.clientX, event.clientY);
     drag = { ...from, x: event.clientX, y: event.clientY };
   });
-  const endDrag = (event: PointerEvent) => {
+  const endDrag = (event: PointerEvent, cancelled: boolean) => {
     if (drag?.pointerId !== event.pointerId) return;
     const finished = drag;
     drag = null;
-    if (event.type !== "pointerup" || finished.moved || (finished.handle !== "east" && finished.handle !== "north")) return;
+    host.overrides.flush();
+    if (cancelled || event.type !== "pointerup" || finished.moved || (finished.handle !== "east" && finished.handle !== "north")) return;
     spinArm = spinArm === finished.handle ? null : finished.handle;
     host.runtime.requestRender();
   };
-  overlay.addEventListener("pointerup", endDrag);
-  overlay.addEventListener("pointercancel", endDrag);
+  overlay.addEventListener("pointerup", event => endDrag(event, false));
+  overlay.addEventListener("pointercancel", event => endDrag(event, true));
+  overlay.addEventListener("lostpointercapture", event => endDrag(event, true));
   const handleOf = (event: Event): PoseHandle | null => {
     const name = (event.target as Element | null)?.closest?.("[data-handle]")?.getAttribute("data-handle");
     return name && (POSE_HANDLES as readonly string[]).includes(name) ? name as PoseHandle : null;
@@ -654,20 +913,39 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   let rightPress: { x: number; y: number; moved: boolean } | null = null;
   let primaryPress: { x: number; y: number; moved: boolean } | null = null;
   const markMoved = (press: { x: number; y: number; moved: boolean } | null, event: PointerEvent) => {
-    const threshold = host.dragThresholdPx();
-    if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) >= (Number.isFinite(threshold) && threshold >= 0 ? threshold : 4)) press.moved = true;
+    if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) >= thresholdPx()) press.moved = true;
   };
   const onPointerDown = (event: PointerEvent) => {
-    if (event.pointerType !== "mouse") return;
-    if (event.button === 2) rightPress = { x: event.clientX, y: event.clientY, moved: false };
-    if (event.button === 0) primaryPress = { x: event.clientX, y: event.clientY, moved: false };
+    if (arm && event.pointerId !== arm.pointerId) { cancelArm(); return; }
+    if (event.pointerType === "mouse") {
+      if (event.button === 2) rightPress = { x: event.clientX, y: event.clientY, moved: false };
+      if (event.button === 0) primaryPress = { x: event.clientX, y: event.clientY, moved: false };
+      return;
+    }
+    if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+    if (!event.isPrimary) return;
+    const scene = host.controller.state().status;
+    if (!scene || scene.phase !== "overview") return;
+    const [id] = host.controller.handle()?.pick(event.clientX, event.clientY) ?? [];
+    if (!id || !host.overrides.baseline(id)) return;
+    const pointerId = event.pointerId;
+    const timer = view?.setTimeout(() => {
+      if (!arm || arm.pointerId !== pointerId) return;
+      host.controller.consumePointerPress(pointerId);
+      arm = null;
+      suppressMenu = true;
+      armPhoto(id);
+    }, LONG_PRESS_MS) ?? 0;
+    arm = { pointerId, id, x: event.clientX, y: event.clientY, timer };
   };
   const onPointerMove = (event: PointerEvent) => {
     if ((event.buttons & 2) !== 0) markMoved(rightPress, event);
     if ((event.buttons & 1) !== 0) markMoved(primaryPress, event);
+    if (arm && event.pointerId === arm.pointerId && Math.hypot(event.clientX - arm.x, event.clientY - arm.y) >= thresholdPx()) cancelArm();
   };
   const onPrimaryUp = (event: PointerEvent) => {
-    if (event.button !== 0) return;
+    if (arm?.pointerId === event.pointerId) cancelArm();
+    if (event.button !== 0 || event.pointerType !== "mouse") return;
     const press = primaryPress;
     primaryPress = null;
     if (!press || press.moved || !selected) return;
@@ -678,30 +956,40 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     stopEdit();
   };
   const onContextMenu = (event: MouseEvent) => {
+    if (suppressMenu) { suppressMenu = false; event.preventDefault(); return; }
     const moved = rightPress?.moved ?? false;
     rightPress = null;
-    if (moved) return;
+    const pointerType = "pointerType" in event ? event.pointerType : "";
+    if (moved || pointerType === "touch" || pointerType === "pen") return;
     const scene = host.controller.state().status;
     if (!scene || scene.phase !== "overview") return;
     const [id] = host.controller.handle()?.pick(event.clientX, event.clientY) ?? [];
-    if (!id || !drafts.has(id)) return;
+    if (!id || !host.overrides.baseline(id)) return;
     event.preventDefault();
-    if (selected !== id) spinArm = null;
-    selected = id; note = ""; appliedKey = "";
-    syncOpacity(); paint();
+    armPhoto(id);
   };
   const unbindStop = bindPoseEditStop(stopEdit);
-  const onPointerCancel = () => { primaryPress = null; };
+  const onPointerCancel = (event: PointerEvent) => {
+    primaryPress = null;
+    if (!event.pointerId || arm?.pointerId === event.pointerId) cancelArm();
+  };
+  const onLostCapture = (event: PointerEvent) => {
+    if (arm?.pointerId === event.pointerId) cancelArm();
+  };
   host.canvas.addEventListener("pointerdown", onPointerDown, true);
   host.canvas.addEventListener("pointermove", onPointerMove, true);
   host.canvas.addEventListener("pointerup", onPrimaryUp);
   host.canvas.addEventListener("pointercancel", onPointerCancel);
+  host.canvas.addEventListener("lostpointercapture", onLostCapture);
   host.canvas.addEventListener("contextmenu", onContextMenu);
 
-  const offStatus = host.controller.subscribe(state => {
-    if (state.status) remember(state.status);
-    syncOpacity(); paint();
+  const offStatus = host.controller.subscribe(() => {
+    syncFromHost();
+    syncOpacity();
+    paint();
   });
+  const offOverrides = host.overrides.subscribe(() => { syncOpacity(); paint(); });
+  const offTransition = host.overrides.onTransition(() => { cancelGestures(); cancelConfirmations(); });
   const offBefore = host.beforeFrame(() => {
     const phase = host.controller.state().status?.phase;
     if (phase === "immersive" && worldVisible) host.runtime.syncPresentedCamera();
@@ -711,16 +999,17 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
 
   return {
     dispose() {
-      offStatus(); offBefore(); offAfter(); unbindStop();
+      cancelGestures();
+      offStatus(); offOverrides(); offTransition(); offBefore(); offAfter(); unbindStop();
       host.canvas.removeEventListener("pointerdown", onPointerDown, true);
       host.canvas.removeEventListener("pointermove", onPointerMove, true);
       host.canvas.removeEventListener("pointerup", onPrimaryUp);
       host.canvas.removeEventListener("pointercancel", onPointerCancel);
+      host.canvas.removeEventListener("lostpointercapture", onLostCapture);
       host.canvas.removeEventListener("contextmenu", onContextMenu);
       selected = null; setPoseEditTitle(null);
       showWorld(false);
       host.viewer.setImageOpacity(null, 1);
-      for (const id of drafts.keys()) host.world.setPoseEdit(id, null);
       panel.remove(); overlay.remove();
     },
   };

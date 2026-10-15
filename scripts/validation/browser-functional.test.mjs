@@ -34,9 +34,10 @@ test('Google activation rejects storage-only saves, missing source activation an
 test('actual map HUD geometry rejects misplaced, stretched, stacked and clipped defaults', () => {
   // Synthetic predicate controls, not a real browser receipt.
   const box = (left, top, width, height) => ({ left, top, width, height, right: left + width, bottom: top + height });
-  const observed = { layout: 'compact', direction: 'row', viewport: { width: 1100, height: 560 },
-    bar: box(16, 516, 1068, 28), slot: box(868, 516, 216, 28), group: box(868, 516, 216, 28),
-    rail: box(872, 516, 41, 28), chip: box(920, 516, 164, 28) };
+  const observed = { layout: 'compact', direction: 'row', viewport: { width: 1100, height: 560 }, worldEdges: null, hiddenCount: 0,
+    bar: box(16, 516, 1068, 28), north: box(16, 516, 36, 28), slot: box(868, 516, 216, 28), group: box(868, 516, 216, 28),
+    rail: box(872, 516, 41, 28), chip: box(920, 516, 164, 28),
+    items: [{ id: 'northButton', ...box(16, 516, 36, 28) }, { id: 'helpButton', ...box(55, 516, 40, 28) }] };
   assert.doesNotThrow(() => assertMapHudLayout(observed));
   for (const change of [{ slot: box(16, 516, 216, 28) }, { direction: 'column' },
     { rail: box(872, 486, 208, 28) }, { rail: box(872, 516, 120, 28) }, { chip: box(920, 516, 200, 28) }]) {
@@ -47,6 +48,26 @@ test('actual map HUD geometry rejects misplaced, stretched, stacked and clipped 
   assert.doesNotThrow(() => assertMapHudLayout(expanded, 'expanded'));
   assert.throws(() => assertMapHudLayout(expanded));
   assert.throws(() => assertMapHudLayout({ ...expanded, rail: box(800, 485, 41, 28) }, 'expanded'));
+  const flush = { layout: 'compact', direction: 'row', viewport: { width: 1100, height: 560 }, worldEdges: 'flush', hiddenCount: 0,
+    bar: box(0, 532, 1100, 28), north: box(0, 532, 30, 28), slot: box(860, 532, 240, 28), group: box(860, 532, 240, 28),
+    chip: box(860, 532, 240, 28), rail: box(865, 532, 41, 28),
+    items: [{ id: 'northButton', ...box(0, 532, 30, 28) }, { id: 'helpButton', ...box(30, 532, 30, 28) }] };
+  assert.doesNotThrow(() => assertMapHudLayout(flush));
+  assert.throws(() => assertMapHudLayout({ ...flush, rail: box(800, 532, 41, 28) }));
+  const attached = { ...flush, viewport: { width: 800, height: 560 }, hiddenCount: 2, bar: box(0, 532, 400, 28),
+    slot: box(60, 532, 180, 28), group: box(60, 532, 180, 28), chip: box(60, 532, 180, 28), rail: box(66, 532, 41, 28) };
+  assert.doesNotThrow(() => assertMapHudLayout(attached));
+  assert.throws(() => assertMapHudLayout({ ...attached, slot: box(220, 532, 180, 28), group: box(220, 532, 180, 28), chip: box(220, 532, 180, 28), rail: box(226, 532, 41, 28) }));
+  const flushExpanded = { ...flush, layout: 'expanded', direction: 'column', bar: box(0, 504, 1100, 56),
+    north: box(0, 532, 30, 28), items: [{ id: 'northButton', ...box(0, 532, 30, 28) }],
+    slot: box(700, 504, 400, 56), group: box(700, 504, 400, 56), chip: box(700, 504, 400, 56), rail: box(706, 505, 388, 28) };
+  assert.doesNotThrow(() => assertMapHudLayout(flushExpanded, 'expanded'));
+  // The wrapped bug: buttons lift off the bottom-left and the provider sits on a row under them.
+  // The slot still meets the bar's bottom-right, which the old check accepted.
+  const wrapped = { ...flush, viewport: { width: 800, height: 560 }, hiddenCount: 2, bar: box(0, 504, 800, 56),
+    north: box(0, 504, 30, 28), items: [{ id: 'northButton', ...box(0, 504, 30, 28) }, { id: 'helpButton', ...box(30, 504, 30, 28) }],
+    slot: box(560, 532, 240, 28), group: box(560, 532, 240, 28), chip: box(560, 532, 240, 28), rail: box(566, 532, 41, 28) };
+  assert.throws(() => assertMapHudLayout(wrapped));
 });
 
 test('basemap typography rejects missing styles and browser-default button text', () => {

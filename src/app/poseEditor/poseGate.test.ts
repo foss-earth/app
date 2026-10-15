@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { poseEditEnabled } from "./poseGate";
 
 describe("pose edit gate", () => {
-  it("opens only for local dev with exactly one dev=1", () => {
-    expect(poseEditEnabled(true, "?dev=1")).toBe(true);
-    expect(poseEditEnabled(true, "?scene=umn-single&dev=1")).toBe(true);
-    expect(poseEditEnabled(true, "?dev=1&dev=1")).toBe(false);
-    expect(poseEditEnabled(true, "?dev=true")).toBe(false);
-    expect(poseEditEnabled(true, "")).toBe(false);
-    expect(poseEditEnabled(false, "?dev=1")).toBe(false);
+  it("opens for exactly one dev=1, including a published build", () => {
+    expect(poseEditEnabled("?dev=1")).toBe(true);
+    expect(poseEditEnabled("?scene=umn-single&dev=1")).toBe(true);
+    expect(poseEditEnabled("?dev=1&dev=1")).toBe(false);
+    expect(poseEditEnabled("?dev=true")).toBe(false);
+    expect(poseEditEnabled("?dev=")).toBe(false);
+    expect(poseEditEnabled("")).toBe(false);
   });
 });

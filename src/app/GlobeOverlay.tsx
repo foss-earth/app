@@ -31,6 +31,7 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     onTabVisibility={(id, visible) => app.onTabVisibility(id, visible)}
     getViewState={app.getViewState}
     setViewState={(location) => app.setViewState(location)}
+    onDeviceLocation={(fix) => app.showDeviceLocation(fix)}
     observeLocation={(listener) => {
       const observer = app.runtime.scene.onAfterRenderObservable.add(listener);
       return () => { app.runtime.scene.onAfterRenderObservable.remove(observer); };

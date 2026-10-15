@@ -5,6 +5,7 @@ import type { GlobeViewState } from "@foss-earth/engine";
 import type { SceneStatus } from "@foss-earth/scenes/browser";
 import { createFrameProfileSession } from "@foss-earth/renderer/babylon";
 import { PERFORMANCE_METRIC_DEFINITIONS } from "@foss-earth/toolbar";
+import { WORLD_EDGES_ID } from "@foss-earth/ui/settings";
 
 // Node 26+ ships an experimental localStorage global that is undefined when
 // --localStorage-file is not provided, shadowing jsdom's own implementation.
@@ -44,10 +45,13 @@ const mockState = vi.hoisted(() => ({
   cullingGetStats: vi.fn(),
   cullingDestroy: vi.fn(),
   compassSetScaleParams: vi.fn(),
+  spherePhase: "overview" as string,
+  sphereOrient: vi.fn(() => true),
   perfUpdate: vi.fn(),
   perfFormat: vi.fn(),
   resolveAnchorHeight: vi.fn(),
   resolveAnchorHeightMeters: vi.fn(),
+  knownAnchorHeightMeters: vi.fn(),
   clearAnchorHeights: vi.fn(),
 }));
 
@@ -96,7 +100,7 @@ vi.mock("@foss-earth/renderer/diagnostics", async importOriginal => ({
 vi.mock("@foss-earth/engine/babylon", async importOriginal => ({
   ...await importOriginal<typeof import("@foss-earth/engine/babylon")>(),
   createAnchorHeightResolver: () => ({
-    resolve: mockState.resolveAnchorHeight, resolveHeight: mockState.resolveAnchorHeightMeters,
+    resolve: mockState.resolveAnchorHeight, resolveHeight: mockState.resolveAnchorHeightMeters, knownHeight: mockState.knownAnchorHeightMeters,
     setSample: vi.fn(), getCachedHeight: vi.fn(() => null), clear: mockState.clearAnchorHeights,
     setHeightOffset: vi.fn(), setTuning: vi.fn(),
   }),
@@ -128,7 +132,11 @@ vi.mock("./sceneHost", async () => {
     });
     return { controller, panel: { element: document.createElement("div") },
       tabs: { sphere: document.createElement("div"), settings: document.createElement("div") },
-      viewer: { onFrame: () => false }, renderer: null, media: null,
+      viewer: {
+        onFrame: () => false,
+        status: () => ({ phase: mockState.spherePhase }),
+        face: (view: { headingDeg?: number; pitchDeg?: number }) => mockState.sphereOrient(view),
+      }, renderer: null, media: null,
       isCurrent: () => true, dispose: () => controller.destroy(),
     };
   } };
@@ -188,6 +196,7 @@ async function createAppUnderTest(options: import("./createGlobeApp").GlobeAppOp
 beforeEach(() => {
   vi.clearAllMocks();
   mockState.frameCallback = null;
+  mockState.spherePhase = "overview";
   document.body.replaceChildren();
   window.localStorage.clear();
   window.history.replaceState(null, "", "/");
@@ -226,6 +235,7 @@ beforeEach(() => {
   mockState.perfFormat.mockReturnValue("unused");
   mockState.resolveAnchorHeight.mockReturnValue({ x: 9, y: 0, z: 0 });
   mockState.resolveAnchorHeightMeters.mockReturnValue(264);
+  mockState.knownAnchorHeightMeters.mockReturnValue(264);
   const runtime = {
     engine: {
       getFps: () => 60,
@@ -397,7 +407,7 @@ describe("createGlobeApp smoke behavior", () => {
       expect(aboutLines()).toContain("Site's latest deploy: 8b0ab4ed380c");
     });
     expect(mockState.configureOrbitTargetHeight).toHaveBeenCalledWith({
-      resolveSurfaceHeightMeters: mockState.resolveAnchorHeightMeters,
+      resolveSurfaceHeightMeters: mockState.knownAnchorHeightMeters,
       initialOffsetMeters: 0,
     });
 
@@ -609,20 +619,28 @@ describe("createGlobeApp smoke behavior", () => {
     const end = bar.lastElementChild!;
     expect(end.id).toBe("mapSourceSlot");
     const chip = end.querySelector(".map-source-hud__chip")!;
+    // Windows on the screen's edges by default: the rail is part of the basemap's chip.
     expect(Array.from(chip.children, (child) => child.className)).toEqual([
+      "map-detail-control is-unavailable is-distribution",
       "map-source-hud__provider",
       "map-source-hud__credit",
     ]);
-    expect(chip.firstElementChild!.firstElementChild!.className).toBe("map-download-speed");
+    expect(chip.querySelector(".map-source-hud__provider")!.firstElementChild!.className).toBe("map-download-speed");
     const credit = chip.querySelector<HTMLAnchorElement>(".map-source-hud__credit")!;
     expect(credit.href).toContain("usgs.gov");
     expect(credit.target).toBe("_blank");
-    const rail = chip.previousElementSibling!;
-    expect(rail.classList.contains("map-detail-control")).toBe(true);
-    expect(rail.classList.contains("is-unavailable")).toBe(true);
+    const rail = chip.firstElementChild!;
     // The rail stays still while the renderer reports no raster detail.
     expect(rail.querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
     expect(root.textContent).not.toContain("Terrain attribution");
+
+    // Inset windows: the rail stands beside the chip.
+    const { getAppSettings } = await import("../settings/appSettings");
+    const settings = getAppSettings();
+    settings.set(WORLD_EDGES_ID, false);
+    expect(chip.previousElementSibling).toBe(rail);
+    settings.reset(WORLD_EDGES_ID);
+    expect(chip.firstElementChild).toBe(rail);
   });
 
   it("keeps map controls compact until the user opts into the expanded layout", async () => {
@@ -1081,6 +1099,18 @@ describe("createGlobeApp smoke behavior", () => {
 
     expect(mockState.poiExitTracking).toHaveBeenCalledTimes(1);
     expect(mockState.setViewState).toHaveBeenCalledWith({ headingDeg: 0, pitchDeg: 89 });
+    expect(mockState.sphereOrient).not.toHaveBeenCalled();
+  });
+
+  it("faces north inside a spherical image without moving the globe", async () => {
+    mockState.spherePhase = "immersive";
+    const { root } = await createAppUnderTest();
+
+    root.querySelector<HTMLButtonElement>("#northButton")?.click();
+
+    expect(mockState.sphereOrient).toHaveBeenCalledWith({ headingDeg: 0, pitchDeg: 0 });
+    expect(mockState.setViewState).not.toHaveBeenCalled();
+    expect(mockState.poiExitTracking).not.toHaveBeenCalled();
   });
 
   it("delegates layer lifecycle through the registry", async () => {

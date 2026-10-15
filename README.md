@@ -17,8 +17,11 @@ uncheck it to remove the saved Google Maps and CARTO keys too. The review runs
 on a separate page before deleting data. This clears data for the current site
 origin, including other apps hosted on that origin.
 
-After two failed or stalled starts, the page offers **Clear browser data** as a recovery
-option. The recovery code is included in the HTML, so the option can appear even
+After two failed or stalled starts, the page offers **Download crash log** and then
+**Clear browser data** as a recovery option. The crash log is a `.txt` file of the failed
+starts, the last failure's message and each visit's trail kept on the device; clearing
+deletes those, so the review page offers the download again before its clear button.
+The recovery code is included in the HTML, so the option can appear even
 when the application bundle fails to load. You can also open the app address with
 `?resetBrowserData=1` to reach the review directly. A successful start resets the
 failure count; data is cleared only after confirmation.

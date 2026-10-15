@@ -4,12 +4,12 @@ import { WindowOverlay as SharedWindowOverlay, AdoptedElement, SectionsPanel, ty
 import { browserOverlayGeometry, browserOverlayLayout, createTabPresetSave } from "@foss-earth/ui/browser";
 import type { WindowTabDefinition, WindowOverlayLogSize, WindowSlotId, WorkspaceSnapshotSource } from "@foss-earth/ui/windowing";
 import type { SettingsRegistry, SettingsStorage } from "@foss-earth/ui/settings";
-import { createLocationDraftStore, LOCATION_PLACE_DRAFT_KEY, type LocationDraftStore, type GeodeticLocation, type LocationSearchProvider, type LocationHostDataCodec } from "@foss-earth/engine";
+import { browserDeviceLocation, createLocationDraftStore, LOCATION_PLACE_DRAFT_KEY, type DeviceLocationFix, type LocationDraftStore, type GeodeticLocation, type LocationSearchProvider, type LocationHostDataCodec } from "@foss-earth/engine";
 import { LocationPanel, type LocationPanelContribution } from "@foss-earth/engine/react";
 import { bindEarthLocationServices, createEarthLocationServices } from "../app/locationServices";
 import { getAppSettings } from "../settings/appSettings";
 import { POSITION_ALTITUDE_ID, type AltitudeReference } from "../settings/catalogue";
-import { TABS_BEHIND_TOOLBAR_ID, TOOLBAR_EDGE_ID, WINDOWS_PRESENTATION_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
+import { TABS_BEHIND_TOOLBAR_ID, TOOLBAR_EDGE_ID, WINDOWS_PRESENTATION_ID, WORLD_EDGES_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
 import { poseEditTitle, requestPoseEditStop, subscribePoseEditTitle } from "../app/poseEditor/poseEditTab";
 type WorldPresentationChoice = "auto" | "overlay" | "split";
 type ToolbarEdgeChoice = "auto" | "top" | "bottom";
@@ -166,6 +166,8 @@ export interface WindowOverlayProps<TabId extends string = never> {
    */
   sphereTabs?: SphereTabs;
   locationSearchProvider?: LocationSearchProvider;
+  /** A device fix while GPS is on, or null when it stops. The host draws the blue dot and accuracy disc. */
+  onDeviceLocation?(fix: DeviceLocationFix | null): void;
   /** @deprecated The flight host supplies its own Location contribution. */
   enableAirportPresets?: boolean;
   locationContribution?: LocationPanelContribution;
@@ -186,7 +188,7 @@ export function WindowOverlay<TabId extends string = never>({
   getViewState, setViewState, additionalTabs = [], renderAdditionalTab, renderJoinedTabs,
   controlsSections, interfaceSections, interfaceLead, settingsSections, locationSearchSection,
   mapTab, rendererTab, skyTab, timeTab, scenesTab, aboutTab, bugReportTab, browserDataTab,
-  onBugReportShow, sphereTabs, locationSearchProvider,
+  onBugReportShow, sphereTabs, locationSearchProvider, onDeviceLocation,
   enableAirportPresets = false, locationContribution, locationHostDataCodec,
   locationDraft, observeLocation, settings: suppliedSettings, storage: suppliedStorage,
   overlayApiRef, onBeforeCloseTab, onTabVisibility,
@@ -208,6 +210,7 @@ export function WindowOverlay<TabId extends string = never>({
     return () => { unbind(); lookup.dispose(); };
   }, [lookup]);
   const draft = useMemo(() => locationDraft ?? createLocationDraftStore({ storage, key: LOCATION_PLACE_DRAFT_KEY, hostDataCodec: locationHostDataCodec }), [locationDraft, storage, locationHostDataCodec]);
+  const deviceLocation = useMemo(() => browserDeviceLocation(typeof navigator === "undefined" ? null : navigator.geolocation), []);
   const readoutShown = useSyncExternalStore(subscribePositionReadout, positionReadoutShown, () => false);
   const presentationChoice = useSyncExternalStore(
     (listener) => settings.has(WINDOWS_PRESENTATION_ID) ? settings.watch(WINDOWS_PRESENTATION_ID, () => listener()) : () => {},
@@ -228,6 +231,11 @@ export function WindowOverlay<TabId extends string = never>({
     (listener) => settings.has(WORLD_RESIZE_ID) ? settings.watch(WORLD_RESIZE_ID, () => listener()) : () => {},
     (): WorldResize => settings.has(WORLD_RESIZE_ID) ? settings.get(WORLD_RESIZE_ID) : "release",
     (): WorldResize => "release",
+  );
+  const flushEdges = useSyncExternalStore(
+    (listener) => settings.has(WORLD_EDGES_ID) ? settings.watch(WORLD_EDGES_ID, () => listener()) : () => {},
+    () => settings.has(WORLD_EDGES_ID) ? settings.get<boolean>(WORLD_EDGES_ID) : false,
+    () => false,
   );
   const logIsTab = useSyncExternalStore(subscribeLogTab, logTabShown, () => false);
   const altitudeReference = useSyncExternalStore<AltitudeReference>(
@@ -318,6 +326,7 @@ export function WindowOverlay<TabId extends string = never>({
       tabsBehindToolbar,
       toolbarEdge,
       worldResize,
+      edges: flushEdges ? "flush" : "inset",
     }}
     onTabVisibility={(tabId, visible) => {
       if (tabId === "log") return;
@@ -342,6 +351,7 @@ export function WindowOverlay<TabId extends string = never>({
       }
       return <>
         <LocationPanel initialLocation={currentLocation(getViewState)} getCurrentLocation={getViewState} onApply={setViewState}
+          deviceLocation={deviceLocation} onDeviceLocation={onDeviceLocation}
           showCoordinates={!readoutShown} altitudeReference={altitudeReference}
           onAltitudeReferenceChange={(reference) => { if (settings.has(POSITION_ALTITUDE_ID)) settings.set(POSITION_ALTITUDE_ID, reference); }}
           searchProvider={locationSearchProvider ?? lookup?.searchLocations} observeLocation={observe} draft={draft}

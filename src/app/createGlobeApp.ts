@@ -10,6 +10,8 @@ import { mountBindingEditor, type BindingEditorHandle } from "@felipegalind0/gam
 import "@felipegalind0/gamepad-tools/styles.css";
 import { Matrix, Vector3, Viewport } from "@babylonjs/core";
 import { attachWorldOcclusion, cameraViewportFromTop, type BabylonRuntime } from "@foss-earth/engine/babylon";
+import { createSceneDeviceLocationMarker, type DeviceLocationMarker } from "@foss-earth/engine/sprites";
+import type { DeviceLocationFix } from "@foss-earth/engine";
 import { createEarthBrowserRuntime } from "./browserRuntime";
 import { createEarthBrowserPolicy } from "./browserPolicy";
 import { createEarthFeatureFramePreparation } from "./framePreparation";
@@ -36,6 +38,7 @@ import { createDiagnosticsSection } from "@foss-earth/ui/browser";
 import { createBugReportPanel } from "@foss-earth/ui/browser";
 import { createBrowserDataPanel } from "@foss-earth/ui/browser";
 import { stepKind } from "@foss-earth/ui/diagnostics";
+import { WORLD_EDGES_ID } from "@foss-earth/ui/settings";
 import { reportSecrets, startAppDiagnostics, type AppDiagnostics } from "./appDiagnostics";
 import { issueReporterFromBuild } from "./issueReporting";
 import type { IssueReporterConfig } from "@foss-earth/ui/diagnostics";
@@ -107,6 +110,7 @@ import { attachShellWorldViewport } from "./worldViewport";
 import { bindEarthTheme } from "../theme/theme";
 import { effectiveOrbRadius, type SphereRenderer } from "@foss-earth/sphere-image/babylon";
 import * as sphereMath from "@foss-earth/sphere-image";
+import type { SettledPublishedImageViewer } from "@foss-earth/sphere-image";
 import type { PoiSpriteSizeParams } from "@foss-earth/engine/visualization-tuners";
 import type { OrbitCompassScaleParams } from "@foss-earth/engine/compass";
 
@@ -137,6 +141,8 @@ declare global {
 
 export interface GlobeAppHandle extends GlobeHandle {
   runtime: BabylonRuntime;
+  /** Draws or hides the blue device-position dot and its accuracy disc. */
+  showDeviceLocation(fix: DeviceLocationFix | null): void;
   inputModeHud: InputModeHudHandle | null;
   /** Shows the host's Controls tab, where the controller bindings live. */
   openControllerBindings(): void;
@@ -200,6 +206,8 @@ export interface GlobeAppOptions {
   scenes?: readonly SceneExample[];
   /** The id of one of `scenes` to open at start, when the address names none with `?scene=`. */
   initialScene?: string;
+  /** Filename prefix for photograph-placement exports. The default is `foss-earth-poses`. */
+  poseExportPrefix?: string;
   /** Host-owned observations mounted only through the optional shared Dev tab. */
   devContributions?: readonly EarthDevContribution[];
   /**
@@ -535,11 +543,13 @@ export async function createGlobeApp(
     nowMs: browser.clock.nowMs,
     provider: resolveSurfaceHeightMeters,
     cacheProviderSamples: false,
+    surfaceRevision: () => runtime.surface?.revision?.() ?? 0,
     heightOffsetMeters: compassHeightOffset(),
     ...anchorTuning(),
   });
+  // Null where no ground is loaded yet: the runtime puts the orbit target on the ground once it is.
   runtime.configureOrbitTargetHeight({
-    resolveSurfaceHeightMeters: anchorHeights.resolveHeight,
+    resolveSurfaceHeightMeters: anchorHeights.knownHeight,
     initialOffsetMeters: compassHeightOffset(),
   });
   const registry = createLayerRegistry(layerContext, poiTracking, culling, anchorHeights);
@@ -556,6 +566,13 @@ export async function createGlobeApp(
   };
   const orbitCompass: OrbitCompassHandle = createOrbitCompass(runtime.scene, { device: browser.native.canvasDevice, requestRender: () => runtime.requestRender() });
   cleanup.push(() => orbitCompass.destroy());
+  let deviceLocationMarker: DeviceLocationMarker | null = null;
+  const showDeviceLocation = (fix: DeviceLocationFix | null): void => {
+    if (!fix) { deviceLocationMarker?.show(null); return; }
+    deviceLocationMarker ??= createSceneDeviceLocationMarker(runtime, browser.native.canvasDevice);
+    deviceLocationMarker.show(fix);
+  };
+  cleanup.push(() => { deviceLocationMarker?.destroy(); deviceLocationMarker = null; });
   const performanceMetrics = createPerformanceMetrics({
     now: () => performance.now(), memoryBytes: () => { const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory; return memory?.usedJSHeapSize ?? null; },
     engine: runtime.engine,
@@ -605,6 +622,7 @@ export async function createGlobeApp(
         activity: runtime,
         onProviderClick: () => toggleTab("map"),
         detail: { controller: mapDetail, document },
+        detailPlacement: settings.has(WORLD_EDGES_ID) && settings.get<boolean>(WORLD_EDGES_ID) ? "inside" : "beside",
       })
     : null;
   onMapStatus = (status) => {
@@ -778,7 +796,7 @@ export async function createGlobeApp(
     const meters = compassHeightOffset();
     anchorHeights.setHeightOffset(meters);
     runtime.configureOrbitTargetHeight({
-      resolveSurfaceHeightMeters: anchorHeights.resolveHeight,
+      resolveSurfaceHeightMeters: anchorHeights.knownHeight,
       initialOffsetMeters: meters,
     });
   };
@@ -791,6 +809,11 @@ export async function createGlobeApp(
   retainSettingsRelease(connectMapDetailLog(runtime, gameLog));
   retainSettingsRelease(settings.watch(MAP_SOURCE_HUD_LAYOUT_ID, value => {
     mapSourceHud?.setLayout(value === "expanded" ? "expanded" : "compact");
+    hudFit?.update();
+  }));
+  // On the screen's edges the rail is part of the basemap's chip, and the toolbar's buttons meet.
+  if (settings.has(WORLD_EDGES_ID)) retainSettingsRelease(settings.watch(WORLD_EDGES_ID, value => {
+    mapSourceHud?.setDetailPlacement(value ? "inside" : "beside");
     hudFit?.update();
   }));
   retainSettingsRelease(settings.watch(TOOLBAR_BOTTOM_CLEARANCE_ID, applyBottomClearance));
@@ -821,7 +844,16 @@ export async function createGlobeApp(
     retainSettingsRelease(settings.watch(id, () => runtime.setInputSensitivity?.(loadInputSensitivityPreference(settings))));
   }
 
+  // Assigned when the scene host is built, which is after this handler is registered.
+  let sphereViewer: Pick<SettledPublishedImageViewer, "status" | "face"> | null = null;
   const resetNorth = (): void => {
+    const viewer = sphereViewer;
+    const phase = viewer?.status().phase;
+    // The sphere lease owns the camera, so a globe heading change is invisible there.
+    if (viewer && (phase === "immersive" || phase === "entering" || phase === "exiting")) {
+      if (phase === "immersive") viewer.face({ headingDeg: 0, pitchDeg: 0 });
+      return;
+    }
     poiTracking.exitTracking();
     runtime.setViewState({ headingDeg: 0, pitchDeg: MAX_PITCH_DEG });
   };
@@ -1063,8 +1095,10 @@ export async function createGlobeApp(
     browser, settings, canvas, ui, readinessPolicy: browserPolicy.readinessPolicy,
     examples: options.scenes ?? SCENE_EXAMPLES,
     baseUrl: appBaseUrl,
+    poseExportPrefix: options.poseExportPrefix,
     openSettings: () => options.overlayApiRef?.current?.openOrSelectTab("panorama-settings"),
   });
+  sphereViewer = sceneHost.viewer;
   const sceneFrame = createEarthFeatureFramePreparation({ viewer: sceneHost.viewer,
     isCurrent: sceneHost.isCurrent, requestRender: runtime.requestRender });
   const frameProfiler = runtime.frameProfile.profiler;
@@ -1314,6 +1348,7 @@ export async function createGlobeApp(
     setViewState(partial: Partial<GlobeViewState>): void {
       runtime.setViewState(partial);
     },
+    showDeviceLocation,
     getTheme,
     setTheme,
     onThemeChange,

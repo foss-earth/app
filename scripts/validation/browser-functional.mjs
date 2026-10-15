@@ -85,18 +85,33 @@ export function assertRenderedGlobe(observed, backend = 'webgl2') {
 /** Real CSS-pixel geometry, never inferred from DOM order or class names. */
 export function assertMapHudLayout(observed, expected = 'compact') {
   if (!['compact', 'expanded'].includes(expected) || observed?.layout !== expected) throw new Error('The map HUD did not use the requested layout.');
-  const boxes = [observed.bar, observed.slot, observed.group, observed.rail, observed.chip];
+  const boxes = [observed.bar, observed.slot, observed.group, observed.rail, observed.chip, observed.north, ...(observed.items ?? [])];
   for (const box of boxes) {
     if (!box || ['left', 'right', 'top', 'bottom', 'width', 'height'].some(key => !Number.isFinite(box[key])) || box.width <= 0 || box.height <= 0) throw new Error('The map HUD has no visible finite geometry.');
     if (box.left < -1 || box.right > observed.viewport.width + 1 || box.top < -1 || box.bottom > observed.viewport.height + 1) throw new Error('Map controls are clipped outside the viewport.');
   }
-  if (Math.abs(observed.slot.right - observed.bar.right) > 1.25 || Math.abs(observed.slot.bottom - observed.bar.bottom) > 1.25) throw new Error('The map controls are not at the bottom-right end.');
-  if (expected === 'compact') {
-    const centre = box => (box.top + box.bottom) / 2;
-    if (observed.direction !== 'row' || observed.rail.right > observed.chip.left + 1 || Math.abs(centre(observed.rail) - centre(observed.chip)) > 1.25 || Math.abs(observed.rail.width - 41) > 1.25) throw new Error('Default map controls must use the small horizontal rail before the provider.');
-  } else {
-    if (observed.direction !== 'column' || observed.rail.bottom > observed.chip.top + 1 || observed.rail.width <= 82 || observed.rail.width > observed.group.width + 1.25) throw new Error('Expanded map controls must use a wider rail above the provider.');
+  if (!Array.isArray(observed.items) || observed.items.length < 1 || !Number.isInteger(observed.hiddenCount) || observed.hiddenCount < 0) throw new Error('The toolbar did not report its shown and hidden controls.');
+  if (Math.abs(observed.north.left - observed.bar.left) > 1.25 || Math.abs(observed.north.bottom - observed.bar.bottom) > 1.25) throw new Error('North is not at the toolbar\'s bottom-left corner.');
+  for (const box of [...observed.items, observed.slot]) {
+    if (Math.abs(box.bottom - observed.bar.bottom) > 1.25) throw new Error('A toolbar control left the bottom row.');
   }
+  const last = [...observed.items].sort((a, b) => a.left - b.left || a.top - b.top).at(-1);
+  if (observed.hiddenCount === 0) {
+    if (Math.abs(observed.slot.right - observed.bar.right) > 1.25 || Math.abs(observed.slot.bottom - observed.bar.bottom) > 1.25) throw new Error('The map controls are not at the bottom-right end.');
+  } else {
+    const gap = observed.slot.left - last.right;
+    if (gap < -1.25 || gap > 8) throw new Error('The map source is not directly after the last shown control.');
+  }
+  const centre = box => (box.top + box.bottom) / 2;
+  const railInside = observed.rail.left >= observed.chip.left - 1.25 && observed.rail.right <= observed.chip.right + 1.25 && observed.rail.right > observed.chip.left + 1;
+  if (expected === 'compact') {
+    if (observed.worldEdges === 'flush') {
+      const overlap = Math.min(observed.rail.bottom, observed.chip.bottom) - Math.max(observed.rail.top, observed.chip.top);
+      if (observed.direction !== 'row' || !railInside || overlap < observed.rail.height - 2 || Math.abs(observed.rail.width - 41) > 1.25) throw new Error('Flush map controls must keep the small rail inside the provider chip.');
+    } else if (observed.direction !== 'row' || observed.rail.right > observed.chip.left + 1 || Math.abs(centre(observed.rail) - centre(observed.chip)) > 1.25 || Math.abs(observed.rail.width - 41) > 1.25) throw new Error('Default map controls must use the small horizontal rail before the provider.');
+  } else if (observed.worldEdges === 'flush') {
+    if (observed.direction !== 'column' || !railInside || observed.rail.width <= 82 || observed.rail.width > observed.group.width + 1.25 || Math.abs(observed.rail.top - observed.chip.top) > 4 || observed.rail.bottom > observed.chip.bottom - 8) throw new Error('Flush expanded map controls must keep a wider rail inside the chip, above the provider.');
+  } else if (observed.direction !== 'column' || observed.rail.bottom > observed.chip.top + 1 || observed.rail.width <= 82 || observed.rail.width > observed.group.width + 1.25) throw new Error('Expanded map controls must use a wider rail above the provider.');
 }
 
 /** Catch a provider button falling back to the browser's unstyled typography. */
@@ -131,11 +146,27 @@ export function observeMapHudLayout() {
     const style = getComputedStyle(element);
     return { family: style.fontFamily, size: Number.parseFloat(style.fontSize), lineHeight: style.lineHeight, colour: style.color };
   };
-  return { viewport: { width: innerWidth, height: innerHeight },
+  const bar = document.querySelector('.hud-bar');
+  const slot = document.querySelector('#mapSourceSlot');
+  const items = [];
+  const visit = element => {
+    if (!element || element === slot) return;
+    if (element.hasAttribute('data-hud-overflow-hidden') || element.hasAttribute('data-hud-choice-hidden') || element.closest('[hidden]')) return;
+    const style = getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden') return;
+    if (style.display === 'contents') { for (const child of element.children) visit(child); return; }
+    const rect = box(element);
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    items.push({ id: element.id || element.dataset.perfMetric || '', ...rect });
+  };
+  if (bar) for (const child of bar.children) visit(child);
+  items.sort((a, b) => a.left - b.left || a.top - b.top);
+  return { viewport: { width: innerWidth, height: innerHeight }, worldEdges: document.documentElement.dataset.worldEdges ?? null,
     layout: group?.dataset.mapHudLayout ?? null, direction: group ? getComputedStyle(group).flexDirection : null,
     typography: { chip: font(chip), provider: font(provider), label: font(label) },
     providerDisplay: provider ? getComputedStyle(provider).display : null, labelText: label?.textContent ?? null,
-    bar: box(document.querySelector('.hud-bar')), slot: box(document.querySelector('#mapSourceSlot')),
+    bar: box(bar), slot: box(slot), north: box(document.querySelector('#northButton')), items,
+    hiddenCount: bar ? bar.querySelectorAll('[data-hud-overflow-hidden]').length : 0,
     group: box(group), rail: box(group?.querySelector('.map-detail-control')), chip: box(chip) };
 }
 
@@ -263,6 +294,12 @@ export async function runEarthSuite(options, injected = {}) {
     const initialMapHud = await evaluate(`(${observeMapHudLayout.toString()})()`);
     check('Default map controls: actual compact geometry', initialMapHud, value => assertMapHudLayout(value, 'compact'));
     check('Basemap provider: actual styled text', initialMapHud, assertMapSourceTypography);
+    // The shared page driver cannot resize the window, and this check runs at 1100×560.
+    await evaluate(`document.documentElement.style.setProperty('--foss-hud-right', '400px'); true`);
+    const narrowMapHud = await until(`(() => { const value = (${observeMapHudLayout.toString()})(); return value.bar && Math.abs(value.bar.right - (value.viewport.width - 400)) < 2 ? value : null; })()`, 'narrow toolbar');
+    check('Narrow toolbar: north stays at the bottom-left and the provider stays on that row', narrowMapHud, value => assertMapHudLayout(value, 'compact'));
+    await evaluate(`document.documentElement.style.removeProperty('--foss-hud-right'); true`);
+    await until(`(() => { const bar = document.querySelector('.hud-bar'); return bar && bar.getBoundingClientRect().right > innerWidth - 30; })()`, 'toolbar width restored');
 
     // Exercise the actual Map controls before unrelated navigation assertions.
     // The external proxy remains closed: this proves session activation and
