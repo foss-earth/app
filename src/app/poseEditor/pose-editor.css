@@ -196,6 +196,19 @@
   pointer-events: none;
 }
 
+.pose-gizmo .is-selected .pose-gizmo-line {
+  stroke-width: 6;
+}
+
+.pose-gizmo .is-selected .pose-gizmo-head {
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.pose-gizmo .is-idle {
+  opacity: 0.75;
+}
+
 .pose-gizmo-head {
   stroke: none;
   pointer-events: fill;
@@ -211,4 +224,48 @@
 .pose-gizmo-hub {
   fill: #f4efe4;
   pointer-events: none;
+}
+
+.pose-edit-toggle {
+  margin-inline-start: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pose-edit-toggle.is-on {
+  border-color: var(--globe-accent, #60a5fa);
+  background: color-mix(in srgb, var(--globe-accent, #60a5fa) 18%, transparent);
+}
+
+.pose-edit-toggle[hidden] {
+  display: none;
+}
+
+.pose-editor-axes {
+  display: flex;
+  gap: 16px;
+  margin: 6px 0;
+}
+
+.pose-editor-axes-parent,
+.pose-editor-axes-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pose-editor-axes-parent {
+  font-weight: 600;
+}
+
+.pose-editor-axes-children {
+  padding-left: 18px;
+  border-left: 1px solid rgba(244, 239, 228, 0.25);
+  margin-left: 6px;
 }

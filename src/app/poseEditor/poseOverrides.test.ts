@@ -100,9 +100,9 @@ describe("pose overrides", () => {
     host.store.setNumbers("umn-twin-cities", SCENE_URL, {
       entityId: "northrop-mall", title: "northrop-mall", revision: "rev-1", mode: "ground-relative",
       longitudeDeg: -93.23, latitudeDeg: 44.97, heightMeters: null, headingDeg: 0, pitchDeg: 0, rollDeg: 0, offsetM: 25, aligned: false, eastM: 0, northM: 0,
-    }, { mode: "ground-relative", longitudeDeg: -93.25, latitudeDeg: 44.98, heightMeters: null, headingDeg: 20, pitchDeg: -2, offsetM: 30 }, "memory");
+    }, { mode: "ground-relative", longitudeDeg: -93.25, latitudeDeg: 44.98, heightMeters: null, headingDeg: 20, pitchDeg: -2, rollDeg: 0, offsetM: 30 }, "memory");
     await host.load();
-    expect(host.edits.get("northrop-mall")).toMatchObject({ longitudeDeg: -93.25, headingDeg: 20, pitchDeg: -2, offsetM: 30, heightMeters: null });
+    expect(host.edits.get("northrop-mall")).toMatchObject({ longitudeDeg: -93.25, headingDeg: 20, pitchDeg: -2, rollDeg: 0, offsetM: 30, heightMeters: null });
     expect(host.repositioned.at(-1)).toMatchObject({ id: "northrop-mall", capture: { longitudeDeg: -93.25, latitudeDeg: 44.98, heightMeters: null }, heading: 20 });
     expect(host.overrides.record("coffman")).toBeNull();
   });
@@ -227,5 +227,5 @@ function baselineOf(entityId: string): PublishedBaseline {
 }
 
 function desiredOf(over: Partial<{ headingDeg: number; offsetM: number }> = {}) {
-  return { mode: "ground-relative" as const, longitudeDeg: -93.23, latitudeDeg: 44.97, heightMeters: null, headingDeg: 0, pitchDeg: 0, offsetM: 25, ...over };
+  return { mode: "ground-relative" as const, longitudeDeg: -93.23, latitudeDeg: 44.97, heightMeters: null, headingDeg: 0, pitchDeg: 0, rollDeg: 0, offsetM: 25, ...over };
 }

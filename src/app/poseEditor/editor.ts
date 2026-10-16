@@ -5,11 +5,12 @@ import type { SceneController, SceneStatus } from "@foss-earth/scenes/browser";
 import "./pose-editor.css";
 import {
   POSE_HANDLES, axisShift, axisSpin, axisTravel, clampLatitude, clampPitch, gizmoArmMeters, gizmoPolylines, insideGizmoAnchor,
-  projectPoint, ringScreenDragDeg, rotateHeading, screenTurnDeg, shiftCapture, viewRay, wrapHeading, wrapLongitude,
+  projectPoint, ringScreenDragDeg, rotateHeading, screenTurnDeg, shiftCapture, viewRay, wrapHeading, wrapLongitude, wrapRoll,
   type PoseHandle, type ViewFrame,
 } from "./poseMath";
 import { scenePublicPath } from "./poseFile";
 import { bindPoseEditStop, setPoseEditTitle } from "./poseEditTab";
+import { createPoseEditSession } from "./poseEditSession";
 import type { PoseOverrides } from "./poseOverrides";
 import { DEFAULT_POSE_EXPORT_PREFIX, poseExportFilename, type DesiredNumbers, type PoseEditRecord } from "./poseStore";
 
@@ -17,15 +18,16 @@ const SAVE_URL = "/__foss-earth/pose";
 const LONG_PRESS_MS = 500;
 const CONFIRM_MS = 5000;
 const HANDLE_COLOR: Record<PoseHandle, string> = {
-  east: "#ff5a5a", north: "#4aa3ff", up: "#3dde8a", heading: "#3dde8a", pitch: "#ff5a5a", spin: "#f4efe4",
+  east: "#ff5a5a", north: "#4aa3ff", up: "#3dde8a", heading: "#3dde8a", pitch: "#ff5a5a", roll: "#4aa3ff", spin: "#f4efe4",
 };
-const HANDLE_LABEL: Record<PoseHandle, string> = { east: "E", north: "N", up: "Up", heading: "H", pitch: "P", spin: "" };
+const HANDLE_LABEL: Record<PoseHandle, string> = { east: "E", north: "N", up: "Up", heading: "H", pitch: "P", roll: "R", spin: "" };
 const HANDLE_TITLE: Record<PoseHandle, string> = {
-  east: "Drag to move. Click for the arc that turns these arrows.",
-  north: "Drag to move. Click for the arc that turns these arrows.",
-  up: "Drag to change altitude",
-  heading: "Drag the ring to change heading",
-  pitch: "Drag the ring to change pitch",
+  east: "Click to select, then drag to move. Once selected, hold its tip to turn the red and blue arrows.",
+  north: "Click to select, then drag to move. Once selected, hold its tip to turn the red and blue arrows.",
+  up: "Click to select, then drag to change altitude",
+  heading: "Click to select, then drag the ring to change heading",
+  pitch: "Click to select, then drag the ring to change pitch",
+  roll: "Click to select, then drag the ring to change roll",
   spin: "Slide along the arc to turn the red and blue arrows",
 };
 
@@ -45,7 +47,10 @@ export interface PoseEditorHost {
   world: {
     posePlacement(id: string): { placement: { marker: Vec3 | null } } | null;
   };
-  renderer: { cameraFrame(): { eye: Vec3; view: ViewFrame["view"] } | null };
+  renderer: {
+    cameraFrame(): { eye: Vec3; view: ViewFrame["view"] } | null;
+    inspectOrb(id: string): { effectiveRadius: number | null } | null;
+  };
   runtime: {
     getPresentationView(): { position: { x: number; y: number; z: number } } | null;
     setPresentedWorldVisible(visible: boolean): void;
@@ -65,6 +70,7 @@ interface Draft {
   latitudeDeg: number;
   headingDeg: number;
   pitchDeg: number;
+  rollDeg: number;
   offsetM: number;
   heightMeters: number | null;
   mode: "ground-relative" | "capture-relative";
@@ -115,10 +121,18 @@ function fitInput(input: HTMLInputElement): void {
 /** Mounts placement at the bottom of the photograph's tab, and the axis gizmo in the view. */
 export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   const { document } = host;
+  let sessionStorage: Storage | null = null;
+  try { sessionStorage = document.defaultView?.sessionStorage ?? null; } catch { /* Editing remains available. */ }
+  const editSession = createPoseEditSession(sessionStorage, `foss-earth.pose-edit-session.v1:${document.defaultView?.location.pathname ?? ""}`);
   const panel = element(document, "details", "foss-earth-panel-section pose-editor");
   panel.open = true;
   panel.hidden = true;
   const summary = element(document, "summary", "foss-earth-panel-section__title", "Placement");
+  const toggle = element(document, "button", "pose-edit-toggle", "Edit");
+  toggle.type = "button";
+  toggle.hidden = true;
+  toggle.setAttribute("aria-pressed", "false");
+  summary.append(toggle);
   const body = element(document, "div", "foss-earth-panel-section__body pose-editor-body");
   const see = element(document, "label", "pose-editor-see");
   see.append(element(document, "span", "", "See through"));
@@ -135,6 +149,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     altitude: field(document, fields, altitudeLabel),
     headingDeg: field(document, fields, "Heading"),
     pitchDeg: field(document, fields, "Pitch"),
+    rollDeg: field(document, fields, "Roll"),
   };
   const axisRow = element(document, "div", "pose-editor-field");
   axisRow.append(element(document, "span", "", "Arrow heading"));
@@ -150,7 +165,62 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   axisWrap.append(axisInput, axisReset);
   axisRow.append(axisWrap);
   fields.append(axisRow);
-  const hint = element(document, "p", "pose-editor-hint", "Drag the axes to move the photograph and the rings to turn it. Hover a red or blue arrow to lengthen it, then click it and slide the arc on either side to turn those two. Click the ground to stop editing. See through loads and shows the map. Hotspot directions and the opening view update after the corrections are imported and the scenes are rebuilt.");
+  const AXIS_TREE = [
+    { label: "Linear", handles: ["east", "north", "up"] },
+    { label: "Rotation", handles: ["heading", "pitch", "roll"] },
+  ] as const;
+  const AXIS_NAME: Record<Exclude<PoseHandle, "spin">, string> = {
+    east: "East", north: "North", up: "Up", heading: "Heading", pitch: "Pitch", roll: "Roll",
+  };
+  const AXES_KEY = "foss-earth-pose-axes-v1";
+  const hidden = new Set<PoseHandle>();
+  try {
+    const saved: unknown = JSON.parse(document.defaultView?.localStorage.getItem(AXES_KEY) ?? "[]");
+    if (Array.isArray(saved)) for (const name of saved) if ((POSE_HANDLES as readonly unknown[]).includes(name)) hidden.add(name as PoseHandle);
+  } catch { /* Every axis shows when storage is unavailable. */ }
+  const tree = element(document, "div", "pose-editor-axes");
+  const treeBoxes: { parent: HTMLInputElement; children: [Exclude<PoseHandle, "spin">, HTMLInputElement][] }[] = [];
+  function syncTree(): void {
+    for (const { parent, children } of treeBoxes) {
+      const shown = children.filter(([handle]) => !hidden.has(handle)).length;
+      for (const [handle, box] of children) box.checked = !hidden.has(handle);
+      parent.checked = shown === children.length;
+      parent.indeterminate = shown > 0 && shown < children.length;
+    }
+  }
+  function setShown(handles: readonly PoseHandle[], shown: boolean): void {
+    for (const handle of handles) {
+      if (shown) hidden.delete(handle); else hidden.add(handle);
+      if (!shown && active === handle) active = null;
+    }
+    try { document.defaultView?.localStorage.setItem(AXES_KEY, JSON.stringify([...hidden])); } catch { /* kept for this session */ }
+    syncTree();
+    host.runtime.requestRender();
+  }
+  for (const branch of AXIS_TREE) {
+    const group = element(document, "div", "pose-editor-axes-group");
+    const head = element(document, "label", "pose-editor-axes-parent");
+    const parent = document.createElement("input");
+    parent.type = "checkbox";
+    head.append(parent, element(document, "span", "", branch.label));
+    const list = element(document, "div", "pose-editor-axes-children");
+    const children: [Exclude<PoseHandle, "spin">, HTMLInputElement][] = [];
+    for (const handle of branch.handles) {
+      const row = element(document, "label", "pose-editor-axes-child");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.addEventListener("change", () => setShown([handle], box.checked));
+      row.append(box, element(document, "span", "", AXIS_NAME[handle]));
+      list.append(row);
+      children.push([handle, box]);
+    }
+    parent.addEventListener("change", () => setShown(branch.handles, parent.checked));
+    group.append(head, list);
+    tree.append(group);
+    treeBoxes.push({ parent, children });
+  }
+  syncTree();
+  const hint = element(document, "p", "pose-editor-hint", "Click an axis or ring to select it, then drag it: axes move the photograph, rings turn it. Select the red or blue arrow, then press and hold its tip to show the arc that turns those two arrows, and slide without letting go. Inside a photograph, Edit beside Placement turns editing on and off. Click the ground to stop editing. See through loads and shows the map. Hotspot directions and the opening view update after the corrections are imported and the scenes are rebuilt.");
   const offsetHint = element(document, "p", "pose-editor-hint", "");
   const northRow = element(document, "label", "pose-editor-see");
   const north = document.createElement("input");
@@ -191,7 +261,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   status.setAttribute("role", "status");
   const exported = element(document, "pre", "pose-editor-export pose-editor-export-text");
   exported.hidden = true;
-  body.append(see, fields, northRow, referenceRow, hint, offsetHint, actions, replace, copyOriginal, persistent, status, exported);
+  body.append(see, tree, fields, northRow, referenceRow, hint, offsetHint, actions, replace, copyOriginal, persistent, status, exported);
   panel.append(summary, body);
   host.tab.append(panel);
   const overlay = svg(document, "svg");
@@ -223,6 +293,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   overlay.prepend(defs); overlay.append(hub);
   overlay.style.display = "none";
   document.body.append(overlay);
+  const stop = (event: Event) => event.stopPropagation();
 
   const opacityOf = new Map<string, number>();
   const undoStack: PoseEditRecord[][] = [];
@@ -284,7 +355,6 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   let sceneKey = "";
   let followed: string | null = null;
   let suspended = false;
-  let suspendedId: string | null = null;
   let selected: string | null = null;
   let note = "";
   let saving = false;
@@ -292,9 +362,19 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   let worldVisible = false;
   let gesture = 0;
   let drag: { handle: PoseHandle; pointerId: number; x: number; y: number; startX: number; startY: number; moved: boolean } | null = null;
-  let spinArm: "east" | "north" | null = null;
-  let hoverHandle: PoseHandle | null = null;
-  const HOVER_REACH = 1.22;
+  /** The axis or ring a click selected. Only it, and the spin arc of a selected red or blue arrow, can be dragged. */
+  let active: Exclude<PoseHandle, "spin"> | null = null;
+  /** True while a press held on the tip of the selected red or blue arrow shows the arc that turns those arrows. */
+  let spinShown = false;
+  let holdTimer = 0;
+  const spinArm = (): "east" | "north" | null => spinShown && (active === "east" || active === "north") ? active : null;
+  function endHold(): void {
+    if (holdTimer && view) view.clearTimeout(holdTimer);
+    holdTimer = 0;
+    if (!spinShown) return;
+    spinShown = false;
+    host.runtime.requestRender();
+  }
   const axisHeadingOf = new Map<string, number>();
   let clearArmedUntil = 0;
   let replaceArmedUntil = 0;
@@ -303,7 +383,6 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   let suppressMenu = false;
   const view = document.defaultView;
 
-  const stop = (event: Event) => event.stopPropagation();
   panel.addEventListener("pointerdown", stop, true);
   panel.addEventListener("wheel", stop, true);
 
@@ -324,12 +403,12 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (!edit) {
       return {
         longitudeDeg: base.longitudeDeg, latitudeDeg: base.latitudeDeg, headingDeg: base.headingDeg,
-        pitchDeg: base.pitchDeg, offsetM: base.offsetM, heightMeters: base.heightMeters, mode: base.mode,
+        pitchDeg: base.pitchDeg, rollDeg: base.rollDeg, offsetM: base.offsetM, heightMeters: base.heightMeters, mode: base.mode,
       };
     }
     return {
       longitudeDeg: edit.capture.longitudeDeg, latitudeDeg: edit.capture.latitudeDeg,
-      headingDeg: edit.imagePose.headingDeg, pitchDeg: edit.imagePose.pitchDeg,
+      headingDeg: edit.imagePose.headingDeg, pitchDeg: edit.imagePose.pitchDeg, rollDeg: edit.imagePose.rollDeg,
       offsetM: edit.marker.offsetM, heightMeters: edit.capture.heightMeters, mode: edit.mode,
     };
   }
@@ -337,7 +416,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   function desiredOf(draft: Draft): DesiredNumbers {
     return {
       mode: draft.mode, longitudeDeg: draft.longitudeDeg, latitudeDeg: draft.latitudeDeg, heightMeters: draft.heightMeters,
-      headingDeg: draft.headingDeg, pitchDeg: draft.pitchDeg, offsetM: draft.offsetM,
+      headingDeg: draft.headingDeg, pitchDeg: draft.pitchDeg, rollDeg: draft.rollDeg, offsetM: draft.offsetM,
     };
   }
 
@@ -381,6 +460,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     inputs.altitude.disabled = !draft;
     inputs.headingDeg.disabled = !draft;
     inputs.pitchDeg.disabled = !draft;
+    inputs.rollDeg.disabled = !draft;
     axisInput.disabled = !draft;
     const arrowHeading = axisHeading();
     const arrowTurn = Math.min(arrowHeading, 360 - arrowHeading);
@@ -396,6 +476,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     write(inputs.altitude, draft.mode === "ground-relative" ? draft.offsetM.toFixed(2) : draft.heightMeters === null ? "" : draft.heightMeters.toFixed(2));
     write(inputs.headingDeg, draft.headingDeg.toFixed(3));
     write(inputs.pitchDeg, draft.pitchDeg.toFixed(3));
+    write(inputs.rollDeg, draft.rollDeg.toFixed(3));
   }
 
   function cancelConfirmations(): void {
@@ -423,6 +504,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     gesture += 1;
     const wasDragging = Boolean(drag);
     drag = null;
+    endHold();
     if (wasDragging) trackEdit();
     cancelArm();
   }
@@ -478,6 +560,12 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     else if (file && probe === true) status.textContent = record ? "Save place writes this local scene file. Export keeps a copy you can take with you." : "Save place writes a local scene file. Export keeps edits from every scene.";
     else if (counts.all > 0) status.textContent = "Export keeps a copy of these edits. Keep that file as a backup.";
     else status.textContent = "";
+    const inside = scene?.phase === "immersive" && scene.active ? scene.active : null;
+    toggle.hidden = !inside || !host.overrides.baseline(inside);
+    const on = Boolean(inside && selected === inside);
+    toggle.textContent = on ? "Done editing" : "Edit";
+    toggle.setAttribute("aria-pressed", String(on));
+    toggle.classList.toggle("is-on", on);
     publishEditTab();
   }
 
@@ -492,10 +580,10 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     cancelGestures();
     cancelConfirmations();
     suspended = true;
-    suspendedId = followed;
     selected = null;
-    spinArm = null;
-    hoverHandle = null;
+    const scene = host.overrides.scene();
+    if (scene) editSession.select(scene, null);
+    active = null;
     note = "";
     syncOpacity();
     paint();
@@ -504,10 +592,11 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   function armPhoto(id: string): void {
     if (!host.overrides.baseline(id)) return;
     cancelConfirmations();
-    if (selected !== id) spinArm = null;
+    if (selected !== id) active = null;
     suspended = false;
-    suspendedId = null;
     selected = id;
+    const scene = host.overrides.scene();
+    if (scene) editSession.select(scene, id);
     note = "";
     syncOpacity();
     paint();
@@ -530,26 +619,28 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
       axisHeadingOf.clear();
       selected = null;
       suspended = false;
-      suspendedId = null;
       followed = null;
       sceneKey = key;
-      spinArm = null;
-      hoverHandle = null;
+      active = null;
       note = "";
     }
-    const active = scene?.phase === "immersive" ? scene.active : null;
-    if (active !== followed) {
+    const inside = scene?.phase === "immersive" ? scene.active : null;
+    if (inside !== followed) {
       cancelGestures();
       if (followed) axisHeadingOf.delete(followed);
       host.viewer.setImageOpacity(null, 1);
-      followed = active;
-      if (!(suspended && active === suspendedId) && active && host.overrides.baseline(active)) {
-        suspended = false;
-        suspendedId = null;
-        if (selected !== active) spinArm = null;
-        selected = active;
+      followed = inside;
+      if (selected && selected !== inside) {
+        // Entering a photograph starts with editing off; the Edit button turns it on.
+        selected = null;
+        active = null;
         note = "";
       }
+      suspended = Boolean(inside);
+    }
+    if (inside && !selected && identity && editSession.selected(identity) === inside && host.overrides.baseline(inside)) {
+      selected = inside;
+      suspended = false;
     }
   }
 
@@ -584,35 +675,36 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const rect = worldViewportClientRect(host.canvas);
     const enu = enuFrame(draft.longitudeDeg, draft.latitudeDeg);
     const distance = length(sub(anchor, frame.eye));
-    const arm = gizmoArmMeters(distance, frame.view.verticalFovRad, rect.height);
+    const orbRadius = phase === "overview" && selected ? host.renderer.inspectOrb(selected)?.effectiveRadius ?? 0 : 0;
+    const arm = gizmoArmMeters(distance, frame.view.verticalFovRad, rect.height, 72, orbRadius);
     const heading = axisHeading();
-    const stretch: { east?: number; north?: number; up?: number } = {};
-    if (hoverHandle === "east" || hoverHandle === "north" || hoverHandle === "up") stretch[hoverHandle] = HOVER_REACH;
-    if (spinArm) stretch[spinArm] = HOVER_REACH;
-    const lines = gizmoPolylines(anchor, enu.east, enu.north, enu.up, arm, frame.eye, heading, stretch);
-    if (spinArm) {
+    const lines = gizmoPolylines(anchor, enu.east, enu.north, enu.up, arm, frame.eye, heading, orbRadius);
+    const spinning = spinArm();
+    if (spinning) {
       const turned = rotateHeading(enu.east, enu.north, heading);
-      const direction = spinArm === "east" ? turned.east : turned.north;
-      lines.push(axisSpin(anchor, direction, enu.up, arm * (stretch[spinArm] ?? 1)));
+      const direction = spinning === "east" ? turned.east : turned.north;
+      lines.push(axisSpin(anchor, direction, enu.up, arm));
     }
     const box = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     const hubPoint = projectPoint(frame, anchor, box);
     if (hubPoint) { hub.setAttribute("cx", hubPoint.x.toFixed(1)); hub.setAttribute("cy", hubPoint.y.toFixed(1)); }
-    hub.style.display = hubPoint ? "" : "none";
+    hub.style.display = hubPoint && orbRadius === 0 ? "" : "none";
     const drawn = new Map(lines.map(line => [line.handle, line]));
     for (const handle of POSE_HANDLES) {
       const group = groups.get(handle);
       const line = drawn.get(handle);
       if (!group) continue;
-      if (!line) { group.group.style.display = "none"; continue; }
+      if (!line || hidden.has(handle) || (handle === "spin" && hidden.has(spinning ?? "spin"))) { group.group.style.display = "none"; continue; }
       const path = traced(line.points, line.closed, frame, box);
       const head = line.head ? polygon(line.head, frame, box) : null;
       const headB = line.headB ? polygon(line.headB, frame, box) : null;
       const labelAt = HANDLE_LABEL[handle] ? projectPoint(frame, line.label, box) : null;
       group.group.style.display = path ? "" : "none";
       if (!path) continue;
-      if (handle === "spin" && spinArm) {
-        const color = HANDLE_COLOR[spinArm];
+      group.group.classList.toggle("is-selected", handle === active || (handle === "spin" && Boolean(spinning)));
+      group.group.classList.toggle("is-idle", Boolean(active) && handle !== active && handle !== "spin");
+      if (handle === "spin" && spinning) {
+        const color = HANDLE_COLOR[spinning];
         group.line.setAttribute("stroke", color);
         group.head.setAttribute("fill", color);
         group.headB.setAttribute("fill", color);
@@ -657,7 +749,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const turned = rotateHeading(enu.east, enu.north, axisHeading());
     const axis = handle === "east" ? turned.east : handle === "north" ? turned.north : enu.up;
     if (handle === "spin") {
-      if (!spinArm) return;
+      if (!spinArm()) return;
       const hub = projectPoint(frame, anchor, { left: rect.left, top: rect.top, width: rect.width, height: rect.height });
       const turn = hub ? screenTurnDeg(hub.x, hub.y, fromX, fromY, toX, toY) : null;
       if (turn === null || Math.abs(turn) > 40) return;
@@ -685,10 +777,11 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
       const hub = projectPoint(frame, anchor, { left: rect.left, top: rect.top, width: rect.width, height: rect.height });
       const turn = hub ? screenTurnDeg(hub.x, hub.y, fromX, fromY, toX, toY) : null;
       if (turn === null || Math.abs(turn) > 40) return;
-      const around = handle === "heading" ? enu.up : enu.east;
+      const around = handle === "heading" ? enu.up : handle === "pitch" ? enu.east : enu.north;
       const delta = ringScreenDragDeg(handle, dot(around, sub(frame.eye, anchor)), turn);
       if (handle === "heading") next.headingDeg = wrapHeading(next.headingDeg + delta);
-      else next.pitchDeg = clampPitch(next.pitchDeg + delta);
+      else if (handle === "pitch") next.pitchDeg = clampPitch(next.pitchDeg + delta);
+      else next.rollDeg = wrapRoll(next.rollDeg + delta);
     }
     if (gesture !== token || selected !== id) return;
     note = "";
@@ -696,7 +789,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     paint();
   }
 
-  function commitNumber(key: "latitudeDeg" | "longitudeDeg" | "headingDeg" | "pitchDeg" | "altitude"): boolean {
+  function commitNumber(key: "latitudeDeg" | "longitudeDeg" | "headingDeg" | "pitchDeg" | "rollDeg" | "altitude"): boolean {
     const draft = currentDraft();
     if (!draft || !selected) return true;
     const input = inputs[key];
@@ -708,6 +801,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     else if (key === "longitudeDeg") next.longitudeDeg = wrapLongitude(value);
     else if (key === "headingDeg") next.headingDeg = wrapHeading(value);
     else if (key === "pitchDeg") next.pitchDeg = clampPitch(value);
+    else if (key === "rollDeg") next.rollDeg = wrapRoll(value);
     else if (next.mode === "ground-relative") next.offsetM = value;
     else next.heightMeters = value;
     note = "";
@@ -742,7 +836,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const active = document.activeElement;
     if (active === axisInput) return commitAxis();
     if (active === reference) return commitReference();
-    for (const key of ["latitudeDeg", "longitudeDeg", "headingDeg", "pitchDeg", "altitude"] as const) {
+    for (const key of ["latitudeDeg", "longitudeDeg", "headingDeg", "pitchDeg", "rollDeg", "altitude"] as const) {
       if (active === inputs[key]) return commitNumber(key);
     }
     return true;
@@ -768,7 +862,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     paint();
   }
 
-  for (const key of ["latitudeDeg", "longitudeDeg", "headingDeg", "pitchDeg", "altitude"] as const) {
+  for (const key of ["latitudeDeg", "longitudeDeg", "headingDeg", "pitchDeg", "rollDeg", "altitude"] as const) {
     inputs[key].addEventListener("change", () => commitNumber(key));
     inputs[key].addEventListener("input", () => fitInput(inputs[key]));
   }
@@ -825,7 +919,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     saving = true; paint();
     const body: Record<string, unknown> = {
       file, entityId: selected, longitudeDeg: wrapLongitude(draft.longitudeDeg), latitudeDeg: clampLatitude(draft.latitudeDeg),
-      headingDeg: wrapHeading(draft.headingDeg), pitchDeg: clampPitch(draft.pitchDeg), offsetM: draft.offsetM,
+      headingDeg: wrapHeading(draft.headingDeg), pitchDeg: clampPitch(draft.pitchDeg), rollDeg: wrapRoll(draft.rollDeg), offsetM: draft.offsetM,
     };
     if (draft.mode === "capture-relative" && draft.heightMeters !== null) body.heightMeters = draft.heightMeters;
     const id = selected;
@@ -934,13 +1028,29 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (!handle || !(POSE_HANDLES as readonly string[]).includes(handle)) return;
     event.preventDefault(); event.stopPropagation();
     try { (event.currentTarget as Element).setPointerCapture(event.pointerId); } catch { /* capture is optional; the drag still tracks the pointer */ }
+    // A press on a handle that is not selected only selects it, on release.
     drag = { handle: handle as PoseHandle, pointerId: event.pointerId, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, moved: false };
+    // Holding the tip of the selected red or blue arrow shows the arc, and the same press then turns the arrows.
+    const tip = (event.target as Element | null)?.closest?.(".pose-gizmo-head");
+    if (tip && handle === active && (handle === "east" || handle === "north") && view) {
+      const pointerId = event.pointerId;
+      holdTimer = view.setTimeout(() => {
+        holdTimer = 0;
+        if (!drag || drag.pointerId !== pointerId || drag.moved) return;
+        spinShown = true;
+        drag = { ...drag, handle: "spin" };
+        host.runtime.requestRender();
+      }, LONG_PRESS_MS);
+    }
   }, true);
   overlay.addEventListener("pointermove", event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     event.preventDefault(); event.stopPropagation();
-    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= thresholdPx()) drag.moved = true;
-    if (!drag.moved) return;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) >= thresholdPx()) {
+      drag.moved = true;
+      if (holdTimer && view) { view.clearTimeout(holdTimer); holdTimer = 0; }
+    }
+    if (!drag.moved || !draggable(drag.handle)) return;
     const from = drag;
     nudge(from.handle, from.x, from.y, event.clientX, event.clientY);
     drag = { ...from, x: event.clientX, y: event.clientY };
@@ -949,35 +1059,20 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (drag?.pointerId !== event.pointerId) return;
     const finished = drag;
     drag = null;
+    endHold();
     trackEdit();
     host.overrides.flush();
-    if (cancelled || event.type !== "pointerup" || finished.moved || (finished.handle !== "east" && finished.handle !== "north")) return;
-    spinArm = spinArm === finished.handle ? null : finished.handle;
+    if (cancelled || event.type !== "pointerup" || finished.moved || finished.handle === "spin") return;
+    active = active === finished.handle ? null : finished.handle;
     host.runtime.requestRender();
   };
+  function draggable(handle: PoseHandle): boolean {
+    if (hidden.has(handle)) return false;
+    return handle === "spin" ? Boolean(spinArm()) : handle === active;
+  }
   overlay.addEventListener("pointerup", event => endDrag(event, false));
   overlay.addEventListener("pointercancel", event => endDrag(event, true));
   overlay.addEventListener("lostpointercapture", event => endDrag(event, true));
-  const handleOf = (event: Event): PoseHandle | null => {
-    const name = (event.target as Element | null)?.closest?.("[data-handle]")?.getAttribute("data-handle");
-    return name && (POSE_HANDLES as readonly string[]).includes(name) ? name as PoseHandle : null;
-  };
-  overlay.addEventListener("pointerover", event => {
-    if (drag) return;
-    const next = handleOf(event);
-    if (!next || next === hoverHandle) return;
-    hoverHandle = next;
-    host.runtime.requestRender();
-  });
-  overlay.addEventListener("pointerout", event => {
-    if (drag) return;
-    if (handleOf(event) !== hoverHandle) return;
-    const still = (event.relatedTarget as Element | null)?.closest?.("[data-handle]")?.getAttribute("data-handle");
-    if (still === hoverHandle) return;
-    hoverHandle = null;
-    host.runtime.requestRender();
-  });
-
   let rightPress: { x: number; y: number; moved: boolean } | null = null;
   let primaryPress: { x: number; y: number; moved: boolean } | null = null;
   const markMoved = (press: { x: number; y: number; moved: boolean } | null, event: PointerEvent) => {
@@ -1036,6 +1131,15 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     event.preventDefault();
     armPhoto(id);
   };
+  toggle.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const scene = host.controller.state().status;
+    const inside = scene?.phase === "immersive" ? scene.active : null;
+    if (!inside) return;
+    if (selected === inside) stopEdit();
+    else armPhoto(inside);
+  });
   const unbindStop = bindPoseEditStop(stopEdit);
   const onPointerCancel = (event: PointerEvent) => {
     primaryPress = null;
@@ -1063,11 +1167,18 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (phase === "immersive" && worldVisible) host.runtime.syncPresentedCamera();
   });
   const offAfter = host.afterFrame(draw);
+  const flushDraft = () => { commitFocused(); host.overrides.flush(); };
+  const onHide = () => { if (document.hidden) flushDraft(); };
+  view?.addEventListener("pagehide", flushDraft);
+  document.addEventListener("visibilitychange", onHide);
   void fetch(new URL(SAVE_URL, window.location.origin)).then(response => { probe = response.ok; paint(); }, () => { probe = false; paint(); });
 
   return {
     dispose() {
+      flushDraft();
       cancelGestures();
+      view?.removeEventListener("pagehide", flushDraft);
+      document.removeEventListener("visibilitychange", onHide);
       document.removeEventListener("keydown", onHistoryKey);
       offStatus(); offOverrides(); offTransition(); offBefore(); offAfter(); unbindStop();
       host.canvas.removeEventListener("pointerdown", onPointerDown, true);
@@ -1079,7 +1190,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
       selected = null; setPoseEditTitle(null);
       showWorld(false);
       host.viewer.setImageOpacity(null, 1);
-      panel.remove(); overlay.remove();
+      panel.remove(); overlay.remove(); toggle.remove();
     },
   };
 }

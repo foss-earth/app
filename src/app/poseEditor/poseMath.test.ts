@@ -1,7 +1,7 @@
-import { cross, dot, normalize } from "@foss-earth/engine";
+import { cross, dot, length, normalize, sub } from "@foss-earth/engine";
 import { describe, expect, it } from "vitest";
 import {
-  axisShift, axisSpin, axisTravel, gizmoArmMeters, headingDragDeg, insideGizmoAnchor, pitchDragDeg, projectPoint, ringScreenDragDeg, rotateHeading, screenTurnDeg, shiftCapture, signedAngleDeg, viewRay,
+  axisShift, axisSpin, axisTravel, gizmoArmMeters, gizmoPolylines, headingDragDeg, insideGizmoAnchor, pitchDragDeg, projectPoint, ringScreenDragDeg, rotateHeading, screenTurnDeg, shiftCapture, signedAngleDeg, viewRay,
 } from "./poseMath";
 
 const eye = [0, -10, 0] as const;
@@ -110,5 +110,19 @@ describe("placement gizmo math", () => {
     const arm = gizmoArmMeters(1000, Math.PI / 3, 1000, 72);
     const metersPerPx = (2 * 1000 * Math.tan(Math.PI / 6)) / 1000;
     expect(arm).toBeCloseTo(72 * metersPerPx, 5);
+  });
+
+  it("keeps every ring, shaft and arrowhead outside map orbs of different displayed sizes", () => {
+    const origin = [100, 200, 300] as [number, number, number];
+    for (const radius of [0.1, 3, 50, 200]) {
+      const arm = gizmoArmMeters(1000, Math.PI / 3, 1000, 72, radius);
+      const lines = gizmoPolylines(origin, [1, 0, 0], [0, 1, 0], [0, 0, 1], arm, [1000, 1000, 1000], 37, radius);
+      lines.push(axisSpin(origin, [1, 0, 0], [0, 0, 1], arm));
+      for (const line of lines) {
+        for (const point of [...line.points, ...(line.head ?? []), ...(line.headB ?? []), line.label]) {
+          expect(length(sub(point, origin)), `${line.handle} at radius ${radius}`).toBeGreaterThan(radius);
+        }
+      }
+    }
   });
 });

@@ -14,9 +14,10 @@ export interface OpeningLook {
   verticalFovDeg: number;
 }
 
-/** Explicit caller views take precedence over the shared opening preference. */
-export function openingOptions<T extends object>(options: T | undefined, remembered: OpeningLook | null): T | { view: OpeningLook } | undefined {
+/** A map arrival keeps its flight direction. Explicit caller views, such as history restoration, still take precedence. */
+export function openingOptions<T extends object>(options: T | undefined, remembered: OpeningLook | null, fromMap = false): T | { view: OpeningLook } | undefined {
   if (options && "view" in options && options.view) return options;
+  if (fromMap) return options;
   return remembered ? { ...options, view: remembered } : options;
 }
 

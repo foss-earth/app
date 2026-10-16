@@ -75,7 +75,7 @@ function sphereEdit(record: PoseEditRecord, baseline: PublishedBaseline): Sphere
   return {
     longitudeDeg: record.capture.longitudeDeg, latitudeDeg: record.capture.latitudeDeg,
     heightMeters: baseline.mode === "capture-relative" ? record.capture.heightMeters : null,
-    headingDeg: record.imagePose.headingDeg, pitchDeg: record.imagePose.pitchDeg, offsetM: record.marker.offsetM,
+    headingDeg: record.imagePose.headingDeg, pitchDeg: record.imagePose.pitchDeg, rollDeg: record.imagePose.rollDeg, offsetM: record.marker.offsetM,
   };
 }
 

@@ -108,7 +108,7 @@ describe("Earth geographic scene lifecycle", () => {
     expect(heightOf(world, "prepared")).toBeCloseTo(261.303, 2);
     expect(heightOf(world, "legacy")).toBeCloseTo(305, 2);
     // A pose edit that leaves the height alone keeps the prepared height; only the edit moves the orb.
-    world.setPoseEdit("prepared", { longitudeDeg: -93.234, latitudeDeg: 44.976, heightMeters: null, headingDeg: 45, pitchDeg: 0, offsetM: 25 });
+    world.setPoseEdit("prepared", { longitudeDeg: -93.234, latitudeDeg: 44.976, heightMeters: null, headingDeg: 45, pitchDeg: 0, rollDeg: 0, offsetM: 25 });
     expect(heightOf(world, "prepared")).toBeCloseTo(261.303, 2);
     expect(sample).toHaveBeenCalledTimes(1);
     world.dispose();
@@ -134,15 +134,15 @@ describe("Earth geographic scene lifecycle", () => {
     };
     world.watchPlacement(entity, { radiusMeters: 8 }, () => {});
     const before = world.resolvePlacement(entity, { radiusMeters: 8 });
-    world.setPoseEdit(entity.id, { longitudeDeg: 0, latitudeDeg: 0, heightMeters: 30, headingDeg: 90, pitchDeg: 0, offsetM: 0 });
+    world.setPoseEdit(entity.id, { longitudeDeg: 0, latitudeDeg: 0, heightMeters: 30, headingDeg: 90, pitchDeg: 0, rollDeg: 0, offsetM: 0 });
     const turned = world.resolvePlacement(entity, { radiusMeters: 8 });
     expect(turned.placement.content).not.toEqual(before.placement.content);
-    world.setPoseEdit(entity.id, { longitudeDeg: 0, latitudeDeg: 1, heightMeters: 30, headingDeg: 0, pitchDeg: 0, offsetM: 0 });
+    world.setPoseEdit(entity.id, { longitudeDeg: 0, latitudeDeg: 1, heightMeters: 30, headingDeg: 0, pitchDeg: 0, rollDeg: 0, offsetM: 0 });
     const moved = world.posePlacement(entity.id);
     expect(pointGeodetic(moved!.placement.marker!).latitudeDeg).toBeGreaterThan(0.9);
     const ground: ResolvedSphere = { ...entity, id: "ground", capture: { longitudeDeg: 0, latitudeDeg: 0, height: null }, marker: { mode: "ground-relative", eastM: 0, northM: 0, offsetM: 10 } };
     world.watchPlacement(ground, { radiusMeters: 8 }, () => {});
-    world.setPoseEdit(ground.id, { longitudeDeg: 0, latitudeDeg: 0, heightMeters: null, headingDeg: 0, pitchDeg: 0, offsetM: 40 });
+    world.setPoseEdit(ground.id, { longitudeDeg: 0, latitudeDeg: 0, heightMeters: null, headingDeg: 0, pitchDeg: 0, rollDeg: 0, offsetM: 40 });
     expect(pointGeodetic(world.posePlacement(ground.id)!.placement.marker!).heightMeters).toBeCloseTo(290, 0);
     world.dispose();
   });
@@ -161,7 +161,7 @@ it("gives local previews a level frame at Minnesota latitude, including live pos
   const placed = world.resolvePlacement(entity, { radiusMeters: 8 });
   expect(placed.previewContent).toEqual([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
   expect(placed.previewContent).not.toEqual(placed.placement.content);
-  world.setPoseEdit(entity.id, { longitudeDeg: -93.235, latitudeDeg: 44.975, heightMeters: 250, headingDeg: 30, pitchDeg: 12, offsetM: 0 });
+  world.setPoseEdit(entity.id, { longitudeDeg: -93.235, latitudeDeg: 44.975, heightMeters: 250, headingDeg: 30, pitchDeg: 12, rollDeg: 0, offsetM: 0 });
   const edited = world.posePlacement(entity.id)!;
   expect(edited.previewContent).toEqual(transpose3(imagePoseMatrix({ headingDeg: 30, pitchDeg: 12, rollDeg: 0 })));
   world.dispose();

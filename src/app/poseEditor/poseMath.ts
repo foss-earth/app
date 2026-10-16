@@ -3,8 +3,9 @@ import {
   add, cross, dot, enuFrame, geodeticPoint, length, normalize, pointGeodetic, scale, sub, type Vec3,
 } from "@foss-earth/engine";
 
-export type PoseHandle = "east" | "north" | "up" | "heading" | "pitch" | "spin";
-export const POSE_HANDLES: readonly PoseHandle[] = ["heading", "pitch", "east", "north", "up", "spin"];
+export type PoseHandle = "east" | "north" | "up" | "heading" | "pitch" | "roll" | "spin";
+export type RingHandle = "heading" | "pitch" | "roll";
+export const POSE_HANDLES: readonly PoseHandle[] = ["heading", "pitch", "roll", "east", "north", "up", "spin"];
 /** Where the gizmo sits in front of the eye while the view is inside a photograph. */
 export const INSIDE_GIZMO_METERS = 3.5;
 
@@ -20,6 +21,12 @@ export interface ViewFrame {
 
 export function wrapHeading(deg: number): number {
   return ((deg % 360) + 360) % 360;
+}
+
+/** Roll in (-180, 180], which a scene file accepts. */
+export function wrapRoll(deg: number): number {
+  const wrapped = ((deg + 180) % 360 + 360) % 360 - 180;
+  return wrapped === -180 ? 180 : wrapped;
 }
 
 export function clampPitch(deg: number): number {
@@ -133,11 +140,11 @@ export function screenTurnDeg(hubX: number, hubY: number, fromX: number, fromY: 
 }
 
 /**
- * Heading and pitch from a clockwise screen turn.
+ * Heading, pitch or roll from a clockwise screen turn.
  * `axisTowardEye` is the rotation axis dotted with the direction from the gizmo to the eye.
- * Clockwise from above increases heading. A right-handed turn about east increases pitch.
+ * Clockwise from above increases heading. Right-handed turns about east and north increase pitch and roll.
  */
-export function ringScreenDragDeg(handle: "heading" | "pitch", axisTowardEye: number, turnDeg: number): number {
+export function ringScreenDragDeg(handle: RingHandle, axisTowardEye: number, turnDeg: number): number {
   const facing = axisTowardEye >= 0 ? 1 : -1;
   return handle === "heading" ? facing * turnDeg : -facing * turnDeg;
 }
@@ -162,10 +169,11 @@ export function projectPoint(
   return { x: rect.left + ((nx + 1) / 2) * rect.width, y: rect.top + ((1 - ny) / 2) * rect.height, depth };
 }
 
-/** Arm length that stays about `pixels` tall on screen, and at least a hand's width up close. */
-export function gizmoArmMeters(distanceMeters: number, verticalFovRad: number, viewportHeightPx: number, pixels = 72): number {
+/** Keeps handles usable on screen and the rings and arrowheads outside the displayed map orb. */
+export function gizmoArmMeters(distanceMeters: number, verticalFovRad: number, viewportHeightPx: number, pixels = 72, orbRadiusMeters = 0): number {
   const metersPerPx = (2 * Math.max(distanceMeters, 0.25) * Math.tan(verticalFovRad / 2)) / Math.max(1, viewportHeightPx);
-  return Math.max(0.4, pixels * metersPerPx);
+  // The rings sit at 0.62 arms and the arrowheads start at 0.78 arms.
+  return Math.max(0.4, pixels * metersPerPx, orbRadiusMeters * 2);
 }
 
 export interface GizmoPolyline {
@@ -196,10 +204,9 @@ function chevron(origin: Vec3, point: Vec3, tangent: Vec3, size: number): readon
   return [tip, add(back, scale(radial, span)), add(back, scale(radial, -span))];
 }
 
-/** Axes and rings in ECEF. Heading turns about up; pitch turns about east. `axisHeadingDeg` turns only the red and blue arrows. */
+/** Axes and rings in ECEF. Heading turns about up, pitch about east, roll about north. `axisHeadingDeg` turns only the red and blue arrows. */
 export function gizmoPolylines(
-  origin: Vec3, east: Vec3, north: Vec3, up: Vec3, arm: number, eye: Vec3, axisHeadingDeg = 0,
-  stretch: { east?: number; north?: number; up?: number } = {},
+  origin: Vec3, east: Vec3, north: Vec3, up: Vec3, arm: number, eye: Vec3, axisHeadingDeg = 0, orbRadiusMeters = 0,
 ): GizmoPolyline[] {
   const unit = (axis: Vec3) => normalize(axis);
   const eastU = unit(east);
@@ -207,7 +214,7 @@ export function gizmoPolylines(
   const upU = unit(up);
   const turned = rotateHeading(eastU, northU, axisHeadingDeg);
   const axisLine = (handle: "east" | "north" | "up", direction: Vec3): GizmoPolyline => {
-    const reach = arm * (stretch[handle] ?? 1);
+    const reach = arm;
     const dir = unit(direction);
     const tip = add(origin, scale(dir, reach));
     const neck = add(origin, scale(dir, reach * 0.78));
@@ -215,7 +222,7 @@ export function gizmoPolylines(
     const wing = reach * 0.09;
     return {
       handle, closed: false, label: add(origin, scale(dir, reach * 1.14)), headB: null,
-      points: [origin, neck],
+      points: [add(origin, scale(dir, orbRadiusMeters > 0 ? orbRadiusMeters + arm * 0.08 : 0)), neck],
       head: [tip, add(neck, scale(side, wing)), add(neck, scale(side, -wing))],
     };
   };
@@ -227,6 +234,9 @@ export function gizmoPolylines(
   const pitchAt = 0.9;
   const pitchPoint = add(origin, add(scale(northU, Math.cos(pitchAt) * radius), scale(upU, Math.sin(pitchAt) * radius)));
   const pitchTangent = add(scale(northU, -Math.sin(pitchAt)), scale(upU, Math.cos(pitchAt)));
+  const rollAt = 0.9;
+  const rollPoint = add(origin, add(scale(upU, Math.cos(rollAt) * radius), scale(eastU, Math.sin(rollAt) * radius)));
+  const rollTangent = add(scale(upU, -Math.sin(rollAt)), scale(eastU, Math.cos(rollAt)));
   return [
     {
       handle: "heading", closed: true, headB: null, label: add(origin, add(scale(northU, radius * 0.82), scale(eastU, radius * 0.82))),
@@ -237,6 +247,11 @@ export function gizmoPolylines(
       handle: "pitch", closed: true, headB: null, label: add(origin, add(scale(northU, radius * 0.92), scale(upU, radius * 0.35))),
       points: ring(origin, northU, upU, radius, steps),
       head: chevron(origin, pitchPoint, pitchTangent, arm * 0.14),
+    },
+    {
+      handle: "roll", closed: true, headB: null, label: add(origin, add(scale(upU, radius * 0.92), scale(eastU, radius * 0.35))),
+      points: ring(origin, upU, eastU, radius, steps),
+      head: chevron(origin, rollPoint, rollTangent, arm * 0.14),
     },
     axisLine("east", turned.east),
     axisLine("north", turned.north),

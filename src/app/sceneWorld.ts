@@ -41,6 +41,7 @@ export interface SpherePoseEdit {
   heightMeters: number | null;
   headingDeg: number;
   pitchDeg: number;
+  rollDeg: number;
   offsetM: number;
 }
 
@@ -78,9 +79,9 @@ export function createEarthSceneWorld(
       : { ...(entity.capture.height ?? { datum: "WGS84-ellipsoid" as const }), meters: edit.heightMeters };
     return {
       capture: { ...entity.capture, longitudeDeg: edit.longitudeDeg, latitudeDeg: edit.latitudeDeg, height },
-      pose: { ...entity.imagePose, headingDeg: edit.headingDeg, pitchDeg: edit.pitchDeg },
+      pose: { ...entity.imagePose, headingDeg: edit.headingDeg, pitchDeg: edit.pitchDeg, rollDeg: edit.rollDeg },
       marker: { ...entity.marker, offsetM: edit.offsetM },
-      stamp: `${edit.longitudeDeg}|${edit.latitudeDeg}|${edit.heightMeters}|${edit.headingDeg}|${edit.pitchDeg}|${edit.offsetM}`,
+      stamp: `${edit.longitudeDeg}|${edit.latitudeDeg}|${edit.heightMeters}|${edit.headingDeg}|${edit.pitchDeg}|${edit.rollDeg}|${edit.offsetM}`,
     };
   }
   function previewContentOf(source: { pose: ResolvedSphere["imagePose"] }) {

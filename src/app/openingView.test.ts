@@ -29,13 +29,21 @@ describe("opening view memory", () => {
 });
 
 
-it("shares opening options across mini and map entry and preserves explicit views and signals", () => {
+it("uses remembered looks between photographs and preserves explicit views and signals", () => {
   const remembered = { ...look, headingDeg: 270 };
   const signal = { aborted: false };
   expect(openingOptions({ signal }, remembered)).toEqual({ signal, view: remembered });
   expect(openingOptions(undefined, remembered)).toEqual({ view: remembered });
   expect(openingOptions({ signal, view: look }, remembered)).toEqual({ signal, view: look });
   expect(openingOptions(undefined, null)).toBeUndefined();
+});
+it("keeps the incoming map flight ahead of Look up and remembered thumbnail directions", () => {
+  const sky = { headingDeg: 0, pitchDeg: 90, verticalFovDeg: 100 };
+  const signal = { aborted: false };
+  expect(openingOptions(undefined, sky, true)).toBeUndefined();
+  expect(openingOptions({ signal }, sky, true)).toEqual({ signal });
+  expect(openingOptions({ signal, view: look }, sky, true)).toEqual({ signal, view: look });
+  expect(openingOptions(undefined, sky, false)).toEqual({ view: sky });
 });
 it("Look up stores zenith and selects the fixed mode", () => {
   const writes: [string, unknown][] = [];

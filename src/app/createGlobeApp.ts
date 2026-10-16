@@ -213,6 +213,8 @@ export interface GlobeAppOptions {
   poseExportPrefix?: string;
   /** Filename prefix for indoor and outdoor layer exports. The default is `foss-earth-layers`. */
   layerExportPrefix?: string;
+  /** Filename prefix for image-link exports. The default is `foss-earth-links`. */
+  linkExportPrefix?: string;
   /** Host-owned observations mounted only through the optional shared Dev tab. */
   devContributions?: readonly EarthDevContribution[];
   /**
@@ -1106,6 +1108,7 @@ export async function createGlobeApp(
     baseUrl: appBaseUrl,
     poseExportPrefix: options.poseExportPrefix,
     layerExportPrefix: options.layerExportPrefix,
+    linkExportPrefix: options.linkExportPrefix,
     startupScene: requestedScene,
     openSettings: () => options.overlayApiRef?.current?.openOrSelectTab("panorama-settings"),
   });

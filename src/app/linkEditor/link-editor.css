@@ -1,0 +1,7 @@
+.foss-earth-link-editor { padding: 8px; overflow-wrap: anywhere; }
+.foss-earth-link-editor p { margin: 0 0 10px; }
+.foss-earth-link-editor h3 { font-size: inherit; margin: 12px 0 6px; }
+.foss-earth-link-editor__controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.foss-earth-link-editor label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 100%; }
+.foss-earth-link-editor select { width: auto; min-width: 0; max-width: 100%; field-sizing: content; font: inherit; color: inherit; background: var(--panel-bg, #222); }
+.foss-earth-link-editor__controls span { opacity: .65; }

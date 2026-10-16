@@ -68,22 +68,6 @@ function currentLocation(getViewState: () => GeodeticLocation | null): GeodeticL
 function browserStorage(): SettingsStorage | null {
   try { return typeof localStorage === "undefined" ? null : localStorage; } catch { return null; }
 }
-/** Fit the photograph; the optional sections stay available in the scrollable body. */
-function measureSpherePhotograph(body: HTMLElement): number | null {
-  const photograph = body.querySelector<HTMLElement>(".foss-earth-sphere-photograph");
-  const wrapper = photograph?.closest<HTMLElement>(".foss-earth-element-tab");
-  if (!photograph || !wrapper) return null;
-  const rect = photograph.getBoundingClientRect();
-  if (rect.width <= 0) return null;
-  const style = getComputedStyle(wrapper);
-  const paddingTop = Number.parseFloat(style.paddingTop) || 0;
-  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
-  const photographHeight = rect.bottom - body.getBoundingClientRect().top + body.scrollTop + paddingBottom;
-  // Even an empty description needs enough scrolling space to show an optional section's heading.
-  const summary = body.querySelector<HTMLElement>(".foss-earth-sphere-tab .foss-earth-panel-section__title");
-  const minimumHeight = (summary?.getBoundingClientRect().height ?? 0) + paddingTop + paddingBottom;
-  return Math.max(photographHeight, minimumHeight);
-}
 function TabPresetSave({ settings, tab, what }: { settings: SettingsRegistry; tab: string; what: string }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -157,12 +141,12 @@ export interface WindowOverlayProps<TabId extends string = never> {
   onBugReportShow?: () => void;
   /**
    * A sphere's tabs, from `createSphereTabs`. Entering a sphere opens its
-   * tab, titled with the image's title and marked with a sphere, minimized
-   * while the camera flies in and shown once the sphere is on screen; closing
+   * tab, titled with the image's title and marked with a sphere, when no tabs
+   * remain on arrival. Existing tabs stay open during the flight; closing
    * that tab leaves it. Editing a photograph from the map opens the same tab
-   * there, and closing it leaves editing. Inside one the tabs about the map
-   * are hidden and 360 image settings is offered; each comes back where it
-   * was when the context returns.
+   * there, and closing it leaves editing. Tabs already open keep their
+   * selection inside; the + menu offers 360 image settings and omits map-only
+   * tabs until the map returns.
    */
   sphereTabs?: SphereTabs;
   locationSearchProvider?: LocationSearchProvider;
@@ -310,7 +294,7 @@ export function WindowOverlay<TabId extends string = never>({
     logSize={logSize}
     layoutPort={layout}
     restorableTabs={restorable}
-    context={{ active: insideSphere, ready: sphere.onScreen, baseOnlyTabs: HIDDEN_IN_SPHERE as ReadonlySet<OverlayTabId>, contextOnlyTabs: (editingOnMap ? SPHERE_SETTINGS_ONLY : SPHERE_ONLY) as ReadonlySet<OverlayTabId>, entryTabId: "panorama", measureEntry: measureSpherePhotograph }}
+    context={{ active: insideSphere, ready: sphere.onScreen, baseOnlyTabs: HIDDEN_IN_SPHERE as ReadonlySet<OverlayTabId>, contextOnlyTabs: (editingOnMap ? SPHERE_SETTINGS_ONLY : SPHERE_ONLY) as ReadonlySet<OverlayTabId>, entryTabId: "panorama", preserveOpenTabs: true }}
     overlayApiRef={overlayApiRef}
     surfaces={renderJoinedTabs ? { renderJoined: ({ left, right }) => renderJoinedTabs({ left: left as TabId, right: right as TabId }), logTab: "log" } : undefined}
     onBeforeCloseTab={onBeforeCloseTab}

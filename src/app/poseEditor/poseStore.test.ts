@@ -21,7 +21,7 @@ function numbers(over: Partial<DesiredNumbers> = {}): DesiredNumbers {
   const base = baseline();
   return {
     mode: base.mode, longitudeDeg: base.longitudeDeg, latitudeDeg: base.latitudeDeg, heightMeters: base.heightMeters,
-    headingDeg: base.headingDeg, pitchDeg: base.pitchDeg, offsetM: base.offsetM, ...over,
+    headingDeg: base.headingDeg, pitchDeg: base.pitchDeg, rollDeg: 0, offsetM: base.offsetM, ...over,
   };
 }
 
@@ -73,7 +73,7 @@ function record(over: Partial<PoseEditRecord> = {}): PoseEditRecord {
   return {
     entityId: base.entityId, title: base.title, mode: "ground-relative", authoredRevision: "rev-1", updatedAt: "2026-10-14T22:28:00.000Z",
     capture: { longitudeDeg: -93.2351, latitudeDeg: 44.9764, heightMeters: null },
-    imagePose: { headingDeg: 182.5, pitchDeg: -1.2, aligned: true },
+    imagePose: { headingDeg: 182.5, pitchDeg: -1.2, rollDeg: 0, aligned: true },
     marker: { offsetM: 25 },
     authored: { mode: "ground-relative", longitudeDeg: base.longitudeDeg, latitudeDeg: base.latitudeDeg, heightMeters: null, headingDeg: 0, pitchDeg: 0, rollDeg: 0, offsetM: 25, aligned: false },
     verification: { orientation: { checkedAt: "2026-10-14T22:28:00.000Z", checkedAgainst: "Northrop and Coffman" } },
@@ -173,7 +173,7 @@ describe("pose store", () => {
   it("rejects non-finite values, wrong types and a blank confirmation", () => {
     const badHeight = record();
     (badHeight.capture as { heightMeters: unknown }).heightMeters = "0";
-    const badAligned = record({ imagePose: { headingDeg: 1, pitchDeg: 0, aligned: true }, verification: { orientation: null }, authored: { ...record().authored, aligned: false } });
+    const badAligned = record({ imagePose: { headingDeg: 1, pitchDeg: 0, rollDeg: 0, aligned: true }, verification: { orientation: null }, authored: { ...record().authored, aligned: false } });
     expect(parsePoseStore(JSON.stringify({ format: POSE_FORMAT, version: POSE_VERSION, scenes: [{ sceneId: "umn-twin-cities", sceneUrl: SCENE, edits: [badHeight] }] })).scenes[0].edits).toEqual([]);
     expect(parsePoseStore(JSON.stringify({ format: POSE_FORMAT, version: POSE_VERSION, scenes: [{ sceneId: "umn-twin-cities", sceneUrl: SCENE, edits: [badAligned] }] })).skipped.join(" ")).toMatch(/checked/);
     expect(parsePoseStore(JSON.stringify({ format: "other", version: 1, scenes: [] })).kind).toBe("blocked");
@@ -268,7 +268,7 @@ describe("pose store", () => {
     const edit = store.edit("umn-twin-cities", SCENE, "northrop-mall");
     expect(edit?.imagePose.aligned).toBe(false);
     expect(edit?.verification.orientation).toBeNull();
-    expect(poseMatchesPublished({ ...numbers({ offsetM: 40 }), aligned: false, verification: { orientation: null } }, { ...published, offsetM: 40 }, 0)).toBe(false);
+    expect(poseMatchesPublished({ ...numbers({ offsetM: 40 }), aligned: false, verification: { orientation: null } }, { ...published, offsetM: 40 })).toBe(false);
   });
 
   it("drops an edit that returns to the published place, including a changed roll as a conflict", () => {
@@ -278,8 +278,20 @@ describe("pose store", () => {
     expect(store.edit("umn-twin-cities", SCENE, "northrop-mall")).toBeNull();
     store.setNumbers("umn-twin-cities", SCENE, baseline(), numbers({ headingDeg: 4 }), "now");
     const edit = store.edit("umn-twin-cities", SCENE, "northrop-mall")!;
-    expect(poseMatchesPublished({ ...numbers({ headingDeg: 4 }), aligned: false, verification: { orientation: null } }, baseline({ rollDeg: 2 }), edit.authored.rollDeg)).toBe(false);
+    expect(poseMatchesPublished({ ...numbers({ headingDeg: 4 }), aligned: false, verification: { orientation: null } }, baseline({ rollDeg: 2 }))).toBe(false);
     expect(conflictFields(edit.authored, baseline({ rollDeg: 2 }))).toContain("rollDeg");
+  });
+
+  it("keeps an edited roll, and reads an older export without one as the authored roll", () => {
+    const { store } = storeFor();
+    store.setNumbers("umn-twin-cities", SCENE, baseline(), numbers({ rollDeg: -3.5 }), "now");
+    expect(store.edit("umn-twin-cities", SCENE, "northrop-mall")?.imagePose.rollDeg).toBe(-3.5);
+    store.setNumbers("umn-twin-cities", SCENE, baseline(), numbers({ rollDeg: 0 }), "now");
+    expect(store.edit("umn-twin-cities", SCENE, "northrop-mall")).toBeNull();
+    const older = record();
+    delete (older.imagePose as Partial<typeof older.imagePose>).rollDeg;
+    const parsed = parsePoseStore(JSON.stringify({ format: "foss-earth-pose-overrides", version: 1, scenes: [{ sceneId: "umn-twin-cities", sceneUrl: SCENE, edits: [older] }] }));
+    expect(parsed.scenes[0]?.edits[0]?.imagePose.rollDeg).toBe(0);
   });
 
   it("clears one scene without writing over a blocked payload", () => {

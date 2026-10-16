@@ -46,6 +46,8 @@ import { createPoseOverrides, openPoseStorage } from "./poseEditor/poseOverrides
 import { POSE_STORAGE_KEY } from "./poseEditor/poseStore";
 import { createLayerOverrides, openLayerStorage } from "./layerEditor/layerOverrides";
 import { LAYER_STORAGE_KEY } from "./layerEditor/layerStore";
+import { createLinkOverrides } from "./linkEditor/linkOverrides";
+import { createLinkEditor } from "./linkEditor/editor";
 import { openingOptions, lookUpOpening, createOpeningViews, type OpeningLook, type OpeningMode } from "./openingView";
 
 export interface EarthSceneHostOptions {
@@ -61,6 +63,7 @@ export interface EarthSceneHostOptions {
   poseExportPrefix?: string;
   /** Filename prefix for a layer export. Defaults to `foss-earth-layers`. */
   layerExportPrefix?: string;
+  linkExportPrefix?: string;
   /** The route's automatic startup scene, for restoring this tab's view. */
   startupScene?: string;
 }
@@ -265,7 +268,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     const enterPhotograph = viewer.enter.bind(viewer);
     viewer.enter = (id, options) => {
       const remembered = options?.view ? null : openingMemory.resolve(openingMode(), id, fixedLook());
-      return enterPhotograph(id, openingOptions(options, remembered));
+      return enterPhotograph(id, openingOptions(options, remembered, viewer.status().active === null));
     };
     cleanup.push(viewer.subscribe(() => {
       const current = viewer.status();
@@ -368,8 +371,17 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         layerArrangement.dispose();
       });
     }
+    let linkStorage: Storage | null = null;
+    try { linkStorage = window.localStorage; } catch { /* Session links remain usable. */ }
+    const imageLinks = createLinkOverrides({ controller, baseUrl: options.baseUrl, storage: linkStorage, exportPrefix: options.linkExportPrefix });
+    cleanup.push(() => imageLinks.dispose());
+    const linkEditor = arrangeLayers ? createLinkEditor(document, controller, imageLinks) : null;
+    // The panel normally destroys it; this also releases it if panel setup throws.
+    if (linkEditor) cleanup.push(() => linkEditor.destroy());
     const panel = createScenesPanel({
-      document, controller, ui, contributions, layerArrangement,
+      document, controller, ui,
+      contributions: [...contributions, ...(linkEditor ? [{ section: "links" as const, title: "Image links", element: linkEditor.element, destroy: () => linkEditor.destroy() }] : [])],
+      layerArrangement,
       previewBackend: () => import("./thumbnailBackend").then(module => module.createThumbnailBackend(document, runtime.engine)),
       externalLinkIcon: () => ui.externalLinkIcon(),
       look: { input: {

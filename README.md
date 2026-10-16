@@ -121,9 +121,20 @@ content and feature composition. The libraries own the rest:
 - Renderer: presentation and lifecycle.
 - Sky: Sky and Date and time.
 - Scenes: scene documents and placements.
+
 - 360: sphere viewing.
 - Image structures and preview preparation each have their own library.
 - About and Dev receive application data and contributions. `?dev=1` enables Dev.
+
+Image links are editable in **Scenes → Image links** in local development or with
+`?dev=1`. Choose source and destination photographs, add a one-way or two-way
+connection, and follow it immediately. Nearby destinations appear first, with
+their distance. Hotspots point toward the destination's capture location. Edits
+are saved per scene URL in this browser and also apply on ordinary visits.
+Download links or Copy JSON exports `foss-earth-link-overrides` version 1 for a
+scene's build tools to import; hosts can set `linkExportPrefix` on `mountGlobeApp`.
+Remove and Reset this scene affect local additions; authored scene links remain.
+Once a loaded scene authors a saved addition, the browser forgets that addition.
 
 Inside a sphere, the position readout uses the picture's capture coordinates
 and height, with live heading, pitch and vertical FOV in degrees. Unknown capture

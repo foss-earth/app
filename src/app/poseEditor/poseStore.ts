@@ -34,6 +34,7 @@ export interface PoseCapture {
 export interface PoseImage {
   headingDeg: number;
   pitchDeg: number;
+  rollDeg: number;
   aligned: boolean;
 }
 
@@ -83,7 +84,7 @@ export interface PoseExport extends PoseEnvelope {
   exportedAt: string;
 }
 
-/** The published photograph a correction is compared with. Roll is read-only context. */
+/** The published photograph a correction is compared with. */
 export interface PublishedBaseline {
   entityId: string;
   title: string;
@@ -109,6 +110,7 @@ export interface DesiredNumbers {
   heightMeters: number | null;
   headingDeg: number;
   pitchDeg: number;
+  rollDeg: number;
   offsetM: number;
 }
 
@@ -166,6 +168,7 @@ interface DesiredState {
   heightMeters: number | null;
   headingDeg: number;
   pitchDeg: number;
+  rollDeg: number;
   offsetM: number;
   aligned: boolean;
   verification: { orientation: PoseConfirmation | null };
@@ -320,7 +323,7 @@ function inOffset(value: number): boolean {
 /** Interactive edits are rounded and wrapped here. Stored documents that miss the range are rejected, not repaired. */
 export function normalizeDesiredNumbers(input: DesiredNumbers): DesiredNumbers | null {
   if (!validMode(input.mode)) return null;
-  if (![input.longitudeDeg, input.latitudeDeg, input.headingDeg, input.pitchDeg, input.offsetM].every(finite)) return null;
+  if (![input.longitudeDeg, input.latitudeDeg, input.headingDeg, input.pitchDeg, input.rollDeg, input.offsetM].every(finite)) return null;
   if (input.heightMeters !== null && !finite(input.heightMeters)) return null;
   const offsetM = round(input.offsetM, METER_DIGITS);
   if (!inOffset(offsetM)) return null;
@@ -333,6 +336,7 @@ export function normalizeDesiredNumbers(input: DesiredNumbers): DesiredNumbers |
     heightMeters: input.heightMeters === null ? null : round(input.heightMeters, METER_DIGITS),
     headingDeg: normalizeHeading(input.headingDeg),
     pitchDeg: Math.min(90, Math.max(-90, pitchDeg)),
+    rollDeg: normalizeRoll(input.rollDeg),
     offsetM,
   };
 }
@@ -345,6 +349,7 @@ function numbersOf(record: PoseEditRecord): DesiredNumbers {
     heightMeters: record.capture.heightMeters,
     headingDeg: record.imagePose.headingDeg,
     pitchDeg: record.imagePose.pitchDeg,
+    rollDeg: record.imagePose.rollDeg,
     offsetM: record.marker.offsetM,
   };
 }
@@ -357,6 +362,7 @@ function publishedNumbers(baseline: PublishedBaseline): DesiredNumbers {
     heightMeters: baseline.heightMeters,
     headingDeg: baseline.headingDeg,
     pitchDeg: baseline.pitchDeg,
+    rollDeg: baseline.rollDeg,
     offsetM: baseline.offsetM,
   };
 }
@@ -367,7 +373,8 @@ function orientationChanged(previous: DesiredNumbers, next: DesiredNumbers): boo
     || !latClose(previous.latitudeDeg, next.latitudeDeg)
     || !heightClose(previous.heightMeters, next.heightMeters)
     || !headingClose(previous.headingDeg, next.headingDeg)
-    || !angleClose(previous.pitchDeg, next.pitchDeg);
+    || !angleClose(previous.pitchDeg, next.pitchDeg)
+    || !rollClose(previous.rollDeg, next.rollDeg);
 }
 
 /** Desired alignment matches the published one. False and null are both unconfirmed. */
@@ -375,15 +382,11 @@ export function alignmentClose(desired: boolean, published: boolean | null): boo
   return desired === (published === true);
 }
 
-/**
- * True when the desired place, the read-only roll and the desired alignment all
- * match the published photograph. A changed roll does not match.
- */
-export function poseMatchesPublished(desired: DesiredState, published: PublishedBaseline, rollDeg: number): boolean {
+/** True when the desired place, orientation and alignment all match the published photograph. */
+export function poseMatchesPublished(desired: DesiredState, published: PublishedBaseline): boolean {
   const numbers = normalizeDesiredNumbers(desired);
   const publishedNormalized = normalizeDesiredNumbers(publishedNumbers(published));
   if (!numbers || !publishedNormalized) return false;
-  if (!Number.isFinite(rollDeg) || !Number.isFinite(published.rollDeg)) return false;
   return numbers.mode === publishedNormalized.mode
     && lonClose(numbers.longitudeDeg, publishedNormalized.longitudeDeg)
     && latClose(numbers.latitudeDeg, publishedNormalized.latitudeDeg)
@@ -391,7 +394,7 @@ export function poseMatchesPublished(desired: DesiredState, published: Published
     && headingClose(numbers.headingDeg, publishedNormalized.headingDeg)
     && angleClose(numbers.pitchDeg, publishedNormalized.pitchDeg)
     && metersClose(numbers.offsetM, publishedNormalized.offsetM)
-    && rollClose(rollDeg, published.rollDeg)
+    && rollClose(numbers.rollDeg, publishedNormalized.rollDeg)
     && alignmentClose(desired.aligned, published.aligned);
 }
 
@@ -417,7 +420,7 @@ function inheritedAlignment(record: PoseEditRecord): boolean {
     && heightClose(record.capture.heightMeters, record.authored.heightMeters)
     && headingClose(record.imagePose.headingDeg, record.authored.headingDeg)
     && angleClose(record.imagePose.pitchDeg, record.authored.pitchDeg)
-    && rollClose(record.authored.rollDeg, record.authored.rollDeg);
+    && rollClose(record.imagePose.rollDeg, record.authored.rollDeg);
 }
 
 function clone<T>(value: T): T {
@@ -491,12 +494,14 @@ function readEdit(value: unknown): { record: PoseEditRecord } | { error: string 
   const authoredPitch = readNumber(authored.pitchDeg, inLat);
   const authoredRoll = readNumber(authored.rollDeg, inRoll);
   const authoredOffset = readNumber(authored.offsetM, inOffset);
+  // Exports from before roll was editable carry no roll here; the authored roll stands in.
+  const rollDeg = value.imagePose.rollDeg === undefined ? authoredRoll : readNumber(value.imagePose.rollDeg, inRoll);
   const orientation = readConfirmation(value.verification.orientation);
   const aligned = value.imagePose.aligned;
   const authoredAligned = authored.aligned;
   if (longitudeDeg === null || latitudeDeg === null || heightMeters === undefined || headingDeg === null || pitchDeg === null || offsetM === null
     || !validMode(authored.mode) || authoredLongitude === null || authoredLatitude === null || authoredHeight === undefined
-    || authoredHeading === null || authoredPitch === null || authoredRoll === null || authoredOffset === null
+    || authoredHeading === null || authoredPitch === null || authoredRoll === null || rollDeg === null || authoredOffset === null
     || orientation === undefined || typeof aligned !== "boolean" || (authoredAligned !== null && typeof authoredAligned !== "boolean")) {
     return { error: `The edit for ${value.entityId} has a missing or out-of-range value.` };
   }
@@ -507,7 +512,7 @@ function readEdit(value: unknown): { record: PoseEditRecord } | { error: string 
     authoredRevision: value.authoredRevision,
     updatedAt: value.updatedAt,
     capture: { longitudeDeg, latitudeDeg, heightMeters },
-    imagePose: { headingDeg, pitchDeg, aligned },
+    imagePose: { headingDeg, pitchDeg, rollDeg, aligned },
     marker: { offsetM },
     authored: {
       mode: authored.mode, longitudeDeg: authoredLongitude, latitudeDeg: authoredLatitude, heightMeters: authoredHeight,
@@ -750,7 +755,7 @@ export function createPoseStore(options: PoseStoreOptions): PoseStore {
   }
 
   function put(sceneId: string, sceneUrl: string, baseline: PublishedBaseline, desired: DesiredState, previous: PoseEditRecord | null, persistMode: PosePersist): void {
-    if (poseMatchesPublished(desired, baseline, previous?.authored.rollDeg ?? baseline.rollDeg)) {
+    if (poseMatchesPublished(desired, baseline)) {
       if (previous) {
         const scene = scenes.get(identity(sceneId, sceneUrl));
         if (scene) {
@@ -769,7 +774,7 @@ export function createPoseStore(options: PoseStoreOptions): PoseStore {
       authoredRevision: previous?.authoredRevision ?? baseline.revision,
       updatedAt: options.nowIso(),
       capture: { longitudeDeg: desired.longitudeDeg, latitudeDeg: desired.latitudeDeg, heightMeters: desired.heightMeters },
-      imagePose: { headingDeg: desired.headingDeg, pitchDeg: desired.pitchDeg, aligned: desired.aligned },
+      imagePose: { headingDeg: desired.headingDeg, pitchDeg: desired.pitchDeg, rollDeg: desired.rollDeg, aligned: desired.aligned },
       marker: { offsetM: desired.offsetM },
       authored: previous?.authored ?? authoredFrom(baseline),
       verification: clone(desired.verification),
@@ -870,7 +875,7 @@ export function createPoseStore(options: PoseStoreOptions): PoseStore {
       scene.edits = scene.edits.filter(record => {
         const baseline = byId.get(record.entityId);
         if (!baseline || baseline.mode !== record.mode) return true;
-        return !poseMatchesPublished(desiredFromRecord(record), baseline, record.authored.rollDeg);
+        return !poseMatchesPublished(desiredFromRecord(record), baseline);
       });
       dropSceneIfEmpty(scene);
       if (scene.edits.length !== before) persist(persistMode);
