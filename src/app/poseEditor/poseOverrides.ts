@@ -45,6 +45,7 @@ export interface PoseOverrides {
   confirm(entityId: string, reference: string): { ok: true } | { ok: false; reason: string };
   unconfirm(entityId: string): void;
   setReference(entityId: string, reference: string): { ok: true } | { ok: false; reason: string };
+  restoreEdits(edits: readonly PoseEditRecord[]): void;
   reset(entityId: string): void;
   /** Keeps the live pose after a local file save and drops the override that the file now holds. */
   noteFileSaved(entityId: string): void;
@@ -354,6 +355,14 @@ export function createPoseOverrides(ports: PoseOverridePorts): PoseOverrides {
       const result = store.setReference(scene.sceneId, scene.sceneUrl, id, reference, ports.persist ? "now" : "memory");
       emit();
       return result;
+    },
+    restoreEdits(edits) {
+      const scene = requireScene();
+      if (!scene) return;
+      store.restoreScene(scene.sceneId, scene.sceneUrl, edits, ports.persist ? "now" : "memory");
+      for (const id of [...applied.keys()]) restorePublished(id);
+      applyCurrent();
+      emit();
     },
     reset(id) {
       const scene = requireScene();

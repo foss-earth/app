@@ -142,6 +142,7 @@ export interface PoseStore {
   edit(sceneId: string, sceneUrl: string, entityId: string): PoseEditRecord | null;
   /** Every scene currently held in memory. */
   summary(): { edits: number };
+  restoreScene(sceneId: string, sceneUrl: string, edits: readonly PoseEditRecord[], persist: PosePersist): void;
   setNumbers(sceneId: string, sceneUrl: string, baseline: PublishedBaseline, desired: DesiredNumbers, persist: PosePersist): boolean;
   confirm(sceneId: string, sceneUrl: string, baseline: PublishedBaseline, reference: string, persist: PosePersist): { ok: true } | { ok: false; reason: string };
   unconfirm(sceneId: string, sceneUrl: string, baseline: PublishedBaseline, persist: PosePersist): void;
@@ -798,6 +799,13 @@ export function createPoseStore(options: PoseStoreOptions): PoseStore {
     edit(sceneId, sceneUrl, entityId) {
       const record = scenes.get(identity(sceneId, sceneUrl))?.edits.find(item => item.entityId === entityId);
       return record ? clone(record) : null;
+    },
+    restoreScene(sceneId, sceneUrl, edits, persistMode) {
+      cancelTimer();
+      const scene = { sceneId, sceneUrl, edits: edits.map(record => clone(record)) };
+      scenes.set(identity(sceneId, sceneUrl), scene);
+      dropSceneIfEmpty(scene);
+      persist(persistMode);
     },
     summary() {
       let edits = 0;

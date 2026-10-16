@@ -11,7 +11,7 @@ import {
 import { scenePublicPath } from "./poseFile";
 import { bindPoseEditStop, setPoseEditTitle } from "./poseEditTab";
 import type { PoseOverrides } from "./poseOverrides";
-import { DEFAULT_POSE_EXPORT_PREFIX, poseExportFilename, type DesiredNumbers } from "./poseStore";
+import { DEFAULT_POSE_EXPORT_PREFIX, poseExportFilename, type DesiredNumbers, type PoseEditRecord } from "./poseStore";
 
 const SAVE_URL = "/__foss-earth/pose";
 const LONG_PRESS_MS = 500;
@@ -150,7 +150,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   axisWrap.append(axisInput, axisReset);
   axisRow.append(axisWrap);
   fields.append(axisRow);
-  const hint = element(document, "p", "pose-editor-hint", "Drag the axes to move the photograph and the rings to turn it. Hover a red or blue arrow to lengthen it, then click it and slide the arc on either side to turn those two. Click the ground to stop editing. See through shows the map already loaded. Hotspot directions and the opening view update after the corrections are imported and the scenes are rebuilt.");
+  const hint = element(document, "p", "pose-editor-hint", "Drag the axes to move the photograph and the rings to turn it. Hover a red or blue arrow to lengthen it, then click it and slide the arc on either side to turn those two. Click the ground to stop editing. See through loads and shows the map. Hotspot directions and the opening view update after the corrections are imported and the scenes are rebuilt.");
   const offsetHint = element(document, "p", "pose-editor-hint", "");
   const northRow = element(document, "label", "pose-editor-see");
   const north = document.createElement("input");
@@ -177,7 +177,10 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   copy.type = "button";
   const clear = element(document, "button", "pose-editor-clear", "Clear saved edits");
   clear.type = "button";
-  actions.append(reset, save, share, download, copy, clear);
+  const undo = element(document, "button", "", "Undo");
+  const redo = element(document, "button", "", "Redo");
+  undo.type = redo.type = "button";
+  actions.append(undo, redo, reset, save, share, download, copy, clear);
   const replace = element(document, "button", "pose-editor-replace", "Replace unreadable saved data");
   replace.type = "button";
   const copyOriginal = element(document, "button", "pose-editor-copy", "Copy original saved text");
@@ -222,6 +225,62 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   document.body.append(overlay);
 
   const opacityOf = new Map<string, number>();
+  const undoStack: PoseEditRecord[][] = [];
+  const redoStack: PoseEditRecord[][] = [];
+  let lastEdits: PoseEditRecord[] = [];
+  let replaying = false;
+  function editsNow(): PoseEditRecord[] {
+    const scene = host.overrides.scene();
+    return scene ? [...host.overrides.store.edits(scene.sceneId, scene.sceneUrl)] : [];
+  }
+  function trackEdit(): void {
+    if (drag || replaying) return;
+    const next = editsNow();
+    if (JSON.stringify(next) === JSON.stringify(lastEdits)) return;
+    undoStack.push(lastEdits);
+    if (undoStack.length > 100) undoStack.shift();
+    redoStack.length = 0;
+    lastEdits = next;
+  }
+  function travelHistory(back: boolean): void {
+    if (drag) cancelGestures();
+    const source = back ? undoStack : redoStack;
+    const target = back ? redoStack : undoStack;
+    const next = source.pop();
+    if (!next) return;
+    target.push(lastEdits);
+    replaying = true;
+    try { host.overrides.restoreEdits(next); lastEdits = editsNow(); }
+    finally { replaying = false; }
+    paint();
+  }
+  undo.addEventListener("click", () => travelHistory(true));
+  redo.addEventListener("click", () => travelHistory(false));
+  const onHistoryKey = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (!selected || event.altKey || !(event.metaKey || event.ctrlKey)
+      || target?.closest?.("input, textarea, select, [contenteditable='true']")) return;
+    const key = event.key.toLowerCase();
+    if (key !== "z" && !(key === "y" && event.ctrlKey)) return;
+    event.preventDefault();
+    travelHistory(key === "z" && !event.shiftKey);
+  };
+  document.addEventListener("keydown", onHistoryKey);
+  function opacityKey(): string {
+    const scene = host.overrides.scene();
+    return `foss-earth-pose-opacity-v1:${JSON.stringify([scene?.sceneId, scene?.sceneUrl])}`;
+  }
+  function loadOpacity(): void {
+    opacityOf.clear();
+    try {
+      const data: unknown = JSON.parse(document.defaultView?.localStorage.getItem(opacityKey()) ?? "{}");
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        for (const [id, value] of Object.entries(data)) {
+          if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1) opacityOf.set(id, value);
+        }
+      }
+    } catch { /* Editing remains available when storage is unavailable. */ }
+  }
   let sceneKey = "";
   let followed: string | null = null;
   let suspended = false;
@@ -362,7 +421,9 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
 
   function cancelGestures(): void {
     gesture += 1;
+    const wasDragging = Boolean(drag);
     drag = null;
+    if (wasDragging) trackEdit();
     cancelArm();
   }
 
@@ -385,6 +446,8 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (document.activeElement !== opacity) opacity.value = String(100 - percent);
     opacityReadout.textContent = `${100 - percent}%`;
     opacity.disabled = !draft;
+    undo.disabled = undoStack.length === 0;
+    redo.disabled = redoStack.length === 0;
     writeFields(draft);
     const counts = host.overrides.counts();
     const storeStatus = host.overrides.status();
@@ -461,7 +524,9 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (key !== sceneKey) {
       cancelGestures();
       cancelConfirmations();
-      opacityOf.clear();
+      loadOpacity();
+      undoStack.length = redoStack.length = 0;
+      lastEdits = editsNow();
       axisHeadingOf.clear();
       selected = null;
       suspended = false;
@@ -475,7 +540,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const active = scene?.phase === "immersive" ? scene.active : null;
     if (active !== followed) {
       cancelGestures();
-      if (followed) { opacityOf.delete(followed); axisHeadingOf.delete(followed); }
+      if (followed) axisHeadingOf.delete(followed);
       host.viewer.setImageOpacity(null, 1);
       followed = active;
       if (!(suspended && active === suspendedId) && active && host.overrides.baseline(active)) {
@@ -722,6 +787,8 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (!selected) return;
     cancelConfirmations();
     opacityOf.set(selected, 1 - Number(opacity.value) / 100);
+    try { view?.localStorage.setItem(opacityKey(), JSON.stringify(Object.fromEntries(opacityOf))); }
+    catch { note = "See-through is saved for this session only because browser storage is unavailable."; syncOpacity(); paint(); return; }
     note = ""; syncOpacity(); paint();
   });
   north.addEventListener("change", () => {
@@ -882,6 +949,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     if (drag?.pointerId !== event.pointerId) return;
     const finished = drag;
     drag = null;
+    trackEdit();
     host.overrides.flush();
     if (cancelled || event.type !== "pointerup" || finished.moved || (finished.handle !== "east" && finished.handle !== "north")) return;
     spinArm = spinArm === finished.handle ? null : finished.handle;
@@ -988,7 +1056,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     syncOpacity();
     paint();
   });
-  const offOverrides = host.overrides.subscribe(() => { syncOpacity(); paint(); });
+  const offOverrides = host.overrides.subscribe(() => { syncFromHost(); trackEdit(); syncOpacity(); paint(); });
   const offTransition = host.overrides.onTransition(() => { cancelGestures(); cancelConfirmations(); });
   const offBefore = host.beforeFrame(() => {
     const phase = host.controller.state().status?.phase;
@@ -1000,6 +1068,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   return {
     dispose() {
       cancelGestures();
+      document.removeEventListener("keydown", onHistoryKey);
       offStatus(); offOverrides(); offTransition(); offBefore(); offAfter(); unbindStop();
       host.canvas.removeEventListener("pointerdown", onPointerDown, true);
       host.canvas.removeEventListener("pointermove", onPointerMove, true);

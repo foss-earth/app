@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SceneController, SceneEntryStatus, ScenePlacement, SceneStatus } from "@foss-earth/scenes/browser";
 import type { SpherePoseEdit } from "../sceneWorld";
 import { mountPoseEditor, type PoseEditorHost } from "./editor";
@@ -108,11 +108,54 @@ function inputNamed(tab: HTMLElement, label: string): HTMLInputElement {
 }
 
 describe("placement editor", () => {
+  beforeEach(() => {
+    const values = new Map<string, string>();
+    Object.defineProperty(window, "localStorage", { configurable: true, value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      clear: () => values.clear(),
+    } });
+  });
   afterEach(() => {
     setPoseEditTitle(null);
     document.body.replaceChildren();
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it("undoes and redoes edits with shortcuts and discards redo after a new edit", async () => {
+    const { editor, tab, overrides } = await openEditor({ phase: "immersive", active: "northrop-mall" });
+    const heading = inputNamed(tab, "Heading");
+    const change = (value: string) => { heading.value = value; heading.dispatchEvent(new Event("change")); };
+    const shortcut = (shiftKey = false) => document.dispatchEvent(new KeyboardEvent("keydown", { key: "z", metaKey: true, shiftKey, bubbles: true, cancelable: true }));
+    change("12");
+    change("24");
+    shortcut();
+    expect(overrides.record("northrop-mall")?.imagePose.headingDeg).toBe(12);
+    shortcut();
+    expect(overrides.record("northrop-mall")).toBeNull();
+    shortcut(true);
+    expect(overrides.record("northrop-mall")?.imagePose.headingDeg).toBe(12);
+    change("36");
+    shortcut(true);
+    expect(overrides.record("northrop-mall")?.imagePose.headingDeg).toBe(36);
+    editor.dispose();
+  });
+
+  it("restores see-through on remount and after leaving the photograph", async () => {
+    const env = await openEditor({ phase: "immersive", active: "northrop-mall" });
+    const opacity = env.tab.querySelector<HTMLInputElement>('input[aria-label="See through"]')!;
+    opacity.value = "65";
+    opacity.dispatchEvent(new Event("input"));
+    env.setStatus(sceneStatus());
+    env.setStatus(sceneStatus({ phase: "immersive", active: "northrop-mall" }));
+    expect(opacity.value).toBe("65");
+    env.editor.dispose();
+    const showWorld = vi.spyOn(env.host.runtime, "setPresentedWorldVisible");
+    const restored = mountPoseEditor(env.host);
+    expect(showWorld).toHaveBeenCalledWith(true);
+    expect(env.tab.querySelector<HTMLInputElement>('input[aria-label="See through"]')!.value).toBe("65");
+    restored.dispose();
   });
 
   it("selects the open photograph and does not reopen it after the tab stops editing", async () => {
