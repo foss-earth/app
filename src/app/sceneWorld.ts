@@ -83,26 +83,30 @@ export function createEarthSceneWorld(
       stamp: `${edit.longitudeDeg}|${edit.latitudeDeg}|${edit.heightMeters}|${edit.headingDeg}|${edit.pitchDeg}|${edit.offsetM}`,
     };
   }
+  function previewContentOf(source: { pose: ResolvedSphere["imagePose"] }) {
+    return transpose3(imagePoseMatrix(source.pose));
+  }
   function contentOf(source: { capture: ResolvedSphere["capture"]; pose: ResolvedSphere["imagePose"] }) {
-    return mulMat3Mat3(transpose3(imagePoseMatrix(source.pose)), ecefToEnuMatrix(enuFrame(source.capture.longitudeDeg, source.capture.latitudeDeg)));
+    return mulMat3Mat3(previewContentOf(source), ecefToEnuMatrix(enuFrame(source.capture.longitudeDeg, source.capture.latitudeDeg)));
   }
   function update(entity: ResolvedSphere, radiusMeters: number): { item: Cached; changed: boolean } {
     const source = sourceOf(entity);
     let item = cache.get(entity);
     if (!item) {
-      item = { stamp: "", result: { state: "pending", placement: {
+      item = { stamp: "", result: { state: "pending", previewContent: previewContentOf(source), placement: {
         marker: null, radiusMeters, content: contentOf(source), ...entity.markerStyle,
       } } };
       cache.set(entity, item);
     }
     const old = item.result;
+    const oriented = { ...old, previewContent: previewContentOf(source) };
     const stampChanged = item.stamp !== source.stamp;
     const placement = { ...old.placement, radiusMeters, content: contentOf(source), ...entity.markerStyle };
     if (source.marker.mode === "capture-relative") {
       if (old.state === "placed" && !stampChanged) return { item, changed: false };
       if (!source.capture.height) throw new Error("Capture-relative placement requires its known height.");
       item.stamp = source.stamp;
-      item.result = { ...old, state: "placed", placement: { ...placement, marker: captureRelativeMarker(source.capture, source.capture.height.meters, source.marker.eastM, source.marker.northM, source.marker.offsetM) } };
+      item.result = { ...oriented, state: "placed", placement: { ...placement, marker: captureRelativeMarker(source.capture, source.capture.height.meters, source.marker.eastM, source.marker.northM, source.marker.offsetM) } };
       return { item, changed: true };
     }
     // Legacy ground-relative: placed once from the first surface answer and then kept, so map detail
@@ -116,13 +120,13 @@ export function createEarthSceneWorld(
       // Leave the stamp stale so a later frame can sample the ground again, without asking for a frame once the orientation is current.
       const nextPlacement = { ...placement, marker: old.placement.marker };
       const changed = nextPlacement.content.some((row, index) => row.some((value, column) => value !== old.placement.content[index][column]));
-      item.result = { ...old, placement: nextPlacement };
+      item.result = { ...oriented, placement: nextPlacement };
       return { item, changed };
     }
     const marker = groundRelativeMarker(query, hit.heightMeters, source.marker.offsetM);
     const moved = !old.placement.marker || length(sub(marker, old.placement.marker)) > 1e-3;
     item.stamp = source.stamp;
-    item.result = { ...old, state: "placed", placement: { ...placement, marker } };
+    item.result = { ...oriented, state: "placed", placement: { ...placement, marker } };
     return { item, changed: moved || stampChanged };
   }
   function publish(id: string): ScenePlacement | null {

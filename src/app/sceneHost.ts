@@ -1,3 +1,4 @@
+import { createViewSession } from "./viewSession";
 /** Earth application composition: one supplied world, renderer and image session. */
 import { bindEarthSceneMedia } from "./cacheCompatibility";
 import { randomId } from "./randomId";
@@ -28,8 +29,8 @@ import {
 } from "@foss-earth/scenes/browser";
 import { createScenesPanel, createSceneHotspots } from "@foss-earth/scenes/panel";
 import { NAVIGATION_PRESENTATION_LAYER } from "@foss-earth/engine/babylon";
-import { ecef } from "@foss-earth/engine";
-import { worldViewportClientRect } from "@foss-earth/engine/browser";
+import { createWheelGestureClassifier, ecef } from "@foss-earth/engine";
+import { isSafariGestureSupported, worldViewportClientRect } from "@foss-earth/engine/browser";
 import type { ReadinessPolicy } from "@foss-earth/renderer";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import type { createEarthBrowserRuntime } from "./browserRuntime";
@@ -43,6 +44,9 @@ import { textureReadiness } from "./textureReadiness";
 import { poseEditEnabled } from "./poseEditor/poseGate";
 import { createPoseOverrides, openPoseStorage } from "./poseEditor/poseOverrides";
 import { POSE_STORAGE_KEY } from "./poseEditor/poseStore";
+import { createLayerOverrides, openLayerStorage } from "./layerEditor/layerOverrides";
+import { LAYER_STORAGE_KEY } from "./layerEditor/layerStore";
+import { openingOptions, lookUpOpening, createOpeningViews, type OpeningLook, type OpeningMode } from "./openingView";
 
 export interface EarthSceneHostOptions {
   browser: Awaited<ReturnType<typeof createEarthBrowserRuntime>>;
@@ -55,6 +59,10 @@ export interface EarthSceneHostOptions {
   openSettings(): void;
   /** Filename prefix for a pose export. Defaults to `foss-earth-poses`. */
   poseExportPrefix?: string;
+  /** Filename prefix for a layer export. Defaults to `foss-earth-layers`. */
+  layerExportPrefix?: string;
+  /** The route's automatic startup scene, for restoring this tab's view. */
+  startupScene?: string;
 }
 
 export function createEarthSceneHost(options: EarthSceneHostOptions) {
@@ -76,6 +84,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const devicePixelsPerCss = () => 1 / runtime.engine.getHardwareScalingLevel();
   const appearance = () => ({ previewFovDeg: n("previewFov"),
     markerDiameterCssPx: range("markerDiameter"), hitTargetDiameterCssPx: n("hitTargetDiameter") });
+  let restoringView = false;
   const viewerSettings = (): ViewerSettings => ({
     appearance: appearance(),
     look: { dragSensitivity: n("dragSensitivity"), swipeSensitivity: n("swipeSensitivity"),
@@ -84,9 +93,9 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       fovRangeDeg: range("verticalFovRange"), pitchRangeDeg: range("pitchRange"), reducedMotion: reducedMotion() },
     entryOrientation: settings.get("scene.panorama.entryOrientation") === "authored" ? "authored" : "geographic",
     entryFovDeg: typeof settings.get("scene.panorama.entryFov") === "number" ? n("entryFov") : null,
-    flightDurationMs: !reducedMotion() && typeof settings.get("scene.panorama.flightDuration") === "number" ? n("flightDuration") : 0,
-    expandDurationMs: n("expandDuration"), fadeDurationMs: n("fadeDuration"),
-    reducedFadeDurationMs: n("reducedFadeDuration"), orientDurationMs: n("orientDuration"), hoverDurationMs: n("hoverDuration"),
+    flightDurationMs: !restoringView && !reducedMotion() && typeof settings.get("scene.panorama.flightDuration") === "number" ? n("flightDuration") : 0,
+    expandDurationMs: restoringView ? 0 : n("expandDuration"), fadeDurationMs: restoringView ? 0 : n("fadeDuration"),
+    reducedFadeDurationMs: restoringView ? 0 : n("reducedFadeDuration"), orientDurationMs: restoringView ? 0 : n("orientDuration"), hoverDurationMs: n("hoverDuration"),
     previewHoldMs: typeof settings.get("scene.panorama.previewHold") === "number" ? n("previewHold") * 1000 : null,
   });
   const representations = createBuiltInRepresentations(() => ({ tileMemoryBytes: n("tileMemoryMiB") * MIB,
@@ -232,6 +241,36 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       holdRendering() { runtime.beginContinuous(); let released = false; return () => { if (!released) { released = true; runtime.endContinuous(); } }; },
       isOccluded: (eye, direction, distance) => runtime.surface.raycast(ecef(eye), ecef(direction), distance) !== null,
       failure: (image, kind, error) => report(image, kind, error) });
+    const openingMemory = createOpeningViews({
+      storage: window.localStorage,
+      schedule(run, ms) { const handle = window.setTimeout(run, ms); return { cancel: () => window.clearTimeout(handle) }; },
+    });
+    const flushOpening = (): void => openingMemory.flush();
+    window.addEventListener("pagehide", flushOpening);
+    document.addEventListener("visibilitychange", flushOpening);
+    cleanup.push(() => {
+      window.removeEventListener("pagehide", flushOpening);
+      document.removeEventListener("visibilitychange", flushOpening);
+      openingMemory.dispose();
+    });
+    const openingMode = (): OpeningMode => {
+      const value = settings.get("scene.panorama.openingView");
+      return value === "last" || value === "image" || value === "fixed" ? value : "enter";
+    };
+    const fixedLook = (): OpeningLook => ({
+      headingDeg: n("openingHeading"),
+      pitchDeg: n("openingPitch"),
+      verticalFovDeg: typeof settings.get("scene.panorama.entryFov") === "number" ? n("entryFov") : 90,
+    });
+    const enterPhotograph = viewer.enter.bind(viewer);
+    viewer.enter = (id, options) => {
+      const remembered = options?.view ? null : openingMemory.resolve(openingMode(), id, fixedLook());
+      return enterPhotograph(id, openingOptions(options, remembered));
+    };
+    cleanup.push(viewer.subscribe(() => {
+      const current = viewer.status();
+      if (current.phase === "immersive" && current.active && current.view) openingMemory.remember(current.active, current.view);
+    }));
     let world: ReturnType<typeof createEarthSceneWorld> | null = null;
     cleanup.push(() => attemptEarthCleanup([() => viewer.dispose(), () => world?.dispose()], "Earth viewer/world cleanup failed."));
     const frames = { subscribe(listener: () => void) { const observer = runtime.scene.onAfterRenderObservable.add(listener);
@@ -241,11 +280,15 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     // Viewer releases navigation before the geographic host restores its configured FOV.
     const sceneWorld = world;
     const history = createBrowserSceneHistory(window), sessionId = randomId();
+    let resumedGlobe = false;
+    let startupLoad = Boolean(options.startupScene);
     const controller = createSceneController({ examples: options.examples, baseUrl: options.baseUrl, canvas,
       dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold"),
-      load(url, callbacks) {
+      async load(url, callbacks) {
         failure = callbacks.onFailure;
-        return loadScene(url, { ...callbacks, viewer, world: sceneWorld, frames, sessionId,
+        const startup = startupLoad;
+        startupLoad = false;
+        const result = await loadScene(url, { applyOverview: !(startup && resumedGlobe), ...callbacks, viewer, world: sceneWorld, frames, sessionId,
           history, baseUrl: options.baseUrl, fetch: window.fetch.bind(window),
           representations: representations.map(entry => entry.hooks), validateImageAsset: validateViewerAsset,
           extensionHooks: [createPreviewSheetsExtensionHook()],
@@ -258,9 +301,36 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
           describeImage: createViewerSceneDescription(viewer, { representations,
             tileMemoryBytes: () => n("tileMemoryMiB") * MIB, maxTextureSide }),
         });
+        if (startup) {
+          try {
+            const saved = viewSession.saved?.panorama;
+            if (result.ok && resumedGlobe && saved?.sceneId === result.handle.status.sceneId && result.handle.status.entries.some(entry => entry.id === saved.id)) {
+              restoringView = true;
+              await viewer.enter(saved.id, { view: saved.look });
+            }
+          } finally { restoringView = false; viewSession.start(); }
+        }
+        return result;
       },
     });
     cleanup.push(() => controller.destroy());
+    let viewStorage: Storage | null = null;
+    try { viewStorage = window.sessionStorage; } catch { /* This tab can still navigate. */ }
+    const viewSession = createViewSession({
+      storage: viewStorage, key: `foss-earth.view-session.v1:${window.location.pathname}:${options.startupScene ?? ""}`,
+      capture: () => runtime.captureNavigationSnapshot(), restore: snapshot => runtime.restoreNavigationSnapshot(snapshot),
+      held: () => runtime.getNavigationState() !== null,
+      panorama: () => { const status = controller.state().status; return status ? { sceneId: status.sceneId, ...viewer.status() } : null; },
+      schedule(run, ms) { const timer = window.setTimeout(run, ms); return { cancel: () => window.clearTimeout(timer) }; },
+    });
+    resumedGlobe = viewSession.restoreGlobe();
+    if (!options.startupScene) viewSession.start();
+    const offViewFrame = frames.subscribe(viewSession.observe);
+    const flushView = (): void => viewSession.flush();
+    const hideView = (): void => { if (document.hidden) flushView(); };
+    window.addEventListener("pagehide", flushView);
+    document.addEventListener("visibilitychange", hideView);
+    cleanup.push(() => { offViewFrame(); window.removeEventListener("pagehide", flushView); document.removeEventListener("visibilitychange", hideView); });
     const savedSection = createSavedImagesSection({ document, source: saved, refresh: ui.refresh,
       maxListedGroups: () => settings.get<number>("scene.panorama.savedGroupsShown") });
     cleanup.push(() => savedSection.destroy());
@@ -271,7 +341,54 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         element: parameter.element, destroy() { attemptEarthCleanup([() => parameter.destroy(),
           () => { if (section === "saved") savedSection.destroy(); }], "Scene parameter section cleanup failed."); } };
     });
-    const panel = createScenesPanel({ document, controller, ui, contributions, externalLinkIcon: () => ui.externalLinkIcon() });
+    const arrangeLayers = import.meta.env.MODE !== "test" && (import.meta.env.DEV || poseEditEnabled(window.location.search));
+    const layerArrangement = arrangeLayers ? createLayerOverrides({
+      baseUrl: options.baseUrl, controller, persist: true, exportPrefix: options.layerExportPrefix,
+      storage: openLayerStorage(window),
+      schedule: (run, delayMs) => {
+        const timer = window.setTimeout(run, delayMs);
+        return { cancel: () => window.clearTimeout(timer) };
+      },
+    }) : undefined;
+    if (layerArrangement) {
+      const flushLayers = () => layerArrangement.flush();
+      const onLayerStorage = (event: StorageEvent) => {
+        if (event.key !== null && event.key !== LAYER_STORAGE_KEY) return;
+        try { layerArrangement.observeExternal(window.localStorage.getItem(LAYER_STORAGE_KEY)); }
+        catch { layerArrangement.observeExternal(event.newValue); }
+      };
+      const onLayerVisibility = () => { if (document.visibilityState === "hidden") flushLayers(); };
+      window.addEventListener("storage", onLayerStorage);
+      window.addEventListener("pagehide", flushLayers);
+      document.addEventListener("visibilitychange", onLayerVisibility);
+      cleanup.push(() => {
+        window.removeEventListener("storage", onLayerStorage);
+        window.removeEventListener("pagehide", flushLayers);
+        document.removeEventListener("visibilitychange", onLayerVisibility);
+        layerArrangement.dispose();
+      });
+    }
+    const panel = createScenesPanel({
+      document, controller, ui, contributions, layerArrangement,
+      previewBackend: () => import("./thumbnailBackend").then(module => module.createThumbnailBackend(document, runtime.engine)),
+      externalLinkIcon: () => ui.externalLinkIcon(),
+      look: { input: {
+        createWheelGestureClassifier: options => createWheelGestureClassifier({ ...options, nowMs: browser.clock.nowMs }),
+        inputMode: () => { const mode = runtime.getInputMode(); return mode === "touch" ? "auto" : mode; },
+        safariGestures: isSafariGestureSupported({ userAgent: window.navigator.userAgent, hasGestureEvent: "GestureEvent" in window }),
+        controlTakesKey: () => true,
+      }, swipeSensitivity: () => n("swipeSensitivity"), inertiaHalfLifeMs: () => n("inertiaHalfLife"), reducedMotion, dragSensitivity: () => n("dragSensitivity"), zoomPerNotch: () => n("zoomPerNotch"), pinchGain: () => n("pinchGain"), pitchRange: () => range("pitchRange"), fovRange: () => range("verticalFovRange") },
+      opening: {
+        mode: openingMode,
+        setMode: mode => { settings.set("scene.panorama.openingView", mode); },
+        lookUp: () => lookUpOpening(range("pitchRange"), (id, value) => { settings.set(id, value); }),
+        lookFor: id => openingMemory.resolve(openingMode(), id, fixedLook()),
+        remember: (id, look) => openingMemory.remember(id, look),
+        subscribe: listener => settings.subscribe(changed => {
+          if ([...changed].some(id => id === "scene.panorama.openingView" || id === "scene.panorama.openingHeading" || id === "scene.panorama.openingPitch")) listener();
+        }),
+      },
+    });
     cleanup.push(() => panel.destroy());
     const tabs = createViewerTabs({ document, viewer, image: id => viewer.describeImage?.(id) ?? null,
       sectionTitle: (tab, section) => settings.getSectionTitle(tab, section), parameterSection: ui.parameterSection, sections: ui.sections,
@@ -350,6 +467,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       }
     });
     cleanup.push(offSettings);
+    cleanup.push(() => viewSession.dispose());
     return { controller, panel, tabs, viewer, renderer, media: saved, isCurrent: () => !disposed,
       async whenSettled() {
         const results = await Promise.allSettled([controller.whenSettled(), viewer.whenSettled(), resources.whenSettled(), sceneWorld.whenSettled(), saved.settled()]);

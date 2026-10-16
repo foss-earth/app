@@ -211,6 +211,8 @@ export interface GlobeAppOptions {
   initialScene?: string;
   /** Filename prefix for photograph-placement exports. The default is `foss-earth-poses`. */
   poseExportPrefix?: string;
+  /** Filename prefix for indoor and outdoor layer exports. The default is `foss-earth-layers`. */
+  layerExportPrefix?: string;
   /** Host-owned observations mounted only through the optional shared Dev tab. */
   devContributions?: readonly EarthDevContribution[];
   /**
@@ -1097,11 +1099,14 @@ export async function createGlobeApp(
   const appBaseUrl = new URL(import.meta.env.BASE_URL ?? "/", window.location.href).href;
   const params = new URLSearchParams(window.location.search);
   const sphereTest = params.get("panoramaTest") === "1";
+  const requestedScene = params.get("scene") ?? options.initialScene;
   const sceneHost = createEarthSceneHost({
     browser, settings, canvas, ui, readinessPolicy: browserPolicy.readinessPolicy,
     examples: options.scenes ?? SCENE_EXAMPLES,
     baseUrl: appBaseUrl,
     poseExportPrefix: options.poseExportPrefix,
+    layerExportPrefix: options.layerExportPrefix,
+    startupScene: requestedScene,
     openSettings: () => options.overlayApiRef?.current?.openOrSelectTab("panorama-settings"),
   });
   sphereViewer = sceneHost.viewer;
@@ -1151,7 +1156,6 @@ export async function createGlobeApp(
   cleanup.push(() => imageTabs.dispose());
   // While a sphere is entered, its credit takes the map's place at the bar's right end.
   const sceneHud = mapSourceSlot ? createSceneHud({ controller: scenes, container: mapSourceSlot, mapSource: mapSourceHud?.element, createExternalLinkIcon }) : null;
-  const requestedScene = params.get("scene") ?? options.initialScene;
   cleanup.push(() => sceneHud?.destroy());
   if (requestedScene) void scenes.load(requestedScene, { exampleId: true });
   if (sphereTest) {

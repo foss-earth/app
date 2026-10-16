@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BabylonRuntime } from "@foss-earth/engine/babylon";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
+import { imagePoseMatrix, transpose3 } from "@foss-earth/images";
 import { pointGeodetic } from "@foss-earth/engine";
 import type { ResolvedSphere } from "@foss-earth/scenes";
 import { createEarthSceneWorld, createEarthViewerInput } from "./sceneWorld";
@@ -74,6 +75,7 @@ describe("Earth geographic scene lifecycle", () => {
       expect(placed.state).toBe("placed");
       expect(placed.placement.marker).not.toBeNull();
       expect(pointGeodetic(placed.placement.marker!).heightMeters).toBeCloseTo(275, 0);
+      expect(placed.previewContent).toEqual(transpose3(imagePoseMatrix(entity.imagePose)));
     } finally { world.dispose(); }
   });
 
@@ -144,4 +146,23 @@ describe("Earth geographic scene lifecycle", () => {
     expect(pointGeodetic(world.posePlacement(ground.id)!.placement.marker!).heightMeters).toBeCloseTo(290, 0);
     world.dispose();
   });
+});
+
+it("gives local previews a level frame at Minnesota latitude, including live pose edits", () => {
+  const { make } = fixture(), world = make();
+  const entity: ResolvedSphere = {
+    id: "preview", type: "panorama", assetId: "asset", title: "Preview", links: [],
+    capture: { longitudeDeg: -93.235, latitudeDeg: 44.975, height: { meters: 250, datum: "WGS84-ellipsoid" } },
+    imagePose: { headingDeg: 0, pitchDeg: 0, rollDeg: 0 },
+    marker: { mode: "capture-relative", eastM: 0, northM: 0, offsetM: 0 },
+    markerStyle: { outline: null, hoverScale: 1 },
+  };
+  world.watchPlacement(entity, { radiusMeters: 8 }, () => {});
+  const placed = world.resolvePlacement(entity, { radiusMeters: 8 });
+  expect(placed.previewContent).toEqual([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
+  expect(placed.previewContent).not.toEqual(placed.placement.content);
+  world.setPoseEdit(entity.id, { longitudeDeg: -93.235, latitudeDeg: 44.975, heightMeters: 250, headingDeg: 30, pitchDeg: 12, offsetM: 0 });
+  const edited = world.posePlacement(entity.id)!;
+  expect(edited.previewContent).toEqual(transpose3(imagePoseMatrix({ headingDeg: 30, pitchDeg: 12, rollDeg: 0 })));
+  world.dispose();
 });

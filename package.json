@@ -33,7 +33,7 @@
   "bin": {},
   "scripts": {
     "dev": "vite --configLoader native",
-    "build": "npm run typecheck && vite build --configLoader native",
+    "build": "npm run typecheck && vite build --configLoader native --manifest && node scripts/check-thumbnail-chunks.mjs",
     "ci": "npm run check:implementation",
     "lint": "eslint . --cache --cache-strategy content --cache-location node_modules/.cache/eslint/",
     "preview": "vite preview --configLoader native",
