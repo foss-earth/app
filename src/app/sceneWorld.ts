@@ -67,7 +67,7 @@ export function createEarthSceneWorld(
     createAbortController: () => new AbortController(), combineSignals: signals => AbortSignal.any([...signals]),
     abortReason: () => new DOMException("Cancelled by input or camera change.", "AbortError"),
   });
-  type Cached = { result: ScenePlacement; revision: number | null; stamp: string };
+  type Cached = { result: ScenePlacement; stamp: string };
   const cache = new WeakMap<ResolvedSphere, Cached>();
   const edits = new Map<string, SpherePoseEdit>();
   const watches = new Set<{ entity: ResolvedSphere; radiusMeters: number; changed(next: ScenePlacement): void }>();
@@ -90,7 +90,7 @@ export function createEarthSceneWorld(
     const source = sourceOf(entity);
     let item = cache.get(entity);
     if (!item) {
-      item = { revision: null, stamp: "", result: { state: "pending", placement: {
+      item = { stamp: "", result: { state: "pending", placement: {
         marker: null, radiusMeters, content: contentOf(source), ...entity.markerStyle,
       } } };
       cache.set(entity, item);
@@ -105,10 +105,10 @@ export function createEarthSceneWorld(
       item.result = { ...old, state: "placed", placement: { ...placement, marker: captureRelativeMarker(source.capture, source.capture.height.meters, source.marker.eastM, source.marker.northM, source.marker.offsetM) } };
       return { item, changed: true };
     }
-    // A flight keeps its marker. An edit still has to move it, including while the view is inside.
-    if (viewer.isPlacementFrozen(entity.id) && !stampChanged) return { item, changed: false };
-    const revision = runtime.surface.revision?.() ?? null;
-    if (old.state === "placed" && !stampChanged && revision !== null && item.revision === revision) return { item, changed: false };
+    // Legacy ground-relative: placed once from the first surface answer and then kept, so map detail
+    // arriving later never moves a photograph. Only an edit samples again, including while the view is
+    // inside. Prepared scenes carry fixed capture-relative heights and never sample the map.
+    if (!stampChanged && (old.state === "placed" || viewer.isPlacementFrozen(entity.id))) return { item, changed: false };
     const query = groundQueryPoint(source.capture, source.marker.eastM, source.marker.northM);
     const hit = runtime.surface.sample(query.latitudeDeg, query.longitudeDeg);
     if (!hit) {
@@ -121,7 +121,6 @@ export function createEarthSceneWorld(
     }
     const marker = groundRelativeMarker(query, hit.heightMeters, source.marker.offsetM);
     const moved = !old.placement.marker || length(sub(marker, old.placement.marker)) > 1e-3;
-    item.revision = revision ?? hit.revision;
     item.stamp = source.stamp;
     item.result = { ...old, state: "placed", placement: { ...placement, marker } };
     return { item, changed: moved || stampChanged };

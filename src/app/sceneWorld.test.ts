@@ -13,6 +13,7 @@ vi.mock("@foss-earth/engine/browser", async original => ({
 afterEach(() => vi.restoreAllMocks());
 function fixture() {
   const offFrame = vi.fn();
+  let frameListener = () => {};
   const runtime = {
     surface: { sample: () => ({ heightMeters: 0 }) },
     captureNavigationSnapshot: () => ({ camera: { fov: 1 }, view: {} }),
@@ -21,9 +22,9 @@ function fixture() {
   const canvas = document.createElement("canvas");
   const make = () => createEarthSceneWorld(runtime as unknown as BabylonRuntime,
     { get: () => 60 } as unknown as SettingsRegistry,
-    { subscribe: () => offFrame, wheels: { begins: () => true } as never, minimumOverviewPreparationRadiusMeters: () => 1 },
+    { subscribe: (listener: () => void) => { frameListener = listener; return offFrame; }, wheels: { begins: () => true } as never, minimumOverviewPreparationRadiusMeters: () => 1 },
     canvas, { status: () => ({ phase: "overview" }) as never, isPlacementFrozen: () => false });
-  return { make, runtime, offFrame };
+  return { make, runtime, offFrame, frame: () => frameListener() };
 }
 describe("Earth geographic scene lifecycle", () => {
   it("removes every input hook, restores overview FOV and requests its frame after a subscription release fails", async () => {
@@ -57,6 +58,67 @@ describe("Earth geographic scene lifecycle", () => {
     expect((caught as AggregateError).errors).toEqual([primary, release]);
     host.dispose();
   });
+  it("keeps legacy ground-relative orbs visible when their authored capture height is null", () => {
+    const { make, runtime } = fixture();
+    runtime.surface.sample = () => ({ heightMeters: 250, revision: 3 });
+    const world = make();
+    const entity: ResolvedSphere = {
+      id: "legacy-orb", type: "panorama", assetId: "asset", title: "Legacy orb", links: [],
+      capture: { longitudeDeg: -93.235, latitudeDeg: 44.975, height: null },
+      imagePose: { headingDeg: 0, pitchDeg: 0, rollDeg: 0 },
+      marker: { mode: "ground-relative", eastM: 0, northM: 0, offsetM: 25 },
+      markerStyle: { outline: null, hoverScale: 1 },
+    };
+    try {
+      const placed = world.resolvePlacement(entity, { radiusMeters: 3 });
+      expect(placed.state).toBe("placed");
+      expect(placed.placement.marker).not.toBeNull();
+      expect(pointGeodetic(placed.placement.marker!).heightMeters).toBeCloseTo(275, 0);
+    } finally { world.dispose(); }
+  });
+
+  it("never moves a placed photograph when coarser or finer map detail arrives, and never samples for a prepared height", () => {
+    const { make, runtime, frame } = fixture();
+    let surface = { heightMeters: 280, revision: 1 };
+    const sample = vi.fn((latitudeDeg: number) => latitudeDeg > 44.97 ? surface : null);
+    Object.assign(runtime.surface, { sample, revision: () => surface.revision });
+    const prepared: ResolvedSphere = {
+      id: "prepared", type: "panorama", assetId: "asset", title: "Prepared", links: [],
+      capture: { longitudeDeg: -93.234, latitudeDeg: 44.976, height: { meters: 236.303, datum: "WGS84-ellipsoid" } },
+      imagePose: { headingDeg: 0, pitchDeg: 0, rollDeg: 0 },
+      marker: { mode: "capture-relative", eastM: 0, northM: 0, offsetM: 25 },
+      markerStyle: { outline: null, hoverScale: 1 },
+    };
+    const legacy: ResolvedSphere = { ...prepared, id: "legacy", capture: { ...prepared.capture, height: null }, marker: { ...prepared.marker, mode: "ground-relative" } };
+    const heightOf = (world: ReturnType<typeof make>, id: string) => pointGeodetic(world.posePlacement(id)!.placement.marker!).heightMeters;
+    const world = make();
+    const changed = vi.fn();
+    world.watchPlacement(prepared, { radiusMeters: 3 }, changed);
+    world.watchPlacement(legacy, { radiusMeters: 3 }, changed);
+    frame();
+    expect(heightOf(world, "prepared")).toBeCloseTo(261.303, 2);
+    expect(heightOf(world, "legacy")).toBeCloseTo(305, 2);
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(sample).toHaveBeenCalledTimes(1);
+    for (const heightMeters of [240, 300, 236]) { surface = { heightMeters, revision: surface.revision + 1 }; frame(); }
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(sample).toHaveBeenCalledTimes(1);
+    expect(heightOf(world, "prepared")).toBeCloseTo(261.303, 2);
+    expect(heightOf(world, "legacy")).toBeCloseTo(305, 2);
+    // A pose edit that leaves the height alone keeps the prepared height; only the edit moves the orb.
+    world.setPoseEdit("prepared", { longitudeDeg: -93.234, latitudeDeg: 44.976, heightMeters: null, headingDeg: 45, pitchDeg: 0, offsetM: 25 });
+    expect(heightOf(world, "prepared")).toBeCloseTo(261.303, 2);
+    expect(sample).toHaveBeenCalledTimes(1);
+    world.dispose();
+    // A reload or scene change places the prepared photograph at the same height before any map detail.
+    surface = { heightMeters: 999, revision: 50 };
+    const reloaded = make();
+    reloaded.watchPlacement(prepared, { radiusMeters: 3 }, () => {});
+    expect(pointGeodetic(reloaded.resolvePlacement(prepared, { radiusMeters: 3 }).placement.marker!).heightMeters).toBeCloseTo(261.303, 2);
+    expect(sample).toHaveBeenCalledTimes(1);
+    reloaded.dispose();
+  });
+
   it("moves a watched photograph when its pose edit changes, and keeps doing so after it was placed", () => {
     const { make, runtime } = fixture();
     runtime.surface.sample = () => ({ heightMeters: 250, revision: 3 });
