@@ -4,9 +4,11 @@
  * stamps each page with its build; `localSource()` serves linked checkouts with
  * live updates; `builtFrom()` writes what the app is built
  * from into each page, for its About tab; `babylonShaderChunks()` gives an app
- * that loads the globe lazily Babylon's shaders as two chunks, not hundreds.
+ * that loads the globe lazily Babylon's shaders as two chunks, not hundreds;
+ * `headsetEmulator()` gives `npm run dev` an emulated VR headset.
  */
 export * from "./appFiles.ts";
 export * from "./babylonShaderChunks.ts";
 export * from "./builtFrom.ts";
+export * from "./headsetEmulator.ts";
 export * from "./localSource.ts";

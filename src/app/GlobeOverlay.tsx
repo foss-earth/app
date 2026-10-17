@@ -1,10 +1,11 @@
 import { AdoptedElement } from "@foss-earth/ui/react";
-import { useLayoutEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { WindowOverlay, type WindowOverlayHandle } from "../shell/WindowOverlay";
 import { imageTabDefinitions, isImageInstanceTab, OPEN_IMAGE_TAB, type ImageTabId } from "../imageTabs/imageDocuments";
 import { ImageSurfaceBody, OpenImageTab } from "../imageTabs/ImageTabs";
 import { useImageDocuments } from "../imageTabs/useImageTabs";
 import type { GlobeAppHandle } from "./createGlobeApp";
+import { offerHeadsetTab } from "./immersive/headsetPanel";
 
 export type AppTabId = "dev" | ImageTabId;
 
@@ -20,6 +21,11 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     return images.bindWorkspace({ workspace: handle.workspace,
       openTabInSlot: (tabId, slotId) => overlayApi.current?.openTabInSlot(tabId as AppTabId, slotId) });
   }, [images, overlayApi]);
+  useEffect(() => {
+    let storage: Storage | null = null;
+    try { storage = window.localStorage; } catch { /* Then the tab is not opened by itself. */ }
+    return offerHeadsetTab(app.headset, () => overlayApi.current?.openOrSelectTab("vr"), storage);
+  }, [app, overlayApi]);
   return <WindowOverlay<AppTabId>
     additionalTabs={tabs}
     renderAdditionalTab={tabId => {
@@ -46,6 +52,7 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     skyTab={app.skyTab}
     timeTab={app.timeTab}
     scenesTab={app.scenesTab}
+    headsetTab={app.headsetTab}
     aboutTab={app.aboutTab}
     bugReportTab={app.bugReportTab}
     browserDataTab={app.browserDataTab}

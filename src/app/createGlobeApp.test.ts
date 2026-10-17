@@ -137,6 +137,8 @@ vi.mock("./sceneHost", async () => {
         status: () => ({ phase: mockState.spherePhase }),
         face: (view: { headingDeg?: number; pitchDeg?: number }) => mockState.sphereOrient(view),
       }, renderer: null, media: null,
+      headset: { state: "unavailable" as const, reason: "No headset in the smoke fixture.", presenting: false,
+        subscribe: () => () => {}, enter: async () => {}, exit: async () => {}, viewport: () => null, dispose: () => {} },
       isCurrent: () => true, dispose: () => controller.destroy(),
     };
   } };

@@ -106,6 +106,8 @@ import { createImageSurfaceHost, type ImageSurfaceHost } from "../imageTabs/imag
 import { textureReadiness } from "./textureReadiness";
 import { randomId } from "./randomId";
 import { createEarthSceneHost } from "./sceneHost";
+import { createHeadsetPanel } from "./immersive/headsetPanel";
+import type { HeadsetSession } from "./immersive/headsetSession";
 import { attemptEarthCleanup } from "./nativeResources";
 import { attachShellWorldViewport } from "./worldViewport";
 import { bindEarthTheme } from "../theme/theme";
@@ -132,6 +134,8 @@ declare global {
       diagnostics: AppDiagnostics;
       /** Whether this page is the published one: scripts/validation/published-version.mjs reads it. */
       publishedVersion: PublishedVersionWatch;
+      /** The VR headset session: scripts/validation/headset-emulator.mjs reads it. */
+      headset: HeadsetSession;
       /** Image tabs, for the browser checks of docs/proposals/shared-image-viewer-implementation.md §11. */
       images: { host: ImageSurfaceHost; broker: ImageSessionBroker; readonly overlay: WindowOverlayHandle<"dev" | ImageTabId> | null;
         /** What the image surface draws this frame: its framebuffer rectangle, camera and wipe. */
@@ -176,6 +180,10 @@ export interface GlobeAppHandle extends GlobeHandle {
   timeTab: HTMLElement;
   /** Scenes to load and their spheres, for the host's Scenes tab. */
   scenesTab: HTMLElement;
+  /** Entering a VR headset session, for the host's VR tab. */
+  headsetTab: HTMLElement;
+  /** The VR headset session: whether one can start, and starting it. */
+  headset: HeadsetSession;
   /** The sphere's own tab and 360 image settings, for the window overlay's `sphereTabs`. */
   sphereTabs: SphereTabs;
   /** Image tabs: their documents, surface and window contents, for the window overlay. */
@@ -1128,6 +1136,8 @@ export async function createGlobeApp(
   const offSceneTrail = scenes.subscribe(state => diagnostics.sceneChanged(state));
   cleanup.push(offSceneTrail);
   const sphereTabs = sceneHost.tabs;
+  const headsetPanel = createHeadsetPanel(document, sceneHost.headset);
+  cleanup.push(() => headsetPanel.destroy());
   // Image tabs: rectangle images opened from a window's +, drawn after the world on their tab's body.
   const imageLimits = () => ({ responseBytes: settings.get<number>("scene.panorama.responseMiB") * MIB,
     timeoutMs: settings.get<number>("scene.panorama.requestTimeout") * 1000 });
@@ -1171,6 +1181,7 @@ export async function createGlobeApp(
       media: sceneHost.media,
       diagnostics,
       publishedVersion,
+      headset: sceneHost.headset,
       // Image tabs, their window workspace and the shared pools they charge.
       images: { host: imageTabs, broker: browser.broker, get overlay() { return options.overlayApiRef?.current ?? null; },
         draw: () => readSurface?.() ?? null },
@@ -1341,6 +1352,8 @@ export async function createGlobeApp(
     skyTab: skyPanel.element,
     timeTab: timePanel.element,
     scenesTab: scenesPanel.element,
+    headsetTab: headsetPanel.element,
+    headset: sceneHost.headset,
     sphereTabs,
     imageTabs,
     scenes,

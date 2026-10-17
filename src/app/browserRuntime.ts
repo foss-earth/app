@@ -21,6 +21,7 @@ import {
 } from "@foss-earth/sky";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import { composeEarthRuntime } from "./runtimeComposition";
+import { createImmersiveFrames } from "./immersive/frames";
 import { createEarthNativeResources, attemptEarthCleanup } from "./nativeResources";
 import { gpuMemoryOwner, meterMapFetch, METERED_REQUEST_OWNERS, requestOwner } from "./resourceOwners";
 
@@ -72,6 +73,10 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     host: createBrowserRendererHost({ window, document }),
   }).catch((cause: unknown) => { throw new Error("Renderer device initialization failed", { cause }); });
   let composition: ReturnType<typeof composeEarthRuntime> | undefined;
+  // A headset session takes these frames over while it presents.
+  const immersive = createImmersiveFrames({
+    requestFrame: callback => window.requestAnimationFrame(callback), cancelFrame: id => window.cancelAnimationFrame(id),
+  });
   let broker: ReturnType<typeof createImageSessionBroker> | undefined;
   let native: ReturnType<typeof createEarthNativeResources> | undefined;
   let bindings: ReturnType<typeof createBrowserGlobeBindings> | undefined;
@@ -176,13 +181,15 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     cancellation.signal.throwIfAborted();
     const ports = bindings;
     stage = "world and sky composition";
+    const pagePlatform = createBrowserRendererPlatform({ window, document, canvas });
     composition = composeEarthRuntime({ canvas, renderer, scene, settings, clock,
-      frames: { requestFrame: callback => window.requestAnimationFrame(callback), cancelFrame: id => window.cancelAnimationFrame(id) },
-      isHidden: () => document.hidden, fatalFramePolicy: "stop", onFrameError: options.onFrameError,
+      frames: immersive.port, presentsEveryFrame: () => immersive.presenting,
+      isHidden: () => immersive.isHidden(() => document.hidden), fatalFramePolicy: "stop", onFrameError: options.onFrameError,
       resourceWork: resources.resourceWork, disposeHost, whenHostSettled: async () => { await hostRetirement; },
       onWorldStartupRetirement(drain) { startupRetirements.add(drain); },
       gpuMemoryOwner,
-      presentation: { platform: createBrowserRendererPlatform({ window, document, canvas }), timers,
+      presentation: { platform: { ...pagePlatform,
+        onVisibilityChange: listener => immersive.onVisibilityChange(change => pagePlatform.onVisibilityChange(change), listener) }, timers,
         readinessPolicy: options.readinessPolicy, onDeviceLost: resources.observedDeviceLoss,
       },
       world: {
@@ -228,7 +235,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     // Retain live status/camera getters owned by Engine instead of snapshotting them.
     const runtime = Object.create(composition.world) as typeof composition.world;
     Object.defineProperty(runtime, "destroy", { value: () => composition!.destroy() });
-    return { runtime, composition, broker: imageBroker, native: resources, files: ports.files, cache, clock, timers,
+    return { runtime, composition, immersive, broker: imageBroker, native: resources, files: ports.files, cache, clock, timers,
       bindings: ports, signal: cancellation.signal, async whenSettled() { await composition!.whenSettled(); await hostRetirement; } };
   } catch (error) {
     try {

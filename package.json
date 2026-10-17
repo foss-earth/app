@@ -43,7 +43,8 @@
     "test:watch": "vitest --configLoader native",
     "check:implementation": "npm run lint && npm test && npm run test:browser-assertions && npm run build",
     "test:browser-assertions": "node --test --test-concurrency=1 scripts/validation/browser-functional.test.mjs",
-    "check:browser": "node scripts/validation/browser-functional.mjs"
+    "check:browser": "node scripts/validation/browser-functional.mjs",
+    "check:headset": "node scripts/validation/headset-emulator.mjs"
   },
   "dependencies": {
     "@foss-earth/ui": "file:../ui",
@@ -81,6 +82,7 @@
     "eslint-plugin-react-refresh": "0.5.2",
     "gh-pages": "6.3.0",
     "globals": "17.6.0",
+    "iwer": "2.5.0",
     "jpeg-js": "0.4.4",
     "jsdom": "29.1.1",
     "typescript": "5.9.3",

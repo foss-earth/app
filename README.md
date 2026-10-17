@@ -70,6 +70,38 @@ The campus tour links this checkout, so it is published on its own afterwards
 with `cd ~/gh/UMN-VR/tour && npm run deploy`. The steps are in
 [Deploying to GitHub Pages](https://github.com/foss-earth/docs/blob/main/docs/deploying.md).
 
+### VR without a headset
+
+`npm run dev` serves an emulated headset, Meta's Immersive Web Emulation
+Runtime (`iwer`), to a page opened with `?headsetEmulator=quest3` (or `quest2`,
+`questPro`), such as `http://localhost:5173/app/?headsetEmulator=quest3`. The
+page then runs as it does on a headset: the VR tab opens, and Enter VR draws
+both eyes side by side over the page. From the console,
+`__fossEarthHeadsetEmulator` moves the headset and controllers and presses
+their buttons, e.g.
+`__fossEarthHeadsetEmulator.remote.dispatch("set_transform", { device: "headset", orientation: { x: 0, y: 0.383, z: 0, w: 0.924 } })`
+turns the head 45° to the left, and
+`__fossEarthHeadsetEmulator.controllers.right.updateButtonValue("trigger", 1)`
+pulls the right trigger. A build never contains it (`vite/headsetEmulator.ts`,
+`src/dev/headsetEmulator.ts`).
+
+`npm run check:headset` goes through a headset visit in headless Chrome, using
+the emulated headset and the linked example pair: Enter VR, both eyes drawn,
+turning the head, a snap turn, a photograph opened with the trigger, a link
+followed, the grip back to the map, and the session ended. It starts its own dev
+server and writes a report and screenshots to `build/headset/<time>/`.
+`--url=` checks another page that mounts the app from a dev server with
+`headsetEmulator()`, such as the tour's; `--scene=page` keeps that page's own
+scene:
+
+```sh
+cd ~/gh/UMN-VR/tour && npm run dev
+cd ~/gh/foss-earth/app && npm run check:headset -- --url=http://localhost:5173/tour/minneapolis/ --scene=page
+```
+
+The emulator is not a headset: it checks what the page does with WebXR, not how
+a real device's browser, frame rate or lenses treat it.
+
 ### Local source
 
 The app uses every Earth library straight from its checkout. `package.json` links

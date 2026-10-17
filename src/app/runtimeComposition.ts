@@ -40,6 +40,8 @@ export interface EarthRuntimeCompositionOptions extends Pick<GlobeRuntimeOptions
   sky: Omit<SkyRuntimeOptions, SkyContextKeys>;
   /** RAF timestamps and clock.nowMs use the same monotonic millisecond epoch. */
   frames: Pick<RenderSchedulerOptions, "requestFrame" | "cancelFrame">;
+  /** True while every frame must be drawn, as a headset presents: the frame-rate cap is then left out. */
+  presentsEveryFrame?(): boolean;
   isHidden(): boolean;
   presentation: Omit<BabylonRendererLifecycleOptions,
     "renderer" | "scene" | "scheduler" | "settings" | "isPreparingFrame" | "applyClipping" | "presentationLayer" | "platform"> &
@@ -96,7 +98,7 @@ export function composeEarthRuntime(options: EarthRuntimeCompositionOptions): Ea
     presentation: () => presentation,
     prepareFrame: time => { world?.prepareFrame(time); }, afterFrame: (time, rendered) => { world?.afterFrame(time, rendered); },
     shouldKeepRendering: () => world?.shouldKeepRendering() ?? false,
-    minFrameIntervalMs: () => world?.minFrameIntervalMs() ?? 0,
+    minFrameIntervalMs: () => options.presentsEveryFrame?.() ? 0 : world?.minFrameIntervalMs() ?? 0,
     stopScheduler: () => scheduler?.stop(), onFrameError: options.onFrameError, resourceWork: options.resourceWork,
     cleanup: [() => world?.destroy(), () => { const stop = detachSky; detachSky = undefined; stop?.(); },
       () => sky?.dispose(), () => presentation?.dispose(),

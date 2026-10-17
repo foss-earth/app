@@ -29,7 +29,7 @@ import {
 } from "@foss-earth/scenes/browser";
 import { createScenesPanel, createSceneHotspots } from "@foss-earth/scenes/panel";
 import { NAVIGATION_PRESENTATION_LAYER } from "@foss-earth/engine/babylon";
-import { createWheelGestureClassifier, ecef } from "@foss-earth/engine";
+import { createWheelGestureClassifier, ecef, enuDirection, enuFrame, type Vec3 } from "@foss-earth/engine";
 import { isSafariGestureSupported, worldViewportClientRect } from "@foss-earth/engine/browser";
 import type { ReadinessPolicy } from "@foss-earth/renderer";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
@@ -49,6 +49,8 @@ import { LAYER_STORAGE_KEY } from "./layerEditor/layerStore";
 import { createLinkOverrides } from "./linkEditor/linkOverrides";
 import { createLinkEditor } from "./linkEditor/editor";
 import { openingOptions, lookUpOpening, createOpeningViews, type OpeningLook, type OpeningMode } from "./openingView";
+import { createHeadsetSession, type HeadsetSession } from "./immersive/headsetSession";
+import { createHeadsetTour, type HeadsetLink } from "./immersive/headsetTour";
 
 export interface EarthSceneHostOptions {
   browser: Awaited<ReturnType<typeof createEarthBrowserRuntime>>;
@@ -88,6 +90,8 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const appearance = () => ({ previewFovDeg: n("previewFov"),
     markerDiameterCssPx: range("markerDiameter"), hitTargetDiameterCssPx: n("hitTargetDiameter") });
   let restoringView = false;
+  // Made once the viewer and scenes exist; sizes read while a headset presents come from its eye images.
+  let headset: HeadsetSession | null = null;
   const viewerSettings = (): ViewerSettings => ({
     appearance: appearance(),
     look: { dragSensitivity: n("dragSensitivity"), swipeSensitivity: n("swipeSensitivity"),
@@ -187,7 +191,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         ? viewer.currentSources(input.id) : { preview: null, shown: null };
     };
     const choice = createViewerSelection({ representations, maxTextureSide,
-      viewportHeightDevicePx: () => worldViewportClientRect(canvas).height * devicePixelsPerCss(), current, imageName,
+      viewportHeightDevicePx: () => headset?.viewport()?.deviceHeight ?? worldViewportClientRect(canvas).height * devicePixelsPerCss(), current, imageName,
       parameters: () => ({ previewFaces: range("previewFaceRange"), previewFovDeg: n("previewFov"), previewDensity: n("previewDensity"),
         immersionWidth: detailCap(), immersionDensity: typeof settings.get("scene.panorama.immersionDensity") === "number" ? n("immersionDensity") : null,
         preference: settings.get("scene.panorama.representation") }),
@@ -225,7 +229,8 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       opaqueImmersion: settings.get(VIEWER_EXPERIMENT_IDS.opaqueImmersion) === true,
       shaders: settings.get(VIEWER_EXPERIMENT_IDS.sphereShaders) === true });
     const renderer = createSphereRenderer(runtime.scene, { getCamera: () => runtime.scene.activeCamera,
-      viewportHeightCssPx: () => worldViewportClientRect(canvas).height,
+      viewportHeightCssPx: () => headset?.viewport()?.cssHeight ?? worldViewportClientRect(canvas).height,
+      isHeadTracked: () => browser.immersive.presenting,
       presentationLayerMask: NAVIGATION_PRESENTATION_LAYER, appearance: appearance(),
       getPresentationView: runtime.getPresentationView, requestRender: runtime.requestRender,
       profiler: browser.composition.profile.profiler, experiments: experiments(), onError: error => report(null, "image", error) });
@@ -469,6 +474,45 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     }
     const hotspots = createSceneHotspots({ document, controller, container: canvas.parentElement ?? canvas });
     cleanup.push(() => hotspots.destroy());
+    const headsetLinks = (): readonly HeadsetLink[] => {
+      const status = viewer.status();
+      const image = status.phase === "immersive" && status.active ? viewer.describeImage?.(status.active) : null;
+      const capture = image?.details?.capture;
+      if (!image || !capture) return [];
+      const frame = enuFrame(capture.longitudeDeg, capture.latitudeDeg);
+      return image.actions.flatMap(action => {
+        if (!action.direction) return [];
+        const [e, n, u] = enuDirection(action.direction.headingDeg, action.direction.pitchDeg);
+        const along = (i: 0 | 1 | 2): number => frame.east[i] * e + frame.north[i] * n + frame.up[i] * u;
+        const direction: Vec3 = [along(0), along(1), along(2)];
+        return [{ id: action.id, label: action.label, direction }];
+      });
+    };
+    headset = createHeadsetSession({
+      scene: runtime.scene, frames: browser.immersive, navigator: window.navigator,
+      holdRendering() { runtime.beginContinuous(); let released = false; return () => { if (!released) { released = true; runtime.endContinuous(); } }; },
+      requestRender: runtime.requestRender,
+      place() {
+        const presented = runtime.getPresentationView();
+        if (presented) return { position: [presented.position.x, presented.position.y, presented.position.z], forward: [presented.forward.x, presented.forward.y, presented.forward.z] };
+        const camera = runtime.geospatialCamera;
+        if (!camera) return null;
+        // A right-handed view matrix looks along its −z.
+        const view = camera.getViewMatrix().m, eye = camera.globalPosition;
+        return { position: [eye.x, eye.y, eye.z], forward: [-view[2]!, -view[6]!, -view[10]!] };
+      },
+      globeCamera: () => runtime.geospatialCamera,
+      createTour: () => createHeadsetTour({
+        scene: runtime.scene, layerMask: 0x0fffffff | NAVIGATION_PRESENTATION_LAYER, links: headsetLinks,
+        pickImages: ray => controller.handle() ? viewer.pickRay?.(ray.origin, ray.direction) ?? [] : [],
+        hoverImage: id => controller.handle()?.hover(id),
+        follow: id => { void controller.handle()?.follow(id); },
+        enter: id => { void controller.handle()?.enter(id); },
+        back: () => { const handle = controller.handle(); if (handle) void handle.exit(); else viewer.exit(); },
+      }),
+      report: (message, error) => console.warn(message, error),
+    });
+    cleanup.push(() => headset?.dispose());
     const offSettings = settings.subscribe(changed => {
       if ([...changed].some(id => id.startsWith("scene.panorama."))) {
         cache.setKeptGpuBytes(n("keptGpuMiB") * MIB); saved.setLimits({ maxBytes: n("savedMiB") * MIB });
@@ -480,7 +524,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     });
     cleanup.push(offSettings);
     cleanup.push(() => viewSession.dispose());
-    return { controller, panel, tabs, viewer, renderer, media: saved, isCurrent: () => !disposed,
+    return { controller, panel, tabs, viewer, renderer, headset, media: saved, isCurrent: () => !disposed,
       async whenSettled() {
         const results = await Promise.allSettled([controller.whenSettled(), viewer.whenSettled(), resources.whenSettled(), sceneWorld.whenSettled(), saved.settled()]);
         const failures = [...retirementErrors, ...results.flatMap(result => result.status === "rejected" ? [result.reason] : [])];
