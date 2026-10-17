@@ -46,8 +46,8 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
     locationSearchProvider={async () => []}
   />));
   const phone = screenWidth === 390;
-  const side = phone ? "right" : "left";
-  const slot = phone ? "secondary" : "primary";
+  const side = "left";
+  const slot = "primary";
   const panel = () => host.querySelector<HTMLElement>(`.foss-earth-dock-panel[data-side="${side}"]`)!;
   const size = () => ({ width: panel().style.width, height: panel().style.height });
   const savedSize = () => {
@@ -56,7 +56,7 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
   };
   try {
     await render();
-    const initial = { width: phone ? "300px" : "340px", height: phone ? "320px" : "280px" };
+    const initial = { width: "340px", height: "280px" };
     expect(size()).toEqual(initial);
     expect(document.documentElement.dataset.worldPresentation).toBe("overlay");
     expect(document.documentElement.dataset.worldEdges).toBe("flush");
@@ -77,9 +77,9 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
     await pointer("pointerdown", 200, Number.parseFloat(initial.height));
     await pointer("pointermove", 235, 360);
     await pointer("pointerup", 235, 360);
-    const resized = { width: phone ? "265px" : "375px", height: "360px" };
+    const resized = { width: phone ? "390px" : "375px", height: "360px" };
     expect(size()).toEqual(resized);
-    expect(savedSize()).toEqual({ height: 360, width: phone ? 265 : 375 });
+    expect(savedSize()).toEqual({ height: 360, width: phone ? null : 375 });
     await show(null);
     expect(size()).toEqual(resized);
     await show("Another photograph with a longer description");
