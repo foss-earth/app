@@ -676,6 +676,14 @@ describe("createGlobeApp smoke behavior", () => {
     expect(group.dataset.mapHudLayout).toBe("compact");
   });
 
+  it("says in the log why the globe draws with WebGL, as on a phone against the dev server's address", async () => {
+    const resolved = await mockState.createEarthBrowserRuntime() as { runtime: { renderer: Record<string, unknown> } };
+    Object.assign(resolved.runtime.renderer, { fallbackReason: "WebGPUEngine.IsSupportedAsync returned false",
+      diagnostics: { navigatorGpuPresent: false, isSupportedAsyncResult: false, isSecureContext: false } });
+    await createAppUnderTest();
+    expect(document.getElementById("app-log")!.textContent).toContain("The globe draws with WebGL, because WebGPU needs a secure page (HTTPS or localhost), and this one is not.");
+  });
+
   it("offers the renderer choice in a Renderer tab, and nowhere else", async () => {
     const { app, root } = await createAppUnderTest();
 

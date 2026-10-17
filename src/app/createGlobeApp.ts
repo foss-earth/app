@@ -68,6 +68,7 @@ import { createMapSourcePanel } from "@foss-earth/engine/panels";
 import { createMapDetailController, type MapDetailController } from "@foss-earth/engine/settings";
 import { connectMapDetailRuntime } from "@foss-earth/engine/settings";
 import { createRendererPanel, getRendererLabel } from "@foss-earth/renderer/panel";
+import { describeRendererStart } from "@foss-earth/renderer";
 import { createSkyPanel } from "@foss-earth/sky/panels";
 import { createDateTimePanel } from "@foss-earth/sky/panels";
 import { createFrameBudgetPanel } from "@foss-earth/renderer/panel";
@@ -604,6 +605,9 @@ export async function createGlobeApp(
     rendererModePill.classList.toggle("hud-chip--good", runtime.renderer.mode === "webgpu");
     rendererModePill.classList.toggle("hud-chip--bad", runtime.renderer.mode !== "webgpu");
   }
+  // A start on WebGL says why in the log, where a visitor on a phone sees it, not only in the Renderer tab.
+  const rendererNote = describeRendererStart(runtime.renderer);
+  if (rendererNote) gameLog.print(rendererNote);
   const toggleTab = (tabId: Parameters<WindowOverlayHandle<"dev">["toggleTab"]>[0]): void => {
     options.overlayApiRef?.current?.toggleTab(tabId);
   };
