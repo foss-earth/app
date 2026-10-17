@@ -25,6 +25,7 @@ import { createImmersiveFrames } from "./immersive/frames";
 import { createEarthNativeResources, attemptEarthCleanup } from "./nativeResources";
 import { gpuMemoryOwner, meterMapFetch, METERED_REQUEST_OWNERS, requestOwner } from "./resourceOwners";
 import { markBoot, markBootOnFrame } from "./bootMarks";
+import { bootStep, finishBoot } from "@foss-earth/ui/browser";
 
 type EarthSelections = Pick<GlobeRuntimeOptions,
   "googleApiKey" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
@@ -55,6 +56,9 @@ export interface EarthBrowserRuntimeOptions extends EarthSelections {
   signal?: AbortSignal;
 }
 
+/** How the boot terminal names a renderer. */
+const RENDERER_NAMES: Record<RendererMode, string> = { webgpu: "WebGPU", webgl2: "WebGL 2", webgl: "WebGL" };
+
 export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, options: EarthBrowserRuntimeOptions) {
   const settings = options.settings;
   const choice = settings.get("renderer.backend");
@@ -69,12 +73,16 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
   const cache = createMapCache({ storage: () => window.caches, fetcher: meterMapFetch(window.fetch.bind(window), network, page),
     now: Date.now, Response, Request, Headers, ...mapCacheLimits(id => settings.get(id)) });
   cache.open().catch(() => { /* The first fetch meets the same failure. */ });
+  bootStep("renderer", "Starting the renderer", 0.05);
   const { renderer, scene } = await bootstrapGlobeRenderer(canvas, {
     force, antialias: settings.get("renderer.antialias") !== false,
     host: createBrowserRendererHost({ window, document }),
   }).catch((cause: unknown) => { throw new Error("Renderer device initialization failed", { cause }); });
   markBoot("boot:renderer", { detail: renderer.mode });
-  scene.onAfterRenderObservable.addOnce(() => markBoot("boot:first-frame"));
+  bootStep("renderer", `Started ${RENDERER_NAMES[renderer.mode]}`, 0.3);
+  bootStep("scene", "Preparing the 3D scene", 0.3);
+  // The terminal hands over to the scene and its log.
+  scene.onAfterRenderObservable.addOnce(() => { markBoot("boot:first-frame"); finishBoot(); });
   let composition: ReturnType<typeof composeEarthRuntime> | undefined;
   // A headset session takes these frames over while it presents.
   const immersive = createImmersiveFrames({

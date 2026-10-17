@@ -17,7 +17,7 @@ import { createEarthBrowserPolicy } from "./browserPolicy";
 import { createEarthFeatureFramePreparation } from "./framePreparation";
 import type { GlobeFramePreparation } from "@foss-earth/engine/babylon";
 import { createEarthUiHost } from "./uiHost";
-import { createGameLog, type GameLogLine, type GameLogTone } from "@foss-earth/ui/browser";
+import { attachBootLog, bootStep, createGameLog, type GameLogLine, type GameLogTone } from "@foss-earth/ui/browser";
 import { applyRendererChoice } from "@foss-earth/renderer/babylon";
 import { RASTER_BASE_MAP_SOURCES, type RasterBaseMapSource } from "@foss-earth/engine";
 import {
@@ -318,6 +318,7 @@ export async function createGlobeApp(
 ): Promise<GlobeAppHandle> {
   // Every module of the startup graph has been fetched and run by now.
   markBoot("boot:modules");
+  bootStep("modules", "Starting the app", 0);
   const cleanup: (() => void)[] = [() => rootElement.replaceChildren()];
   let disposed = false;
   const disposeApp = () => {
@@ -467,6 +468,8 @@ export async function createGlobeApp(
   });
   const gameLog = diagnostics.log;
   cleanup.push(() => diagnostics.destroy());
+  // The log's history starts with the boot terminal's lines.
+  attachBootLog(gameLog);
   // Asked while the renderer starts: a browser may have opened its own copy of an older page, which then reloads before it has shown anything.
   const publishedVersion = watchPublishedVersion({ settings, log: gameLog });
   cleanup.push(() => publishedVersion.dispose());
