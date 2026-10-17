@@ -56,8 +56,11 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
   };
   try {
     await render();
-    const initial = { width: phone ? "390px" : "340px", height: phone ? "320px" : "280px" };
+    const initial = { width: phone ? "300px" : "340px", height: phone ? "320px" : "280px" };
     expect(size()).toEqual(initial);
+    expect(document.documentElement.dataset.worldPresentation).toBe("overlay");
+    expect(document.documentElement.dataset.worldEdges).toBe("flush");
+    expect(document.documentElement.style.getPropertyValue("--foss-world-top")).toBe("");
     await show("Northrop", false);
     expect(panel().dataset.collapsed).toBe("false");
     expect(size()).toEqual(initial);
@@ -74,9 +77,9 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
     await pointer("pointerdown", 200, Number.parseFloat(initial.height));
     await pointer("pointermove", 235, 360);
     await pointer("pointerup", 235, 360);
-    const resized = { width: phone ? "390px" : "375px", height: "360px" };
+    const resized = { width: phone ? "265px" : "375px", height: "360px" };
     expect(size()).toEqual(resized);
-    expect(savedSize()).toMatchObject({ height: 360, ...(phone ? {} : { width: 375 }) });
+    expect(savedSize()).toEqual({ height: 360, width: phone ? 265 : 375 });
     await show(null);
     expect(size()).toEqual(resized);
     await show("Another photograph with a longer description");
@@ -87,6 +90,8 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
     root = createRoot(host);
     await render();
     expect(size()).toEqual(resized);
+    expect(document.documentElement.dataset.worldPresentation).toBe("overlay");
+    expect(document.documentElement.dataset.worldEdges).toBe("flush");
     await show("Northrop", false);
     expect(size()).toEqual(resized);
     await show("Northrop");

@@ -9,10 +9,9 @@ import { LocationPanel, type LocationPanelContribution } from "@foss-earth/engin
 import { bindEarthLocationServices, createEarthLocationServices } from "../app/locationServices";
 import { getAppSettings } from "../settings/appSettings";
 import { POSITION_ALTITUDE_ID, type AltitudeReference } from "../settings/catalogue";
-import { TABS_BEHIND_TOOLBAR_ID, TOOLBAR_EDGE_ID, WINDOWS_PRESENTATION_ID, WORLD_EDGES_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
+import { WINDOWS_PRESENTATION_ID, WORLD_EDGES_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
 import { poseEditTitle, requestPoseEditStop, subscribePoseEditTitle } from "../app/poseEditor/poseEditTab";
 type WorldPresentationChoice = "auto" | "overlay" | "split";
-type ToolbarEdgeChoice = "auto" | "top" | "bottom";
 type WorldResize = "live" | "release";
 import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/browser";
 import type { ViewerTabs as SphereTabs, ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/sphere-image/panels";
@@ -200,18 +199,8 @@ export function WindowOverlay<TabId extends string = never>({
   const readoutShown = useSyncExternalStore(subscribePositionReadout, positionReadoutShown, () => false);
   const presentationChoice = useSyncExternalStore(
     (listener) => settings.has(WINDOWS_PRESENTATION_ID) ? settings.watch(WINDOWS_PRESENTATION_ID, () => listener()) : () => {},
-    (): WorldPresentationChoice => settings.has(WINDOWS_PRESENTATION_ID) ? settings.get(WINDOWS_PRESENTATION_ID) : "auto",
-    (): WorldPresentationChoice => "auto",
-  );
-  const tabsBehindToolbar = useSyncExternalStore(
-    (listener) => settings.has(TABS_BEHIND_TOOLBAR_ID) ? settings.watch(TABS_BEHIND_TOOLBAR_ID, () => listener()) : () => {},
-    () => settings.has(TABS_BEHIND_TOOLBAR_ID) ? settings.get<boolean>(TABS_BEHIND_TOOLBAR_ID) : false,
-    () => false,
-  );
-  const toolbarEdge = useSyncExternalStore(
-    (listener) => settings.has(TOOLBAR_EDGE_ID) ? settings.watch(TOOLBAR_EDGE_ID, () => listener()) : () => {},
-    (): ToolbarEdgeChoice => settings.has(TOOLBAR_EDGE_ID) ? settings.get(TOOLBAR_EDGE_ID) : "bottom",
-    (): ToolbarEdgeChoice => "bottom",
+    (): WorldPresentationChoice => settings.has(WINDOWS_PRESENTATION_ID) ? settings.get(WINDOWS_PRESENTATION_ID) : "overlay",
+    (): WorldPresentationChoice => "overlay",
   );
   const worldResize = useSyncExternalStore(
     (listener) => settings.has(WORLD_RESIZE_ID) ? settings.watch(WORLD_RESIZE_ID, () => listener()) : () => {},
@@ -220,8 +209,8 @@ export function WindowOverlay<TabId extends string = never>({
   );
   const flushEdges = useSyncExternalStore(
     (listener) => settings.has(WORLD_EDGES_ID) ? settings.watch(WORLD_EDGES_ID, () => listener()) : () => {},
-    () => settings.has(WORLD_EDGES_ID) ? settings.get<boolean>(WORLD_EDGES_ID) : false,
-    () => false,
+    () => settings.has(WORLD_EDGES_ID) ? settings.get<boolean>(WORLD_EDGES_ID) : true,
+    () => true,
   );
   const logIsTab = useSyncExternalStore(subscribeLogTab, logTabShown, () => false);
   const altitudeReference = useSyncExternalStore<AltitudeReference>(
@@ -309,8 +298,6 @@ export function WindowOverlay<TabId extends string = never>({
     presentation={{
       choice: presentationChoice,
       onChoice: (choice) => { if (settings.has(WINDOWS_PRESENTATION_ID)) settings.set(WINDOWS_PRESENTATION_ID, choice); },
-      tabsBehindToolbar,
-      toolbarEdge,
       worldResize,
       edges: flushEdges ? "flush" : "inset",
     }}

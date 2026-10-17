@@ -647,7 +647,7 @@ export async function createGlobeApp(
         activity: runtime,
         onProviderClick: () => toggleTab("map"),
         detail: { controller: mapDetail, document },
-        detailPlacement: settings.has(WORLD_EDGES_ID) && settings.get<boolean>(WORLD_EDGES_ID) ? "inside" : "beside",
+        detailPlacement: !settings.has(WORLD_EDGES_ID) || settings.get<boolean>(WORLD_EDGES_ID) ? "inside" : "beside",
       })
     : null;
   onMapStatus = (status) => {
