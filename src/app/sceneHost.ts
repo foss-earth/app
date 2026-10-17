@@ -40,6 +40,7 @@ import {
   earthViewerMath, earthViewerPoses,
 } from "./sceneWorld";
 import { attemptEarthCleanup } from "./nativeResources";
+import { markBootOnFrame } from "./bootMarks";
 import { textureReadiness } from "./textureReadiness";
 import { poseEditEnabled } from "./poseEditor/poseGate";
 import { createPoseOverrides, openPoseStorage } from "./poseEditor/poseOverrides";
@@ -309,6 +310,11 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
           describeImage: createViewerSceneDescription(viewer, { representations,
             tileMemoryBytes: () => n("tileMemoryMiB") * MIB, maxTextureSide }),
         });
+        if (startup && result.ok) {
+          // The page's content: the startup scene's photographs on the globe, from the first frame that draws both.
+          markBootOnFrame("boot:content", { onFrame: frames.subscribe }, () => (runtime.getTileMetrics()?.visibleTiles ?? 0) > 0);
+          runtime.requestRender();
+        }
         if (startup) {
           try {
             const saved = viewSession.saved?.panorama;

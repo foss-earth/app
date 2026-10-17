@@ -69,7 +69,7 @@ import { createMapDetailController, type MapDetailController } from "@foss-earth
 import { connectMapDetailRuntime } from "@foss-earth/engine/settings";
 import { createRendererPanel, getRendererLabel } from "@foss-earth/renderer/panel";
 import { describeRendererStart } from "@foss-earth/renderer";
-import { markBoot, markBootSettled } from "./bootMarks";
+import { markBoot, markBootOnFrame, markBootSettled } from "./bootMarks";
 import { createSkyPanel } from "@foss-earth/sky/panels";
 import { createDateTimePanel } from "@foss-earth/sky/panels";
 import { createFrameBudgetPanel } from "@foss-earth/renderer/panel";
@@ -1335,6 +1335,11 @@ export async function createGlobeApp(
   cleanup.push(offRendererActivity);
   cleanup.push(markBootSettled(runtime, { now: () => performance.now(),
     setTimeout: (callback, ms) => window.setTimeout(callback, ms), clearTimeout: handle => window.clearTimeout(handle) }));
+  // Without a scene the globe is the content: the opening view, once no tile it needs is loading.
+  if (!requestedScene) cleanup.push(markBootOnFrame("boot:content", { onFrame(listener) {
+    const observer = runtime.scene.onAfterRenderObservable.add(listener);
+    return () => { runtime.scene.onAfterRenderObservable.remove(observer); };
+  } }, () => (runtime.getTileMetrics()?.visibleTiles ?? 0) > 0 && !runtime.isStreamingTiles()));
   const offRenderActive = runtime.onActiveRenderChange((active) => {
     perfMetricsPill?.classList.toggle("is-active", active);
   });

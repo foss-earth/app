@@ -24,7 +24,7 @@ import { composeEarthRuntime } from "./runtimeComposition";
 import { createImmersiveFrames } from "./immersive/frames";
 import { createEarthNativeResources, attemptEarthCleanup } from "./nativeResources";
 import { gpuMemoryOwner, meterMapFetch, METERED_REQUEST_OWNERS, requestOwner } from "./resourceOwners";
-import { markBoot } from "./bootMarks";
+import { markBoot, markBootOnFrame } from "./bootMarks";
 
 type EarthSelections = Pick<GlobeRuntimeOptions,
   "googleApiKey" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
@@ -212,6 +212,12 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
         nightTilePorts: { ...ports.nightTilePorts, retryDelayMs },
       },
     });
+    // A 2D map tile shows only once its imagery can draw, so the first visible tile is the globe's ground.
+    const world = composition.world;
+    markBootOnFrame("boot:globe", { onFrame(listener) {
+      const observer = scene.onAfterRenderObservable.add(listener);
+      return () => { scene.onAfterRenderObservable.remove(observer); };
+    } }, () => (world.getTileMetrics()?.visibleTiles ?? 0) > 0);
     stage = "presentation lifecycle subscription";
     detachRestore = composition.presentation.onDeviceRestored(resources.restoreManagedDevice);
     const streams = composition.profile.streams;

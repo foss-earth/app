@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { markBoot, markBootSettled, SETTLED_QUIET_MS } from "./bootMarks";
+import { markBoot, markBootOnFrame, markBootSettled, SETTLED_QUIET_MS } from "./bootMarks";
 
+function frameSource() {
+  let listener: (() => void) | null = null;
+  return {
+    onFrame(next: () => void) { listener = next; return () => { listener = null; }; },
+    draw() { listener?.(); },
+    get watched() { return listener !== null; },
+  };
+}
 function activity(rendering: boolean) {
   let listener: ((active: boolean) => void) | null = null;
   return {
@@ -22,6 +30,26 @@ describe("startup marks", () => {
     markBoot("boot:renderer", { detail: "webgpu" });
     markBoot("boot:renderer", { detail: "webgl2" });
     expect(marks("boot:renderer").map(mark => (mark as PerformanceMark).detail)).toEqual(["webgpu"]);
+  });
+
+  it("marks a step after the first frame that draws it, then stops watching", () => {
+    const frames = frameSource();
+    let tiles = 0;
+    markBootOnFrame("boot:globe", frames, () => tiles > 0);
+    frames.draw();
+    expect(marks("boot:globe")).toHaveLength(0);
+    tiles = 1;
+    frames.draw();
+    expect(marks("boot:globe")).toHaveLength(1);
+    expect(frames.watched).toBe(false);
+  });
+
+  it("marks no drawn step once its watch is stopped", () => {
+    const frames = frameSource();
+    markBootOnFrame("boot:content", frames, () => true)();
+    frames.draw();
+    expect(marks("boot:content")).toHaveLength(0);
+    expect(frames.watched).toBe(false);
   });
 
   it("marks settled where frames stopped, once they stay stopped for a second after the first frame", () => {

@@ -14,6 +14,7 @@ export { issueReporterFromBuild } from "../app/issueReporting";
 export { effectiveReportSettings, reportSecrets, settingsNotAtDefaults, startAppDiagnostics, type AppDiagnostics, type AppDiagnosticsOptions, type DiagnosedRuntime } from "../app/appDiagnostics";
 export { getAppIdentity, describeAppIdentity, describeAppIdentityBriefly, type AppIdentity } from "../app/appIdentity";
 export { showReportOnly, wantsReportOnly } from "../app/reportOnly";
+export { markBoot, markBootOnFrame, type BootFrames, type BootMark } from "../app/bootMarks";
 export {
   browserTrailEnvironment, createSessionTrail, describePreviousVisit, stepKind, tidyStep, TRAIL_KEY_PREFIX, TRAIL_PING_KEY, TRAIL_STEPS_DEFAULT,
   type PreviousVisit, type SessionTrail, type SessionTrailOptions, type TrailEnvironment, type TrailRecord, type TrailStep,
