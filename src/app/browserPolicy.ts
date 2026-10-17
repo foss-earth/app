@@ -1,7 +1,7 @@
 /** Earth projects saved host policies into borrowed owner services. */
 import { MIB } from "@foss-earth/images";
 import { DEFAULT_TERRAIN_LOADER_LIMITS, type TerrainPreparationPolicy } from "@foss-earth/engine";
-import { createGlobeRuntimeBudgets } from "@foss-earth/engine/settings";
+import { createGlobeRuntimeBudgets, nativeTierPreference } from "@foss-earth/engine/settings";
 import { defaultReadinessPolicy } from "@foss-earth/renderer";
 import type { DerivedDefault, DeviceContext, ParameterSpec, SettingsRegistry } from "@foss-earth/ui/settings";
 import type { EarthBrowserRuntimeOptions } from "./browserRuntime";
@@ -60,6 +60,8 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
   const p = (suffix: string) => n(`scene.panorama.${suffix}`);
   const count = (suffix: string) => Math.max(1, Math.round(p(suffix)));
   const budgets = createGlobeRuntimeBudgets(settings);
+  const nativeTier = nativeTierPreference(settings);
+  let nextTerrainWorker = 0;
   const altitude: TerrainPreparationPolicy["fallback"] = (request, groundHeightMeters) => ({
     groundHeightMeters,
     altitudeMeters: Math.max(request.altitudeMeters ?? -Infinity,
@@ -111,7 +113,9 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
     // Compressed response size is unknown. Common transport reserves each chunk before allocation.
     describeMapTransfer: () => ({ declaredBytes: 0 }), mapPriority: () => 0,
     createWorker: () => typeof Worker === "undefined" ? null : new Worker(new URL("./atlasImagery.worker.ts", import.meta.url), { type: "module" }),
-    createTerrainWorker: () => typeof Worker === "undefined" ? null : new Worker(new URL("./terrainDecode.worker.ts", import.meta.url), { type: "module" }),
+    createTerrainWorker: () => typeof Worker === "undefined" ? null : new Worker(new URL("./terrainDecode.worker.ts", import.meta.url), {
+      type: "module", name: JSON.stringify({ kind: "earth-terrain", id: `terrain-${++nextTerrainWorker}`, nativeTier }),
+    }),
     terrainDecodeWorkers: () => n("map.loader.decodeWorkers"),
     onFrameError: error => console.error("Earth frame failed", error),
   };

@@ -50,6 +50,7 @@
     "@foss-earth/ui": "file:../ui",
     "@foss-earth/renderer": "file:../renderer",
     "@foss-earth/engine": "file:../engine",
+    "@foss-earth/native-raster": "file:../native/packages/native-raster",
     "@foss-earth/toolbar": "file:../toolbar",
     "@foss-earth/about": "file:../about",
     "@foss-earth/dev": "file:../dev",

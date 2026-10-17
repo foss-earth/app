@@ -1029,6 +1029,8 @@ export async function createGlobeApp(
   const appFilesSection = createAppFilesSection(appFiles, publishedVersion, ui.refresh, document);
   cleanup.push(() => appFilesSection.destroy());
   diagnostics.addState(async () => `App files: ${describeAppFiles(await appFiles.status())}`);
+  diagnostics.addState(() => `Native terrain: ${JSON.stringify({ requestedTier: settings.get("native.tier"),
+    workers: browser.bindings.terrainDecodeStats()?.nativeWorkers ?? [], scope: "Terrarium heights only; page decoding remains TypeScript" })}`);
   const diagnosticsSource = {
     report: () => diagnostics.report({ allSettings: true }),
     previous: () => diagnostics.previous(),
