@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { getAppSettings } from "./appSettings";
+import { getAppSettings, resetAppSettings } from "./appSettings";
 import { SETTINGS_STORAGE_KEY } from "./registry";
 
 function savedValues(): Record<string, unknown> {
@@ -77,5 +77,19 @@ describe("the app registry and the address bar", () => {
     expect(window.location.search).toBe("?mapSource=usgs-topo");
     release();
     expect(window.location.search).toBe("?mapSource=usgs-topo");
+  });
+});
+
+describe("the developer tools' settings", () => {
+  afterEach(() => { resetAppSettings(); });
+
+  it("are registered only on a page opened with ?dev=1", () => {
+    window.history.replaceState(null, "", "/tour/minneapolis/");
+    resetAppSettings();
+    expect(getAppSettings().has("input.showCompassCenter")).toBe(false);
+
+    window.history.replaceState(null, "", "/tour/minneapolis/?dev=1&set.input.showCompassCenter=true");
+    resetAppSettings();
+    expect(getAppSettings().get("input.showCompassCenter")).toBe(true);
   });
 });

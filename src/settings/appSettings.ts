@@ -1,6 +1,7 @@
 import { FOSS_EARTH_MIGRATIONS, FOSS_EARTH_PARAMETERS, FOSS_EARTH_SECTION_TITLES, FOSS_EARTH_URL_NAMES, fossEarthUrlAliases, RENDERER_EXPERIMENT_IDS } from "./catalogue";
 import { BUILT_IN_PRESETS } from "./presets";
-import { NAVIGATION_ANCHOR_PRESETS } from "@foss-earth/engine/settings";
+import { DEV_CONTROLS_PARAMETERS, NAVIGATION_ANCHOR_PRESETS } from "@foss-earth/engine/settings";
+import { wantsDev } from "@foss-earth/dev";
 import { createBrowserSettingsRegistry, readDeviceContext } from "@foss-earth/ui/browser";
 import { linkParameterGroup, SETTINGS_STORAGE_KEY, URL_PARAMETER_PREFIX, type SettingsRegistry } from "@foss-earth/ui/settings";
 import { bindEarthSettingsUrl } from "../app/settingsUrlBinding";
@@ -32,6 +33,8 @@ export function getAppSettings(): SettingsRegistry {
     sourceBase: FOSS_EARTH_SOURCE_BASE,
   });
   registry.register(FOSS_EARTH_PARAMETERS);
+  // Developer tools are listed only on a page opened with ?dev=1, before stale values are dropped.
+  if (typeof window !== "undefined" && wantsDev(window.location.search)) registry.register(DEV_CONTROLS_PARAMETERS);
   for (const [tab, section, title] of FOSS_EARTH_SECTION_TITLES) registry.setSectionTitle(tab, section, title);
   registry.migrateLegacy(FOSS_EARTH_MIGRATIONS);
   // Ids that are no longer parameters, and values saved under them. Registered settings stay.
