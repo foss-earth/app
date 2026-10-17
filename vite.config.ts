@@ -7,7 +7,7 @@ import { builtFrom } from './vite/builtFrom.ts'
 import { headsetEmulator } from './vite/headsetEmulator.ts'
 import { localSource } from './vite/localSource.ts'
 import { poseSave } from './vite/poseSave.ts'
-import { babylonShaderChunks } from '@foss-earth/renderer/vite'
+import { babylonBarrels, babylonShaderChunks } from '@foss-earth/renderer/vite'
 import { bootTerminal, browserRecovery } from '@foss-earth/ui/vite'
 
 // Both local development and the compiled artifact use the landing site's app route.
@@ -70,5 +70,5 @@ export default defineConfig({
   },
   // The app's own files are kept on the visitor's device by a service worker (docs/app-files.md),
   // and each page says what it is built from, for the About tab. The boot terminal shows from the page's first bytes.
-  plugins: [bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonShaderChunks(), appFiles(), builtFrom(), poseSave(), headsetEmulator()],
+  plugins: [bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), appFiles(), builtFrom(), poseSave(), headsetEmulator()],
 })

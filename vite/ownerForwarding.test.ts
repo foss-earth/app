@@ -1,9 +1,9 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BABYLON_SHADER_GROUPS as ownerGroups, babylonShaderChunks as ownerShaderChunks } from "@foss-earth/renderer/vite";
+import { BABYLON_BARREL as ownerBarrel, BABYLON_SHADER_GROUPS as ownerGroups, babylonBarrels as ownerBarrels, babylonShaderChunks as ownerShaderChunks } from "@foss-earth/renderer/vite";
 import { buildStamp as ownerBuildStamp, definedString as ownerDefinedString, type BuildReader } from "@foss-earth/about/vite";
-import { BABYLON_SHADER_GROUPS, babylonShaderChunks } from "./babylonShaderChunks";
+import { BABYLON_BARREL, BABYLON_SHADER_GROUPS, babylonBarrels, babylonShaderChunks } from "./babylonShaderChunks";
 import { buildStamp, definedString } from "./appFiles";
 import { describeBuild } from "./builtFrom";
 
@@ -37,6 +37,8 @@ describe("site Node build compatibility forwards public owners", () => {
   it("uses the same shader and build-stamp functions as the owner packages", () => {
     expect(BABYLON_SHADER_GROUPS).toBe(ownerGroups);
     expect(babylonShaderChunks).toBe(ownerShaderChunks);
+    expect(BABYLON_BARREL).toBe(ownerBarrel);
+    expect(babylonBarrels).toBe(ownerBarrels);
     expect(buildStamp).toBe(ownerBuildStamp);
     expect(definedString).toBe(ownerDefinedString);
   });
