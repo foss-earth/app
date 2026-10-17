@@ -9,7 +9,8 @@ import type { SceneWorldPorts, ScenePlacement } from "@foss-earth/scenes/browser
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import type { PublishedImageViewer } from "@foss-earth/sphere-image";
 import { globeViewerMath, globeViewerPoses, createGlobeViewerNavigation } from "@foss-earth/sphere-image/globe";
-import { createGlobeViewerInput } from "@foss-earth/sphere-image/globe-browser";
+import { createGlobeViewerInput, createImageAnchorMarkers } from "@foss-earth/sphere-image/globe-browser";
+import { SHOW_IMAGE_ANCHORS_ID } from "@foss-earth/sphere-image/settings";
 import type { ViewerNavigationLease } from "@foss-earth/sphere-image/viewer";
 import { controlTakesKey } from "@felipegalind0/gamepad-tools/browser";
 import { attemptEarthCleanup } from "./nativeResources";
@@ -24,13 +25,20 @@ export function createEarthViewerNavigation(runtime: BabylonRuntime) {
 }
 export function createEarthViewerInput(runtime: BabylonRuntime, canvas: HTMLCanvasElement,
   engineLeaseFor: (lease: ViewerNavigationLease) => NavigationLease, nowMs: () => number,
+  settings?: Pick<SettingsRegistry, "get" | "watch">,
 ) {
+  const surfaceRect = () => {
+    const rect = worldViewportClientRect(canvas);
+    return rect.width > 0 && rect.height > 0 ? rect : null;
+  };
   return createGlobeViewerInput(runtime, canvas, engineLeaseFor, {
     nowMs, controlTakesKey, abortReason: () => new DOMException("Cancelled by input.", "AbortError"),
-    surfaceRect: () => {
-      const rect = worldViewportClientRect(canvas);
-      return rect.width > 0 && rect.height > 0 ? rect : null;
-    },
+    surfaceRect,
+    anchorMarkers: settings ? {
+      enabled: () => settings.get(SHOW_IMAGE_ANCHORS_ID) === true,
+      create: element => createImageAnchorMarkers(element, surfaceRect),
+      subscribe: changed => settings.watch(SHOW_IMAGE_ANCHORS_ID, changed),
+    } : undefined,
   });
 }
 

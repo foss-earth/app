@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BabylonRuntime } from "@foss-earth/engine/babylon";
-import type { SettingsRegistry } from "@foss-earth/ui/settings";
+import { createSettingsRegistry, type SettingsRegistry } from "@foss-earth/ui/settings";
+import { createLookModel } from "@foss-earth/sphere-image";
+import { SHOW_IMAGE_ANCHORS_ID, VIEWER_PARAMETERS } from "@foss-earth/sphere-image/settings";
 import { imagePoseMatrix, transpose3 } from "@foss-earth/images";
 import { pointGeodetic } from "@foss-earth/engine";
 import type { ResolvedSphere } from "@foss-earth/scenes";
@@ -58,6 +60,30 @@ describe("Earth geographic scene lifecycle", () => {
     expect(caught).toBeInstanceOf(AggregateError);
     expect((caught as AggregateError).errors).toEqual([primary, release]);
     host.dispose();
+  });
+  it("uses the live 360 image setting for map-style anchors in the measured panorama viewport", () => {
+    const settings = createSettingsRegistry({ storage: null }); settings.register(VIEWER_PARAMETERS);
+    const canvas = document.createElement("canvas"); document.body.append(canvas);
+    canvas.getBoundingClientRect = () => ({ left: 100, top: 40, width: 800, height: 600 }) as DOMRect;
+    const model = createLookModel({ headingDeg: 0, pitchDeg: 0, verticalFovDeg: 60 }, () => ({
+      dragSensitivity: .15, swipeSensitivity: .15, lookRate: 90, zoomPerNotch: .1, zoomRate: .5, pinchGain: 1,
+      inertiaHalfLifeMs: 0, fovRangeDeg: { min: 20, max: 140 }, pitchRangeDeg: { min: -85, max: 85 }, reducedMotion: false,
+    }), () => {}, () => ({ width: 800, height: 600 }));
+    const host = createEarthViewerInput({ getInputMode: () => "mouse", setNavigationIntentHandler: () => () => {} } as unknown as BabylonRuntime,
+      canvas, () => ({}) as never, () => 1000, settings);
+    const input = host.input.attach({ model, lease: {} as never, requestFrame() {}, userInput() {}, exit() {} });
+    const root = () => document.querySelector<HTMLElement>("[data-foss-earth-navigation-anchors]");
+    try {
+      canvas.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -100, clientX: 300, clientY: 200 }));
+      expect(root()).toBeNull();
+      settings.set(SHOW_IMAGE_ANCHORS_ID, true);
+      expect(root()?.hidden).toBe(false);
+      expect(root()?.querySelector("svg")?.getAttribute("aria-label")).toBe("Zoom point");
+      const position = root()?.querySelector<SVGSVGElement>("svg")?.style.transform.match(/^translate\(([-\d.e+]+)px, ([-\d.e+]+)px\)$/)?.slice(1).map(Number);
+      expect(position?.[0]).toBeCloseTo(278); expect(position?.[1]).toBeCloseTo(178);
+      settings.set(SHOW_IMAGE_ANCHORS_ID, false); expect(root()).toBeNull();
+      input.detach(); settings.set(SHOW_IMAGE_ANCHORS_ID, true); expect(root()).toBeNull();
+    } finally { input.detach(); host.dispose(); canvas.remove(); }
   });
   it("keeps legacy ground-relative orbs visible when their authored capture height is null", () => {
     const { make, runtime } = fixture();

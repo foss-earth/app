@@ -8,10 +8,11 @@ import {
 } from "@foss-earth/sphere-image";
 import { createImageViewer, type ViewerSettings } from "@foss-earth/sphere-image/viewer";
 import { createGlobeViewerProjection, createViewerSceneDescription } from "@foss-earth/sphere-image/globe";
+import { createImageAnchorMarkers } from "@foss-earth/sphere-image/globe-browser";
 import { createSphereRenderer } from "@foss-earth/sphere-image/babylon";
 import { createViewerResources, type ComposedImageSource } from "@foss-earth/sphere-image/resources";
 import { createViewerTabs } from "@foss-earth/sphere-image/panels";
-import { VIEWER_EXPERIMENT_IDS } from "@foss-earth/sphere-image/settings";
+import { SHOW_IMAGE_ANCHORS_ID, VIEWER_EXPERIMENT_IDS } from "@foss-earth/sphere-image/settings";
 import {
   createImageSourceCache, mediaGroup, MIB, ResourceCapacityError,
   type ImageRepresentation, type MediaGroup, type ImageEstimate,
@@ -237,7 +238,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       profiler: browser.composition.profile.profiler, experiments: experiments(), onError: error => report(null, "image", error) });
     cleanup.push(() => renderer.dispose());
     const { navigation, engineLeaseFor } = createEarthViewerNavigation(runtime);
-    const input = createEarthViewerInput(runtime, canvas, engineLeaseFor, browser.clock.nowMs);
+    const input = createEarthViewerInput(runtime, canvas, engineLeaseFor, browser.clock.nowMs, settings);
     cleanup.push(() => input.dispose());
     viewer = createImageViewer({ renderer, resources, world: earthViewerMath, poses: earthViewerPoses, navigation, input: input.input,
       settings: viewerSettings, now: browser.clock.nowMs,       devicePixelsPerCss,
@@ -400,6 +401,11 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         inputMode: () => { const mode = runtime.getInputMode(); return mode === "touch" ? "auto" : mode; },
         safariGestures: isSafariGestureSupported({ userAgent: window.navigator.userAgent, hasGestureEvent: "GestureEvent" in window }),
         controlTakesKey: () => true,
+        anchorMarkers: {
+          enabled: () => settings.get(SHOW_IMAGE_ANCHORS_ID) === true,
+          create: createImageAnchorMarkers,
+          subscribe: changed => settings.watch(SHOW_IMAGE_ANCHORS_ID, changed),
+        },
       }, swipeSensitivity: () => n("swipeSensitivity"), inertiaHalfLifeMs: () => n("inertiaHalfLife"), reducedMotion, dragSensitivity: () => n("dragSensitivity"), zoomPerNotch: () => n("zoomPerNotch"), pinchGain: () => n("pinchGain"), pitchRange: () => range("pitchRange"), fovRange: () => range("verticalFovRange") },
       opening: {
         mode: openingMode,
