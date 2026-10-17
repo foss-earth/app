@@ -69,6 +69,7 @@ import { createMapDetailController, type MapDetailController } from "@foss-earth
 import { connectMapDetailRuntime } from "@foss-earth/engine/settings";
 import { createRendererPanel, getRendererLabel } from "@foss-earth/renderer/panel";
 import { describeRendererStart } from "@foss-earth/renderer";
+import { markBoot, markBootSettled } from "./bootMarks";
 import { createSkyPanel } from "@foss-earth/sky/panels";
 import { createDateTimePanel } from "@foss-earth/sky/panels";
 import { createFrameBudgetPanel } from "@foss-earth/renderer/panel";
@@ -315,6 +316,8 @@ export async function createGlobeApp(
   rootElement: HTMLElement,
   options: GlobeAppOptions = {},
 ): Promise<GlobeAppHandle> {
+  // Every module of the startup graph has been fetched and run by now.
+  markBoot("boot:modules");
   const cleanup: (() => void)[] = [() => rootElement.replaceChildren()];
   let disposed = false;
   const disposeApp = () => {
@@ -1330,6 +1333,8 @@ export async function createGlobeApp(
   //   chip's green tint)
   const offRendererActivity = rendererModePill ? attachRendererActivity(rendererModePill, runtime) : () => {};
   cleanup.push(offRendererActivity);
+  cleanup.push(markBootSettled(runtime, { now: () => performance.now(),
+    setTimeout: (callback, ms) => window.setTimeout(callback, ms), clearTimeout: handle => window.clearTimeout(handle) }));
   const offRenderActive = runtime.onActiveRenderChange((active) => {
     perfMetricsPill?.classList.toggle("is-active", active);
   });

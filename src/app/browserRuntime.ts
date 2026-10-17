@@ -24,6 +24,7 @@ import { composeEarthRuntime } from "./runtimeComposition";
 import { createImmersiveFrames } from "./immersive/frames";
 import { createEarthNativeResources, attemptEarthCleanup } from "./nativeResources";
 import { gpuMemoryOwner, meterMapFetch, METERED_REQUEST_OWNERS, requestOwner } from "./resourceOwners";
+import { markBoot } from "./bootMarks";
 
 type EarthSelections = Pick<GlobeRuntimeOptions,
   "googleApiKey" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
@@ -72,6 +73,8 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     force, antialias: settings.get("renderer.antialias") !== false,
     host: createBrowserRendererHost({ window, document }),
   }).catch((cause: unknown) => { throw new Error("Renderer device initialization failed", { cause }); });
+  markBoot("boot:renderer", { detail: renderer.mode });
+  scene.onAfterRenderObservable.addOnce(() => markBoot("boot:first-frame"));
   let composition: ReturnType<typeof composeEarthRuntime> | undefined;
   // A headset session takes these frames over while it presents.
   const immersive = createImmersiveFrames({
