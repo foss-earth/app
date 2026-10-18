@@ -7,9 +7,9 @@
 import "../styles/globe.css";
 import "@foss-earth/ui/windowing.css";
 import "@foss-earth/dev/panel.css";
-import { createRoot, type Root } from "react-dom/client";
+import type { Root } from "react-dom/client";
 import type { WindowOverlayHandle } from "../shell/WindowOverlay";
-import { GlobeOverlay, type AppTabId } from "./GlobeOverlay";
+import type { AppTabId } from "./GlobeOverlay";
 import { trackViewportInsets, markBrowserAppReady } from "@foss-earth/ui/browser";
 import { getAppSettings } from "../settings/appSettings";
 import { createGlobeApp, getAppIdentity, type GlobeAppHandle, type GlobeAppOptions } from "./createGlobeApp";
@@ -22,6 +22,9 @@ export async function mountGlobeApp(rootElement: HTMLElement, options: Omit<Glob
     markBrowserAppReady(rootElement.ownerDocument);
     return new Promise<GlobeAppHandle>(() => {});
   }
+  // React and the tabs' views, which the first frame does not need: they download while the globe starts.
+  const overlayModules = Promise.all([import("react-dom/client"), import("./GlobeOverlay")]);
+  overlayModules.catch(() => { /* reported where it is awaited, unless the globe failed first */ });
   // Lift the fixed HUD clear of any browser toolbar overlaying the page bottom.
   const viewportInsets = trackViewportInsets(document.documentElement, window);
   // Filled once the overlay mounts; the toolbar buttons read it when clicked.
@@ -48,6 +51,7 @@ export async function mountGlobeApp(rootElement: HTMLElement, options: Omit<Glob
   try {
     const app = await createGlobeApp(rootElement, { ...options, overlayApiRef: overlayApi });
     globeApp = app;
+    const [{ createRoot }, { GlobeOverlay }] = await overlayModules;
     overlayRoot = document.createElement("div");
     overlayRoot.className = "foss-earth-overlay-root";
     rootElement.querySelector(".globe-shell")?.append(overlayRoot);
