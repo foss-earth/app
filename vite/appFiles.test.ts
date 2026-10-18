@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BUILD_STAMP_META, buildStampOf } from "../src/app/buildStamp";
 import { APP_FILES_WORKER, APP_SOURCE_META, appFiles, appFilesWorker, buildStamp, FOSS_EARTH_SOURCE_META, fossEarthSource } from "./appFiles";
+import type { IsolationMode } from "./crossOriginIsolation";
 
 const ORIGIN = "https://tour.test";
 const SCRIPT = "assets/twinCities-SkvAwjjw.js";
@@ -184,7 +185,7 @@ describe("the appFiles Vite plugin", () => {
     const built = appFiles();
     // An app of another repository, built in a folder of its own.
     const defined = (built.config as unknown as ConfigHook)({ define, root: "/somewhere/else" }, { command: "build", mode: "production" }).define;
-    const tags = (built.transformIndexHtml as unknown as HtmlHook)();
+    const tags = (built.transformIndexHtml as unknown as HtmlHook)().filter(tag => tag.tag === "meta");
     expect(tags.slice(0, 2)).toEqual([
       { tag: "meta", attrs: { name: BUILD_STAMP_META, content: "2026-10-04T17:33:49.408Z" }, injectTo: "head" },
       { tag: "meta", attrs: { name: APP_SOURCE_META, content: "a2c6c2894e12" }, injectTo: "head" },
@@ -199,6 +200,30 @@ describe("the appFiles Vite plugin", () => {
     const served = appFiles();
     (served.config as unknown as ConfigHook)({ define }, { command: "serve", mode: "development" });
     expect((served.transformIndexHtml as unknown as HtmlHook)()).toEqual([]);
+  });
+
+  it("starts each built page with the script that asks the worker to isolate it, unless the build may not", () => {
+    type HtmlHook = () => { tag: string; attrs: Record<string, string>; children?: string; injectTo: string }[];
+    const page = (isolation: IsolationMode | undefined, command: "build" | "serve", base = "/app/") => {
+      const plugin = appFiles(isolation ? { isolation } : {});
+      const define = (plugin.config as unknown as ConfigHook)({ base }, { command, mode: command === "build" ? "production" : "development" }).define;
+      return { define, tags: (plugin.transformIndexHtml as unknown as HtmlHook)() };
+    };
+    const built = page(undefined, "build");
+    expect(JSON.parse(built.define.__FOSS_EARTH_ISOLATION__)).toBe(process.env.FOSS_EARTH_ISOLATION?.trim() || "enforce");
+    const script = page("enforce", "build").tags[0];
+    expect(script).toMatchObject({ tag: "script", attrs: { "data-foss-earth-isolation": "enforce" }, injectTo: "head-prepend" });
+    // It runs as written in the page: the address and scope of this build's worker, and nothing that ends the script early.
+    const source = JSON.parse(JSON.parse(script.children!.match(/^eval\(JSON\.parse\((.*)\)\)\n$/)![1]));
+    expect(source).toContain(`installIsolation(document, ${JSON.stringify({ worker: `/app/${APP_FILES_WORKER}`, scope: "/app/", mode: "enforce" })});`);
+    expect(script.children).not.toMatch(/<\/script|<!--/i);
+    expect(page("report-only", "build").tags[0].attrs["data-foss-earth-isolation"]).toBe("report-only");
+    // A build that may not isolate, and every dev server, carries no script; the app is told so.
+    for (const [isolation, command] of [["off", "build"], ["enforce", "serve"]] as const) {
+      const { define, tags } = page(isolation, command);
+      expect(tags.filter(tag => tag.tag === "script"), `${isolation} ${command}`).toEqual([]);
+      expect(JSON.parse(define.__FOSS_EARTH_ISOLATION__)).toBe("off");
+    }
   });
 
   it("names FOSS Earth's commit only in an app of another repository: in its own app, the app's source is it", () => {

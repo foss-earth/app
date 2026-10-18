@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FOSS_EARTH_PARAMETERS } from "../settings/catalogue";
 import { createSettingsRegistry } from "../settings/registry";
-import { KEEP_APP_FILES, keepAppFiles, type AppFilesEnvironment } from "./appFiles";
+import { APP_ISOLATION, KEEP_APP_FILES, keepAppFiles, type AppFilesEnvironment } from "./appFiles";
 
 const WORKER = "https://tour.test/foss-earth-sw.js";
 const STORE = "foss-earth-app-files /foss-earth-sw.js";
@@ -22,6 +22,7 @@ function browser(worker: AppFilesEnvironment["worker"] = { url: WORKER }) {
     controller: null,
     async register(url: string, options?: RegistrationOptions) {
       registered.push({ url, options });
+      active.scriptURL = url;
       registration = { active, unregister: async () => { registration = undefined; return true; } };
       return registration;
     },
@@ -75,6 +76,28 @@ describe("keeping the app's files", () => {
     keeper.dispose();
     expect(b.observing()).toBe(0);
     expect(b.watchingChanges()).toBe(0);
+  });
+
+  it("where the build may isolate, keeps the worker for isolation with keeping off, and leaves isolation to the next page", async () => {
+    const b = browser();
+    const settings = registry();
+    const keeper = keepAppFiles(settings, b.environment, "enforce");
+    b.load();
+    await keeper.settled();
+    expect(b.registered.map(each => each.url)).toEqual([`${WORKER}?keep=1&isolate=1`]);
+    expect(b.posted).toEqual([{ type: "foss-earth-keep", urls: LOADED }]);
+    b.stores.set(STORE, new Map([["https://tour.test/assets/twinCities-SkvAwjjw.js", new Blob(["0123456789"])]]));
+    settings.set(KEEP_APP_FILES, false);
+    await keeper.settled();
+    expect(b.registered.map(each => each.url).at(-1)).toBe(`${WORKER}?keep=0&isolate=1`);
+    expect(b.registration()).toBeDefined();
+    expect(b.stores.has(STORE)).toBe(false);
+    expect(b.observing()).toBe(0);
+    // This page stays as it loaded; the next one's script asks the worker to stop isolating.
+    settings.set(APP_ISOLATION, false);
+    await keeper.settled();
+    expect(b.registered).toHaveLength(2);
+    keeper.dispose();
   });
 
   it("turned off, tells the worker to stop, unregisters it and deletes what it kept; turned on, registers it again", async () => {

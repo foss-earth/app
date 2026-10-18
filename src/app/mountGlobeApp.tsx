@@ -10,7 +10,7 @@ import "@foss-earth/dev/panel.css";
 import type { Root } from "react-dom/client";
 import type { WindowOverlayHandle } from "../shell/WindowOverlay";
 import type { AppTabId } from "./GlobeOverlay";
-import { trackViewportInsets, markBrowserAppReady } from "@foss-earth/ui/browser";
+import { trackViewportInsets, markBrowserAppReady, whenIsolationSettled } from "@foss-earth/ui/browser";
 import { getAppSettings } from "../settings/appSettings";
 import { createGlobeApp, getAppIdentity, type GlobeAppHandle, type GlobeAppOptions } from "./createGlobeApp";
 import { showReportOnly, wantsReportOnly } from "./reportOnly";
@@ -49,6 +49,8 @@ export async function mountGlobeApp(rootElement: HTMLElement, options: Omit<Glob
     return errors;
   };
   try {
+    // A first visit may reload once so the app's worker isolates the page (Settings → App files): the globe starts after that is settled.
+    await whenIsolationSettled(window);
     const app = await createGlobeApp(rootElement, { ...options, overlayApiRef: overlayApi });
     globeApp = app;
     const [{ createRoot }, { GlobeOverlay }] = await overlayModules;

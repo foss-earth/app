@@ -9,7 +9,10 @@
  *
  * The app registers the worker itself (src/app/appFiles.ts), as Settings →
  * App files asks. Without the plugin, nothing is kept and the browser's own
- * cache applies.
+ * cache applies. The worker also isolates the pages that ask, so a threaded
+ * WebAssembly core can share memory on a host that sends no such headers, and
+ * each page starts with the script that asks it to (`isolation`, by default
+ * `deployedIsolation()`: crossOriginIsolation.ts).
  *
  * It also stamps each page of a build with the time it was built, which is
  * how the app tells a browser's own copy of an older page from the page the
@@ -28,6 +31,7 @@ import { appFiles as sharedAppFiles, appFilesWorker as sharedAppFilesWorker } fr
 import { definedString, buildStamp } from "@foss-earth/about/vite";
 export { definedString, buildStamp } from "@foss-earth/about/vite";
 import { BUILD_STAMP_META } from "../src/app/buildStamp.ts";
+import { deployedIsolation, type IsolationMode } from "./crossOriginIsolation.ts";
 
 /** The worker's file, at the build's root beside its pages. */
 export const APP_FILES_WORKER = "foss-earth-sw.js";
@@ -70,9 +74,14 @@ export function fossEarthSource(root: string = FOSS_EARTH_ROOT): string {
   }
 }
 
-export function appFiles(): Plugin {
+export interface AppFilesOptions {
+  /** What the build's worker may do for its pages. Default: `deployedIsolation()`, which enforces unless FOSS_EARTH_ISOLATION says otherwise. */
+  isolation?: IsolationMode;
+}
+
+export function appFiles(options: AppFilesOptions = {}): Plugin {
   let fossEarth = "";
-  const producer = sharedAppFiles({ retention: "current-only", cacheNamespace: "foss-earth-app-files",
+  const producer = sharedAppFiles({ retention: "current-only", cacheNamespace: "foss-earth-app-files", isolation: options.isolation ?? deployedIsolation(),
     stamps(config, env) {
       const stamp = env.command === "build" ? buildStamp(config.define) : "";
       const own = real(typeof config.root === "string" ? config.root : process.cwd()) === real(FOSS_EARTH_ROOT);

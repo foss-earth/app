@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
 import { appFiles } from './vite/appFiles.ts'
 import { builtFrom } from './vite/builtFrom.ts'
+import { crossOriginIsolation } from './vite/crossOriginIsolation.ts'
 import { headsetEmulator } from './vite/headsetEmulator.ts'
 import { lazyFeatures } from './vite/lazyFeatures.ts'
 import { localSource } from './vite/localSource.ts'
@@ -71,5 +72,5 @@ export default defineConfig({
   },
   // The app's own files are kept on the visitor's device by a service worker (docs/app-files.md),
   // and each page says what it is built from, for the About tab. The boot terminal shows from the page's first bytes.
-  plugins: [bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), lazyFeatures(), appFiles(), builtFrom(), poseSave(), headsetEmulator()],
+  plugins: [crossOriginIsolation(), bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), lazyFeatures(), appFiles(), builtFrom(), poseSave(), headsetEmulator()],
 })

@@ -95,6 +95,18 @@ export const APP_FILE_PARAMETERS: readonly ParameterSpec[] = [
     source: "src/app/appFiles.ts",
   },
   {
+    id: "app.isolation",
+    label: "Cross-origin isolation",
+    description: "After a reload, the app's service worker isolates the page from other sites, so a threaded WASM core (Component execution) can share memory with its workers. A host such as GitHub Pages cannot send the headers that do this, so the worker adds them to the pages it answers, and a first visit, which no worker answered yet, reloads once. An isolated page loads another site's file only when that site allows it, which every map this app uses does. Where the page cannot be isolated (no service worker, as in some private windows; inside another site's frame; a reload that did not isolate), it starts at once and the threaded core runs single-threaded WASM; Copy report says why. Off ends the isolation at the next reload.",
+    unit: "none",
+    kind: "boolean",
+    default: true,
+    defaultReason: "A threaded core needs an isolated page, and the published apps' host sends no isolation headers. The apps load no other site's scripts or frames, and every map host answers with CORS (docs/docs/proposals/webassembly.md, step 3).",
+    home: { tab: SETTINGS_TAB, section: "app-files", level: "main" },
+    appliesLive: false,
+    source: "src/app/appFiles.ts",
+  },
+  {
     id: "app.checkPublished",
     label: "Ask which version is published",
     description: "Asks this site for the page itself when the app starts, when the page is shown again and while it stays shown, no more often than the time below, and compares the build written in it with this page's. A browser that restores a tab, as a phone does, may show its own copy of the page from days before, and with it that day's app; this is how the app can tell. The answer is the page, a few kilobytes, or a few hundred bytes when it has not changed. Off asks nothing, and the app is whichever one the browser shows.",
