@@ -1379,6 +1379,7 @@ export async function createGlobeApp(
     get devTab() { return dev.tab; },
     onTabVisibility(tabId, visible) {
       if (tabId === "dev") dev.tab?.onOpenChange(visible);
+      if (tabId === "scenes") scenesPanel.setShown(visible);
       if (tabId === "about" && visible) for (const listener of [...aboutShown]) listener();
       if (tabId === "location") {
         locationTabOpen = visible;

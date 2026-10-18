@@ -392,6 +392,8 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     if (linkEditor) cleanup.push(() => linkEditor.destroy());
     const panel = createScenesPanel({
       document, controller, ui,
+      // Off screen until the Scenes tab opens (createGlobeApp's onTabVisibility).
+      shown: false,
       contributions: [...contributions, ...(linkEditor ? [{ section: "links" as const, title: "Image links", element: linkEditor.element, destroy: () => linkEditor.destroy() }] : [])],
       layerArrangement,
       previewBackend: () => import("./thumbnailBackend").then(module => module.createThumbnailBackend(document, runtime.engine)),
