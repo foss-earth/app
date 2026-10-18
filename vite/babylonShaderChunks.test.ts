@@ -5,7 +5,7 @@ import { BABYLON_SHADER_GROUPS, babylonShaderChunks } from "./babylonShaderChunk
 function groupOf(id: string): string | null {
   const graph = { getModuleInfo: () => ({ importers: [] }) } as unknown as Rolldown.ChunkingContext;
   for (const group of BABYLON_SHADER_GROUPS) {
-    if (!(group.test instanceof RegExp ? group.test.test(id) : group.test?.(id))) continue;
+    if (!(group.test instanceof RegExp ? group.test.test(id) : typeof group.test === "function" && group.test(id))) continue;
     const name = typeof group.name === "function" ? group.name(id, graph) : group.name;
     if (name) return name;
   }
