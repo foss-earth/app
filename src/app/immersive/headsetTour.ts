@@ -4,7 +4,7 @@
  * entering a photograph on the map with a controller's trigger or a pinch.
  */
 import {
-  Color3, Constants, DynamicTexture, Matrix, Mesh, MeshBuilder, Quaternion, StandardMaterial, Vector3, type Scene,
+  Color3, Constants, DynamicTexture, Matrix, Mesh, CreateCylinder, CreateDisc, CreatePlane, Quaternion, StandardMaterial, Vector3, type Scene,
 } from "@babylonjs/core";
 import { add, cross, scale, sub, type Vec3 } from "@foss-earth/engine";
 import { pointedAt } from "./xrMath";
@@ -82,14 +82,14 @@ export function createHeadsetTour(options: HeadsetTourOptions): HeadsetTour {
     const material = overlay(new StandardMaterial(`headset-link-${link.id}`, scene));
     material.emissiveColor = IDLE;
     material.alpha = 0.55;
-    const disc = place(MeshBuilder.CreateDisc(`headset-link-${link.id}`, { radius: MARKER_RADIUS, tessellation: 48 }, scene));
+    const disc = place(CreateDisc(`headset-link-${link.id}`, { radius: MARKER_RADIUS, tessellation: 48 }, scene));
     disc.material = material;
     const texture = new DynamicTexture(`headset-link-label-${link.id}`, { width: 1024, height: 192 }, scene, true);
     texture.hasAlpha = true;
     const labelMaterial = overlay(new StandardMaterial(`headset-link-label-${link.id}`, scene));
     labelMaterial.emissiveTexture = texture;
     labelMaterial.opacityTexture = texture;
-    const label = place(MeshBuilder.CreatePlane(`headset-link-label-${link.id}`, { width: 3.2, height: 0.6 }, scene));
+    const label = place(CreatePlane(`headset-link-label-${link.id}`, { width: 3.2, height: 0.6 }, scene));
     label.material = labelMaterial;
     const marker = { link, disc, label, material, texture, labelMaterial };
     drawLabel(marker);
@@ -179,7 +179,7 @@ export function createHeadsetTour(options: HeadsetTourOptions): HeadsetTour {
         marker.disc.scaling.setAll(active ? 1.3 : 1);
       }
       while (lasers.length < rays.length) {
-        const laser = place(MeshBuilder.CreateCylinder(`headset-laser-${lasers.length}`, { height: 1, diameter: LASER_DIAMETER, tessellation: 8 }, scene));
+        const laser = place(CreateCylinder(`headset-laser-${lasers.length}`, { height: 1, diameter: LASER_DIAMETER, tessellation: 8 }, scene));
         laser.material = laserMaterial;
         lasers.push(laser);
       }

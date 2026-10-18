@@ -1,6 +1,6 @@
 /**
- * Qualify the page's startup graph, so React, the tabs' views or Babylon's PBR materials moving back into it fails
- * CI (docs/proposals/startup-loading.md).
+ * Qualify the page's startup graph, so React, the tabs' views, Babylon's PBR materials or its MeshBuilder moving back
+ * into it fails CI (docs/proposals/startup-loading.md).
  */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -24,10 +24,15 @@ for (const [key, chunk] of Object.entries(manifest)) {
 // Only glTF models (3D Tiles, loaded later) use PBR materials; the globe tells them by class name. The class's
 // serialize() is the one place that writes this, wherever a minifier leaves it.
 const PBR_MATERIAL = /customType\s*=\s*[`'"]BABYLON\.PBRMaterial[`'"]/;
+// MeshBuilder holds every builder; startup code calls the few it uses (CreateSphere, CreatePlane…) by name.
+// Its object is the one place a builder is a property; Mesh's legacy stubs are assignments.
+const MESH_BUILDER = /[{,]\s*CreateTorusKnot\s*:/;
 for (const [key, chunk] of Object.entries(manifest)) {
   if (!chunk.isEntry) continue;
   for (const file of [...imports(key)].map(found => manifest[found].file)) {
-    assert(!PBR_MATERIAL.test(await readFile(new URL(`../${file}`, manifestUrl), 'utf8')), `Startup loads Babylon's PBR material in ${file}`);
+    const code = await readFile(new URL(`../${file}`, manifestUrl), 'utf8');
+    assert(!PBR_MATERIAL.test(code), `Startup loads Babylon's PBR material in ${file}`);
+    assert(!MESH_BUILDER.test(code), `Startup loads Babylon's MeshBuilder in ${file}`);
   }
 }
-console.log("Startup chunks verified: React, the overlay and Babylon's PBR materials load after the page starts.");
+console.log("Startup chunks verified: React, the overlay, Babylon's PBR materials and its MeshBuilder load after the page starts.");
