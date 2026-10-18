@@ -69,7 +69,7 @@ import { createMapSourcePanel } from "@foss-earth/engine/panels";
 import { createMapDetailController, type MapDetailController } from "@foss-earth/engine/settings";
 import { connectMapDetailRuntime } from "@foss-earth/engine/settings";
 import { createRendererPanel, getRendererLabel } from "@foss-earth/renderer/panel";
-import { describeRendererStart } from "@foss-earth/renderer";
+import { reportRendererStart } from "./rendererAdviceLog";
 import { markBoot, markBootOnFrame, markBootSettled } from "./bootMarks";
 import { defineLazyFeature, setLazyFeatureLog, startIdlePrefetch, watchTabIntent } from "./lazyFeature";
 import { createSkyPanel } from "@foss-earth/sky/panels";
@@ -621,9 +621,10 @@ export async function createGlobeApp(
     rendererModePill.classList.toggle("hud-chip--good", runtime.renderer.mode === "webgpu");
     rendererModePill.classList.toggle("hud-chip--bad", runtime.renderer.mode !== "webgpu");
   }
-  // A start on WebGL says why in the log, where a visitor on a phone sees it, not only in the Renderer tab.
-  const rendererNote = describeRendererStart(runtime.renderer);
-  if (rendererNote) gameLog.print(rendererNote);
+  // A start on WebGL says why in the log, where a visitor on a phone sees it, not only in the Renderer tab,
+  // with how to get WebGPU where it can be had (docs/proposals/startup-loading.md, section 3).
+  const rendererStorage = { getItem: (key: string) => window.localStorage.getItem(key), setItem: (key: string, value: string) => window.localStorage.setItem(key, value), removeItem: (key: string) => window.localStorage.removeItem(key) };
+  const rendererAdvice = reportRendererStart(gameLog, runtime.renderer, runtime.engine, window, rendererStorage);
   const toggleTab = (tabId: Parameters<WindowOverlayHandle<"dev">["toggleTab"]>[0]): void => {
     options.overlayApiRef?.current?.toggleTab(tabId);
   };
@@ -1117,8 +1118,9 @@ export async function createGlobeApp(
   const rendererPanel = createRendererPanel({
     ui: ui.renderer,
     renderer: runtime.renderer,
-    onChange: force => applyRendererChoice(force, settings, window.location, { getItem: key => window.localStorage.getItem(key), setItem: (key, value) => window.localStorage.setItem(key, value), removeItem: key => window.localStorage.removeItem(key) }),
+    onChange: force => applyRendererChoice(force, settings, window.location, rendererStorage),
     settings,
+    advice: rendererAdvice,
     sections: [{
       id: "performance",
       title: settings.getSectionTitle("renderer", "performance"),
