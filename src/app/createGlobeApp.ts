@@ -1,12 +1,13 @@
 import { renderPerformanceChips, browserHudBarLayoutPorts, createToolbarInterfaceSection, createPositionInterfaceSection } from "@foss-earth/toolbar/browser";
 import { SPHERE_GAMEPAD_ACTIONS, createSphereProfileContribution } from "@foss-earth/sphere-image";
 import { createEarthDevHost, type EarthDevContribution, type EarthDevTab } from "./devHost";
+import { wantsDev } from "@foss-earth/dev";
 import { createMapSourceHud } from "@foss-earth/engine/panels";
 import { connectMapDetailLog } from "@foss-earth/engine/panels";
 import { attachRendererActivity } from "@foss-earth/toolbar/browser";
 import { createBrowserInputSource } from "@felipegalind0/gamepad-tools/browser";
 import { BindingRuntime, createProfileStore, DEFAULT_BINDING_TRANSFORM } from "@felipegalind0/gamepad-tools/core";
-import { mountBindingEditor, type BindingEditorHandle } from "@felipegalind0/gamepad-tools/ui";
+import type { BindingEditorHandle } from "@felipegalind0/gamepad-tools/ui";
 import "@felipegalind0/gamepad-tools/styles.css";
 import { Matrix, Vector3, Viewport } from "@babylonjs/core";
 import { attachWorldOcclusion, cameraViewportFromTop, type BabylonRuntime } from "@foss-earth/engine/babylon";
@@ -70,6 +71,7 @@ import { connectMapDetailRuntime } from "@foss-earth/engine/settings";
 import { createRendererPanel, getRendererLabel } from "@foss-earth/renderer/panel";
 import { describeRendererStart } from "@foss-earth/renderer";
 import { markBoot, markBootOnFrame, markBootSettled } from "./bootMarks";
+import { defineLazyFeature, setLazyFeatureLog, startIdlePrefetch, watchTabIntent } from "./lazyFeature";
 import { createSkyPanel } from "@foss-earth/sky/panels";
 import { createDateTimePanel } from "@foss-earth/sky/panels";
 import { createFrameBudgetPanel } from "@foss-earth/renderer/panel";
@@ -237,6 +239,14 @@ export interface GlobeAppOptions {
 
 /** Pixel offset from the projected orb centre to the top-right exit button. */
 const POI_EXIT_BTN_OFFSET_PX = 22;
+/** The Controls tab's controller bindings editor, fetched when the pointer reaches the tab. */
+const gamepadEditorFeature = defineLazyFeature({
+  id: "gamepad-editor",
+  label: "the controller bindings editor",
+  prefetch: "intent",
+  tabs: ["controls"],
+  load: () => import("@felipegalind0/gamepad-tools/ui"),
+});
 /** The site's GitHub repository, whose latest deploy About names. */
 
 export { getAppIdentity, getLoadedBundleName } from "./appIdentity";
@@ -916,11 +926,17 @@ export async function createGlobeApp(
   cleanup.push(offGamepadFrame);
   const stopGamepadSource = gamepadSource.start({ intervalMs: 33 });
   cleanup.push(stopGamepadSource);
-  // Controller bindings live in the Controls tab, mounted once and kept, so a
-  // rebinding in progress survives closing the tab.
+  // Controller bindings live in the Controls tab, mounted when it is first
+  // shown and kept, so a rebinding in progress survives closing the tab.
   const controllerSectionEl = rootElement.querySelector<HTMLElement>("#controlsControllerSection");
-  const gamepadEditor: BindingEditorHandle | null = controllerSectionEl
-    ? mountBindingEditor({
+  let gamepadEditor: BindingEditorHandle | null = null;
+  let gamepadEditorWanted = false;
+  const showGamepadEditor = (): void => {
+    if (!controllerSectionEl || gamepadEditorWanted) return;
+    gamepadEditorWanted = true;
+    void gamepadEditorFeature.load().then(({ mountBindingEditor }) => {
+      if (disposed) return;
+      gamepadEditor = mountBindingEditor({
         root: controllerSectionEl,
         runtime: gamepadRuntime,
         source: gamepadSource,
@@ -932,8 +948,12 @@ export async function createGlobeApp(
             create: () => createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), sphereProfile),
           },
         ],
-      })
-    : null;
+      });
+    }, error => {
+      gamepadEditorWanted = false;
+      if (!disposed) console.error("Loading the controller bindings failed.", error);
+    });
+  };
   const openControllerBindings = (): void => options.overlayApiRef?.current?.openOrSelectTab("controls");
   cleanup.push(() => gamepadEditor?.destroy());
 
@@ -1114,6 +1134,11 @@ export async function createGlobeApp(
   const skyPanel = createSkyPanel({ document, ui: ui.publicUi, refresh: ui.refresh, panelStorage: ui.storage, now: Date.now, settings, getPlace: skyPlace, openDateTime: () => options.overlayApiRef?.current?.openOrSelectTab("time") });
   cleanup.push(() => skyPanel.destroy());
   const dev = createEarthDevHost(window.location.search, { document, runtime, broker: browser.broker, refresh: ui.refresh }, options.devContributions);
+  // A dev page's log says what each lazy feature cost when it loaded.
+  if (wantsDev(window.location.search)) {
+    setLazyFeatureLog(text => { gameLog.print({ text }); });
+    cleanup.push(() => setLazyFeatureLog(null));
+  }
   cleanup.push(() => dev.dispose());
   const timePanel = createDateTimePanel({ document, ui: ui.publicUi, refresh: ui.refresh, panelStorage: ui.storage, now: Date.now, settings, getPlace: skyPlace });
   cleanup.push(() => timePanel.destroy());
@@ -1338,8 +1363,10 @@ export async function createGlobeApp(
   //   chip's green tint)
   const offRendererActivity = rendererModePill ? attachRendererActivity(rendererModePill, runtime) : () => {};
   cleanup.push(offRendererActivity);
+  // Once the scene has settled, the page fetches the code of features it may need next.
   cleanup.push(markBootSettled(runtime, { now: () => performance.now(),
-    setTimeout: (callback, ms) => window.setTimeout(callback, ms), clearTimeout: handle => window.clearTimeout(handle) }));
+    setTimeout: (callback, ms) => window.setTimeout(callback, ms), clearTimeout: handle => window.clearTimeout(handle) }, startIdlePrefetch));
+  cleanup.push(watchTabIntent(document));
   // Without a scene the globe is the content: the opening view, once no tile it needs is loading.
   if (!requestedScene) cleanup.push(markBootOnFrame("boot:content", { onFrame(listener) {
     const observer = runtime.scene.onAfterRenderObservable.add(listener);
@@ -1379,6 +1406,7 @@ export async function createGlobeApp(
     get devTab() { return dev.tab; },
     onTabVisibility(tabId, visible) {
       if (tabId === "dev") dev.tab?.onOpenChange(visible);
+      if (tabId === "controls" && visible) showGamepadEditor();
       if (tabId === "scenes") scenesPanel.setShown(visible);
       if (tabId === "about" && visible) for (const listener of [...aboutShown]) listener();
       if (tabId === "location") {

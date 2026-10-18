@@ -57,9 +57,10 @@ export interface SettledClock {
 /**
  * Marks `boot:settled` at the moment frames stopped for the first whole quiet
  * second after the first frame: tiles streaming in hold frames until they are
- * done. Returns the stop of the watch, which also ends once it has marked.
+ * done, then calls `onSettled`. Returns the stop of the watch, which also ends
+ * once it has marked.
  */
-export function markBootSettled(activity: RenderActivity, clock: SettledClock): () => void {
+export function markBootSettled(activity: RenderActivity, clock: SettledClock, onSettled?: () => void): () => void {
   let idleSince: number | null = activity.isRendering() ? null : clock.now();
   let timer = 0;
   let stopped = false;
@@ -77,6 +78,7 @@ export function markBootSettled(activity: RenderActivity, clock: SettledClock): 
       if (performance.getEntriesByName("boot:first-frame", "mark").length === 0) { idleSince = clock.now(); arm(); return; }
       markBoot("boot:settled", { startTime: idleSince! });
       stop();
+      onSettled?.();
     }, SETTLED_QUIET_MS);
   };
   const off = activity.onActiveRenderChange(active => {

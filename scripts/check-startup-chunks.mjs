@@ -1,6 +1,6 @@
 /**
- * Qualify the page's startup graph, so React, the tabs' views, Babylon's PBR materials or its MeshBuilder moving back
- * into it fails CI (docs/proposals/startup-loading.md).
+ * Qualify the page's startup graph, so React, the tabs' views, Babylon's PBR materials, its MeshBuilder or a lazy
+ * feature moving back into it fails CI (docs/proposals/startup-loading.md).
  */
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -35,4 +35,12 @@ for (const [key, chunk] of Object.entries(manifest)) {
     assert(!MESH_BUILDER.test(code), `Startup loads Babylon's MeshBuilder in ${file}`);
   }
 }
-console.log("Startup chunks verified: React, the overlay, Babylon's PBR materials and its MeshBuilder load after the page starts.");
+// Each lazy feature the page names (vite/lazyFeatures.ts) still has chunks of its own to fetch.
+const page = await readFile(new URL('../index.html', manifestUrl), 'utf8');
+const map = page.match(/<script type="application\/json" id="foss-earth-lazy-features">([^<]*)<\/script>/)?.[1];
+assert(map, 'The page names no lazy features');
+const features = JSON.parse(map);
+for (const id of ['gamepad-editor', 'pose-editor', 'scene-thumbnails']) {
+  assert(features[id]?.urls.length > 0, `Lazy feature ${id} is missing from the page or loads with it`);
+}
+console.log("Startup chunks verified: React, the overlay, Babylon's PBR materials, its MeshBuilder and the lazy features load after the page starts.");

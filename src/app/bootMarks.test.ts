@@ -75,12 +75,18 @@ describe("startup marks", () => {
 
   it("does not take quiet before the first frame for settled", () => {
     const frames = activity(false);
-    markBootSettled(frames, clock);
+    const settled = vi.fn();
+    markBootSettled(frames, clock, settled);
     vi.advanceTimersByTime(SETTLED_QUIET_MS * 3);
     expect(marks("boot:settled")).toHaveLength(0);
+    expect(settled).not.toHaveBeenCalled();
     markBoot("boot:first-frame");
     vi.advanceTimersByTime(SETTLED_QUIET_MS);
     expect(marks("boot:settled")).toHaveLength(1);
+    // Once, after the mark: the page's idle fetching starts there.
+    expect(settled).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(SETTLED_QUIET_MS * 3);
+    expect(settled).toHaveBeenCalledOnce();
   });
 
   it("stops watching when the app is destroyed first", () => {

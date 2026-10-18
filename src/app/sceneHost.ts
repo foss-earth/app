@@ -42,6 +42,7 @@ import {
 } from "./sceneWorld";
 import { attemptEarthCleanup } from "./nativeResources";
 import { markBootOnFrame } from "./bootMarks";
+import { defineLazyFeature } from "./lazyFeature";
 import { textureReadiness } from "./textureReadiness";
 import { poseEditEnabled } from "./poseEditor/poseGate";
 import { createPoseOverrides, openPoseStorage } from "./poseEditor/poseOverrides";
@@ -71,6 +72,23 @@ export interface EarthSceneHostOptions {
   /** The route's automatic startup scene, for restoring this tab's view. */
   startupScene?: string;
 }
+
+/** The pose editor: only on a pose editing page, which a dev page fetches while idle. */
+const poseEditorFeature = defineLazyFeature({
+  id: "pose-editor",
+  label: "the pose editor",
+  prefetch: "idle",
+  devOnly: true,
+  load: () => import("./poseEditor/editor"),
+});
+/** What draws the Scenes tab's previews, fetched when the pointer reaches the tab. */
+const thumbnailFeature = defineLazyFeature({
+  id: "scene-thumbnails",
+  label: "the scene previews",
+  prefetch: "intent",
+  tabs: ["scenes"],
+  load: () => import("./thumbnailBackend"),
+});
 
 export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const { browser, settings, ui, canvas } = options;
@@ -396,7 +414,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       shown: false,
       contributions: [...contributions, ...(linkEditor ? [{ section: "links" as const, title: "Image links", element: linkEditor.element, destroy: () => linkEditor.destroy() }] : [])],
       layerArrangement,
-      previewBackend: () => import("./thumbnailBackend").then(module => module.createThumbnailBackend(document, runtime.engine)),
+      previewBackend: () => thumbnailFeature.load().then(module => module.createThumbnailBackend(document, runtime.engine)),
       externalLinkIcon: () => ui.externalLinkIcon(),
       look: { input: {
         createWheelGestureClassifier: options => createWheelGestureClassifier({ ...options, nowMs: browser.clock.nowMs }),
@@ -464,7 +482,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       if (editing) {
         let poseEditor: { dispose(): void } | null = null;
         let poseEditorGone = false;
-        void import("./poseEditor/editor").then(({ mountPoseEditor }) => {
+        void poseEditorFeature.load().then(({ mountPoseEditor }) => {
           if (poseEditorGone) return;
           poseEditor = mountPoseEditor({
             document: canvas.ownerDocument, canvas, baseUrl: options.baseUrl,

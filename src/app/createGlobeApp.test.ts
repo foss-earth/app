@@ -1030,10 +1030,17 @@ describe("createGlobeApp smoke behavior", () => {
     expect(root.querySelector(".gt-launcher")).toBeNull();
     expect(root.querySelector(".gt-host-panel")).toBeNull();
     const controller = app.controlsSections.find((section) => section.id === "controller")!.element!;
-    // The binding editor, then the section's own parameters.
+    // The binding editor is fetched and mounted when the tab is first shown, then kept.
+    expect(controller.querySelector(".gt-root")).toBeNull();
+    app.onTabVisibility("controls", true);
+    await vi.waitFor(() => expect(controller.querySelector(".gt-root")).not.toBeNull());
     const editor = controller.querySelector(".gt-root");
-    expect(editor).not.toBeNull();
     expect(editor!.childElementCount).toBeGreaterThan(0);
+    app.onTabVisibility("controls", false);
+    app.onTabVisibility("controls", true);
+    await Promise.resolve();
+    expect(controller.querySelectorAll(".gt-root")).toHaveLength(1);
+    expect(controller.querySelector(".gt-root")).toBe(editor);
 
     app.openControllerBindings();
     expect(overlay.current.openOrSelectTab).toHaveBeenCalledWith("controls");
