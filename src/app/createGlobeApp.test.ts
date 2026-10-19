@@ -567,7 +567,7 @@ describe("createGlobeApp smoke behavior", () => {
     const checked = (name: string) => app.mapTab.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value;
 
     expect(checked("foss-earth-map-source")).toBe("usgs-imagery-topo");
-    expect(app.mapTab.querySelector<HTMLElement>('[aria-label="Elevation provider"]')!.hidden).toBe(false);
+    expect(app.mapTab.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Elevation"]')!.hidden).toBe(false);
     // Detail has its one home in the Map tab, beside the basemap choice.
     expect(app.mapTab.querySelectorAll('[aria-label="Detail"]')).toHaveLength(1);
 
@@ -1018,9 +1018,13 @@ describe("createGlobeApp smoke behavior", () => {
     hudChoice(sectionElement(app.interfaceSections, "toolbar"), "interface.toolbar.inputMode", "off").click();
     expect(root.querySelector(".input-mode-control")!.hasAttribute("data-hud-choice-hidden")).toBe(true);
     // jsdom reports a fine pointer and no touch: a desktop, so the choice is there.
-    const pointer = inputMethod.querySelector<HTMLButtonElement>(".input-mode-toggle-option:not(.is-active)")!;
+    // A radio fires change only once it is in the document.
+    document.body.append(inputMethod);
+    const pointer = inputMethod.querySelector<HTMLInputElement>('[role="radiogroup"][aria-label="Pointer"] input[type="radio"]:not(:checked)')!;
     pointer.click();
-    expect(mockState.setInputMode).toHaveBeenLastCalledWith(pointer.dataset.mode);
+    expect(mockState.setInputMode).toHaveBeenLastCalledWith(pointer.value);
+    // The per-event wheel log is only on developer pages.
+    expect(inputMethod.textContent).not.toContain("Debug wheel events");
   });
 
   it("keeps controller bindings in the Controls tab, not a corner panel", async () => {

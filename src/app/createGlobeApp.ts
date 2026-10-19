@@ -740,7 +740,7 @@ export async function createGlobeApp(
     ? createPoiSpriteSizeTuner(extraPanelsGridEl, (params) => {
         options.onPoiSpriteSizeChange?.(params);
         runtime.requestRender();
-      }, { document, settings })
+      }, { document, settings, createIconButton: ui.publicUi.createIconButton })
     : null;
   cleanup.push(() => spriteTuner?.destroy());
   const compassScaleTuner = extraPanelsGridEl
@@ -748,7 +748,7 @@ export async function createGlobeApp(
         orbitCompass.setScaleParams(params);
         options.onCompassScaleChange?.(params);
         runtime.requestRender();
-      }, { document, settings })
+      }, { document, settings, createIconButton: ui.publicUi.createIconButton })
     : null;
   cleanup.push(() => compassScaleTuner?.destroy());
   const showTuners = (): void => {
@@ -760,7 +760,9 @@ export async function createGlobeApp(
 
   const inputModeHud: InputModeHudHandle | null = rendererModePill
     ? createInputModeHud(rootElement, rendererModePill, {
-        document, settings, log: console,
+        document, settings, log: console, ui: ui.publicUi,
+        // The per-event wheel log is for developer pages.
+        showDebug: wantsDev(window.location.search),
         deviceHints: { platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints, coarsePointer: matchMedia("(pointer: coarse)").matches, finePointer: matchMedia("(pointer: fine)").matches },
         onModeChange: (mode) => runtime.setInputMode?.(mode),
         onSensitivityChange: (sensitivity) => runtime.setInputSensitivity?.(sensitivity),
@@ -980,11 +982,12 @@ export async function createGlobeApp(
     line.textContent = text;
     return line;
   };
+  // "Extra panels [POI sprite size tuner …] [Compass scale tuner …]": the title first in the row.
   const group = (heading: string, ids: readonly string[]): HTMLElement => {
     const element = document.createElement("div");
-    element.className = "settings-metric-menu";
+    element.className = "settings-metric-menu foss-earth-choices";
     const title = document.createElement("div");
-    title.className = "settings-section-title";
+    title.className = "foss-earth-choices__heading foss-earth-choices__heading--inline";
     title.textContent = heading;
     element.append(title);
     for (const id of ids) {
@@ -1019,7 +1022,8 @@ export async function createGlobeApp(
     },
   };
   const frameBudget = createFrameBudgetPanel({
-    ui: { document, createParameterControl: ui.control }, refreshPort: frameBudgetRefresh,
+    ui: { document, createParameterControl: ui.control, createIconButton: options => ui.publicUi.createIconButton(document, options) }, refreshPort: frameBudgetRefresh,
+    title: "Frame budget",
     actions: { copy, saveJson(name, text) { const url = URL.createObjectURL(new Blob([text], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url); }, onError: error => console.error(error) },
     session: runtime.frameProfile,
     settings,
@@ -1027,16 +1031,10 @@ export async function createGlobeApp(
     readings: ["scene.panorama.sourceGpuMiB", "scene.panorama.decodedMiB", "scene.panorama.encodedMiB"],
     traceFileName: "foss-earth-frame-trace",
   });
-  const frameBudgetGroup = document.createElement("div");
   cleanup.push(() => frameBudget.destroy());
-  frameBudgetGroup.className = "settings-metric-menu";
-  const frameBudgetTitle = document.createElement("div");
-  frameBudgetTitle.className = "settings-section-title";
-  frameBudgetTitle.textContent = "Frame budget";
-  frameBudgetGroup.append(frameBudgetTitle, frameBudget.element);
   performanceMain.append(
     group("Extra panels", ["interface.poiSpriteTuner", "interface.compassScaleTuner"]),
-    frameBudgetGroup,
+    frameBudget.element,
   );
   const presets = createPresetsSection(settings, document);
   cleanup.push(() => presets.destroy());
@@ -1075,7 +1073,7 @@ export async function createGlobeApp(
   // The input-method button lands here, so its section starts open.
   cleanup.push(() => about.dispose(), () => aboutShown.clear());
   // The session's pinned point, with Pick point, Pin compass target and Clear pin.
-  const pinSection = runtime.navigationAnchors ? createNavigationAnchorPinSection({ document, anchors: runtime.navigationAnchors }) : null;
+  const pinSection = runtime.navigationAnchors ? createNavigationAnchorPinSection({ document, anchors: runtime.navigationAnchors, createIconButton: ui.publicUi.createIconButton }) : null;
   if (pinSection) cleanup.push(() => pinSection.destroy());
   const controlsSections: PanelSection[] = [
     ...(inputMethodElement ? [{ id: "input-method", title: "Input method", element: inputMethodElement, defaultOpen: true }] : []),

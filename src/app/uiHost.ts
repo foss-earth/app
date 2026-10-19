@@ -1,7 +1,7 @@
 /** Earth binds presentation owners to its document and existing frame notifications. */
 import {
   appendHostSections, checkChoice, createChoiceGroup, createChoiceNote,
-  createDial, createExternalLinkIcon, createParameterControl,
+  createDial, createExternalLinkIcon, createHelpTooltip, createIconButton, createParameterControl,
   createParameterSection, createSectionsElement, createTrack, wrapTurn,
 } from "@foss-earth/ui/browser";
 import type { SettingsRegistry, SettingsStorage } from "@foss-earth/ui/settings";
@@ -30,7 +30,8 @@ export function createEarthUiHost(settings: SettingsRegistry, document: Document
   const renderer: RendererPanelUiPort = {
     document,
     isInput: (value): value is HTMLInputElement => value instanceof document.defaultView!.HTMLInputElement,
-    createChoiceGroup: (name, heading, choices) => createChoiceGroup(name, heading, choices, document),
+    createChoiceGroup: (name, heading, choices, options) => createChoiceGroup(name, heading, choices, document, options),
+    createHelpTooltip,
     createChoiceNote: text => createChoiceNote(text, document),
     checkChoice,
     createParameterSection: (registry, options) => createParameterSection(registry, { ...options, document, refresh, panelStorage: storage }),
@@ -42,7 +43,13 @@ export function createEarthUiHost(settings: SettingsRegistry, document: Document
     control: (registry: SettingsRegistry, id: string) => createParameterControl(registry, id, document),
     /** Owners whose interfaces already include document/refresh retain their public signatures. */
     publicUi: { appendHostSections, checkChoice, createChoiceGroup, createChoiceNote,
-      createParameterSection, createSectionsElement, createDial, wrapTurn },
+      createParameterSection, createSectionsElement, createDial, wrapTurn, createHelpTooltip, createIconButton },
+    /** Choice, action and help bound to this document, for owners such as Scenes that take them so. */
+    choiceGroup: (name: string, heading: string, choices: Parameters<typeof createChoiceGroup>[2], options?: Parameters<typeof createChoiceGroup>[4]) =>
+      createChoiceGroup(name, heading, choices, document, options),
+    checkChoice,
+    iconButton: (options: Parameters<typeof createIconButton>[1]) => createIconButton(document, options),
+    helpTooltip: createHelpTooltip,
     createTrack, externalLinkIcon: () => createExternalLinkIcon(document),
     dispose() { if (disposed) return; disposed = true; stopSettings(); listeners.clear(); },
   };

@@ -99,6 +99,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const n = (suffix: string): number => settings.get<number>(`scene.panorama.${suffix}`);
   const range = (suffix: string) => settings.get<{ min: number; max: number }>(`scene.panorama.${suffix}`);
   const count = (suffix: string, minimum = 1) => Math.max(minimum, Math.round(n(suffix)));
+  const dragMode = (): "grab" | "scroll" => settings.get("scene.panorama.dragMode") === "scroll" ? "scroll" : "grab";
   const reducedMotion = () => settings.get("scene.panorama.reducedMotion") === "reduce" ||
     settings.get("scene.panorama.reducedMotion") === "system" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const detailCap = () => {
@@ -114,7 +115,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   let headset: HeadsetSession | null = null;
   const viewerSettings = (): ViewerSettings => ({
     appearance: appearance(),
-    look: { dragSensitivity: n("dragSensitivity"), swipeSensitivity: n("swipeSensitivity"),
+    look: { dragMode: dragMode(), dragSensitivity: n("dragSensitivity"), swipeSensitivity: n("swipeSensitivity"),
       lookRate: n("lookRate"), zoomPerNotch: n("zoomPerNotch"), zoomRate: n("zoomRate"),
       pinchGain: n("pinchGain"), inertiaHalfLifeMs: n("inertiaHalfLife"),
       fovRangeDeg: range("verticalFovRange"), pitchRangeDeg: range("pitchRange"), reducedMotion: reducedMotion() },
@@ -365,7 +366,8 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     document.addEventListener("visibilitychange", hideView);
     cleanup.push(() => { offViewFrame(); window.removeEventListener("pagehide", flushView); document.removeEventListener("visibilitychange", hideView); });
     const savedSection = createSavedImagesSection({ document, source: saved, refresh: ui.refresh,
-      maxListedGroups: () => settings.get<number>("scene.panorama.savedGroupsShown") });
+      maxListedGroups: () => settings.get<number>("scene.panorama.savedGroupsShown"),
+      createHelpTooltip: ui.publicUi.createHelpTooltip, createIconButton: ui.publicUi.createIconButton });
     cleanup.push(() => savedSection.destroy());
     const contributions = ["appearance", "motion", "loading", "tiles", "saved"].map(section => {
       const parameter = ui.parameterSection({ tab: "scenes", section, ...(section === "saved" ? { footer: savedSection.element } : {}) });
@@ -426,7 +428,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
           create: createImageAnchorMarkers,
           subscribe: changed => settings.watch(SHOW_IMAGE_ANCHORS_ID, changed),
         },
-      }, swipeSensitivity: () => n("swipeSensitivity"), inertiaHalfLifeMs: () => n("inertiaHalfLife"), reducedMotion, dragSensitivity: () => n("dragSensitivity"), zoomPerNotch: () => n("zoomPerNotch"), pinchGain: () => n("pinchGain"), pitchRange: () => range("pitchRange"), fovRange: () => range("verticalFovRange") },
+      }, dragMode, swipeSensitivity: () => n("swipeSensitivity"), inertiaHalfLifeMs: () => n("inertiaHalfLife"), reducedMotion, dragSensitivity: () => n("dragSensitivity"), zoomPerNotch: () => n("zoomPerNotch"), pinchGain: () => n("pinchGain"), pitchRange: () => range("pitchRange"), fovRange: () => range("verticalFovRange") },
       opening: {
         mode: openingMode,
         setMode: mode => { settings.set("scene.panorama.openingView", mode); },
@@ -444,7 +446,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
       representationText: imageName, detail: status => {
         const reading = status.immersionDetail;
         return reading ? { shown: reading.representation, loading: reading.loading, limitation: reading.limitation, progress: reading.progress } : null;
-      }, externalLinkIcon: ui.externalLinkIcon, openSettings: options.openSettings });
+      }, externalLinkIcon: ui.externalLinkIcon, openSettings: options.openSettings, helpTooltip: ui.helpTooltip, iconButton: ui.iconButton });
     cleanup.push(() => tabs.destroy());
     if (import.meta.env.MODE !== "test") {
       const editing = poseEditEnabled(window.location.search);

@@ -17,11 +17,17 @@ html[data-world-presentation="split"] .foss-earth-sphere-return {
 
 .foss-earth-sphere-tab {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .foss-earth-headset {
-  align-items: flex-start;
+  align-items: center;
+}
+
+/* The instruction follows Enter VR on its line, wrapping within it so ? still ends the line. */
+.foss-earth-headset > .foss-earth-headset__where {
+  flex: 1 1 10em;
+  min-width: 0;
 }
 
 .foss-earth-headset__controls {

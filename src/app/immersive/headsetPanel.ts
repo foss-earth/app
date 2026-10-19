@@ -1,4 +1,5 @@
 /** The VR tab: enter and leave a headset session, and what the controllers do there. */
+import { createHelpTooltip } from "@foss-earth/ui/browser";
 import type { HeadsetSession } from "./headsetSession";
 
 export interface HeadsetPanel {
@@ -15,9 +16,13 @@ const CONTROLS: readonly [string, string][] = [
 export function createHeadsetPanel(document: Document, headset: HeadsetSession): HeadsetPanel {
   const element = document.createElement("div");
   element.className = "foss-earth-status-section foss-earth-choices foss-earth-headset";
-  const intro = document.createElement("p");
-  intro.className = "foss-earth-choices__note";
-  intro.textContent = "See the globe and its photographs around you in a VR headset. Open this page in the headset's browser.";
+  // "[Enter VR] Open this page in the headset's browser. [?]": what VR shows is behind ?.
+  const where = document.createElement("p");
+  where.className = "foss-earth-choices__note foss-earth-headset__where";
+  where.textContent = "Open this page in the headset's browser.";
+  const about = document.createElement("p");
+  about.textContent = "See the globe and its photographs around you in a VR headset.";
+  const help = createHelpTooltip({ label: "Explain VR", content: about });
   const button = document.createElement("button");
   button.type = "button";
   button.className = "foss-earth-parameter__action";
@@ -33,7 +38,7 @@ export function createHeadsetPanel(document: Document, headset: HeadsetSession):
     detail.textContent = action;
     controls.append(term, detail);
   }
-  element.append(intro, button, status, controls);
+  element.append(button, where, help.element, status, controls);
 
   const show = (): void => {
     const presenting = headset.state === "presenting";
@@ -50,7 +55,7 @@ export function createHeadsetPanel(document: Document, headset: HeadsetSession):
   show();
   return {
     element,
-    destroy() { off(); button.removeEventListener("click", onClick); },
+    destroy() { off(); button.removeEventListener("click", onClick); help.destroy(); },
   };
 }
 

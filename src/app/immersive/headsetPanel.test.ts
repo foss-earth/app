@@ -56,6 +56,9 @@ describe("createHeadsetPanel", () => {
   it("lists what each control does, and stops listening when destroyed", () => {
     const headset = fakeHeadset("ready");
     const panel = createHeadsetPanel(document, headset);
+    // "[Enter VR] Open this page in the headset's browser. [?]"
+    expect([...panel.element.children].slice(0, 3).map(child => child.querySelector("button")?.getAttribute("aria-label") ?? child.textContent))
+      .toEqual(["Enter VR", "Open this page in the headset's browser.", "Explain VR"]);
     expect([...panel.element.querySelectorAll("dt")].map(term => term.textContent)).toEqual(
       ["Trigger or pinch", "Grip", "Thumbstick left or right"]);
     panel.destroy();

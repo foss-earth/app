@@ -312,7 +312,8 @@ describe("placement editor", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(controller.consumePointerPress).toHaveBeenCalledWith(7);
     expect(poseEditTitle()).toBe("Northrop");
-    expect(tab.textContent).toMatch(/display offsets/);
+    expect(tab.querySelector<HTMLElement>(".pose-editor-offset")?.hidden).toBe(false);
+    expect(tab.querySelector(".pose-editor-offset")?.textContent).toMatch(/display offsets/);
     editor.dispose();
     vi.useRealTimers();
   });
@@ -325,6 +326,11 @@ describe("placement editor", () => {
     vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
     inputNamed(tab, "Heading").value = "15";
     inputNamed(tab, "Heading").dispatchEvent(new Event("change"));
+    // "[undo][redo][reset] Save Export [download][copy] Clear (n) [?]"
+    const actions = [...tab.querySelectorAll<HTMLButtonElement>(".pose-editor-actions button")].map(button => button.dataset.icon ?? button.textContent);
+    expect(actions.slice(0, 3)).toEqual(["undo", "redo", "reset"]);
+    expect(actions.slice(5, 7)).toEqual(["download", "copy"]);
+    expect(tab.querySelector(".pose-editor-actions > :last-child [aria-label='Explain placement editing']")).not.toBeNull();
     tab.querySelector<HTMLButtonElement>(".pose-editor-download")?.click();
     expect(tab.textContent).toContain("Download requested");
     expect(tab.textContent).not.toContain("File saved");
@@ -345,9 +351,13 @@ describe("placement editor", () => {
       longitudeDeg: -93.23, latitudeDeg: 44.97, heightMeters: null, headingDeg: 0, pitchDeg: 0, rollDeg: 0,
       offsetM: 25, aligned: false, eastM: 0, northM: 0,
     }, { mode: "ground-relative", longitudeDeg: -93.23, latitudeDeg: 44.97, heightMeters: null, headingDeg: 4, pitchDeg: 0, rollDeg: 0, offsetM: 25 }, "now");
-    tab.querySelector<HTMLButtonElement>(".pose-editor-clear")?.click();
+    const clear = tab.querySelector<HTMLButtonElement>(".pose-editor-clear")!;
+    expect(clear.textContent).toBe("Clear (1)");
+    expect(clear.getAttribute("aria-label")).toBe("Clear this scene's 1 saved edits");
+    clear.click();
     expect(overrides.record("northrop-mall")).not.toBeNull();
-    tab.querySelector<HTMLButtonElement>(".pose-editor-clear")?.click();
+    expect(clear.textContent).toBe("Clear 1 edits for this scene");
+    clear.click();
     expect(overrides.record("northrop-mall")).toBeNull();
     expect(overrides.store.edit("umn-minneapolis", "https://umn-vr.github.io/tour/minneapolis/scene.json", "other")).not.toBeNull();
     const before = cleared.length;

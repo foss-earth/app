@@ -113,7 +113,8 @@
   opacity: 0.72;
 }
 
-.pose-editor-actions button,
+/* Text actions only: the shared icon actions and ? keep their compact look. */
+.pose-editor-actions button:not(.foss-earth-parameter__icon-action),
 .pose-editor-replace,
 .pose-editor-body > .pose-editor-copy {
   min-height: 44px;
@@ -123,22 +124,15 @@
   cursor: pointer;
 }
 
-.pose-editor-actions button:disabled,
+.pose-editor-actions button:not(.foss-earth-parameter__icon-action):disabled,
 .pose-editor-replace:disabled {
   cursor: default;
   opacity: 0.4;
 }
 
-.pose-editor-reset {
-  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
-  color: inherit;
-  background: transparent;
-}
-
 .pose-editor-save,
 .pose-editor-export,
-.pose-editor-download,
-.pose-editor-copy {
+.pose-editor-body > .pose-editor-copy {
   border: 1px solid var(--globe-accent, #60a5fa);
   color: inherit;
   background: color-mix(in srgb, var(--globe-accent, #60a5fa) 18%, transparent);

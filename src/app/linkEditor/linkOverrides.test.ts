@@ -102,7 +102,12 @@ describe("image link editing", () => {
     const target = editor.element.querySelector<HTMLSelectElement>('[aria-label="Link to image"]')!;
     expect(target.options[0].value).toBe("b");
     expect(target.options[0].textContent).toContain("111 m");
-    const button = (text: string) => [...editor.element.querySelectorAll("button")].find(b => b.textContent === text)!;
+    const button = (text: string) => [...editor.element.querySelectorAll("button")].find(b => (b.getAttribute("aria-label") ?? b.textContent) === text || b.textContent === text)!;
+    // "From [▾] To [▾] Both ways [switch] [Add] [?]", and marks for the export actions.
+    expect(editor.element.querySelector(".foss-earth-switch input[type=checkbox]")?.closest("label")?.firstChild?.textContent).toBe("Both ways");
+    expect(button("Add link").textContent).toBe("Add");
+    expect(editor.element.querySelector('[aria-label="Explain image links"]')).not.toBeNull();
+    expect(["Download links", "Copy links as JSON", "Reset this scene's links"].map(label => button(label).dataset.icon)).toEqual(["download", "copy", "reset"]);
     button("Add link").click(); expect(f.links.count()).toBe(2);
     expect(button("Add link").disabled).toBe(true);
     button("B").click(); expect(f.enter).toHaveBeenCalledWith("b");

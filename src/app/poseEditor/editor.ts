@@ -2,6 +2,7 @@
 import { dot, enuFrame, length, sub, type Vec3 } from "@foss-earth/engine";
 import { worldViewportClientRect } from "@foss-earth/engine/browser";
 import type { SceneController, SceneStatus } from "@foss-earth/scenes/browser";
+import { createHelpTooltip, createIconButton, setIconButtonLabel } from "@foss-earth/ui/browser";
 import "./pose-editor.css";
 import {
   POSE_HANDLES, axisShift, axisSpin, axisTravel, clampLatitude, clampPitch, gizmoArmMeters, gizmoPolylines, insideGizmoAnchor,
@@ -220,8 +221,15 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     treeBoxes.push({ parent, children });
   }
   syncTree();
-  const hint = element(document, "p", "pose-editor-hint", "Click an axis or ring to select it, then drag it: axes move the photograph, rings turn it. Select the red or blue arrow, then press and hold its tip to show the arc that turns those two arrows, and slide without letting go. Inside a photograph, Edit beside Placement turns editing on and off. Click the ground to stop editing. See through loads and shows the map. Hotspot directions and the opening view update after the corrections are imported and the scenes are rebuilt.");
-  const offsetHint = element(document, "p", "pose-editor-hint", "");
+  // How the gizmo, the offsets and each export work: behind ? at the end of the actions.
+  const about = element(document, "div", "pose-editor-about");
+  about.append(
+    element(document, "p", "", "Click an axis or ring to select it, then drag it: axes move the photograph, rings turn it. Select the red or blue arrow, then press and hold its tip to show the arc that turns those two arrows, and slide without letting go. Inside a photograph, Edit beside Placement turns editing on and off. Click the ground to stop editing. See through loads and shows the map. Hotspot directions and the opening view update after the corrections are imported and the scenes are rebuilt."),
+    element(document, "p", "", "The marker's east and north are display offsets. Capture longitude and latitude are the photograph's place."),
+    element(document, "p", "", "Save writes the local scene file when the development server offers it. Export, download and copy keep the edits from every scene: keep that file as a backup."),
+  );
+  const help = createHelpTooltip({ label: "Explain placement editing", content: about });
+  const offsetHint = element(document, "p", "pose-editor-hint pose-editor-offset", "");
   const northRow = element(document, "label", "pose-editor-see");
   const north = document.createElement("input");
   north.type = "checkbox";
@@ -235,33 +243,37 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
   reference.setAttribute("aria-label", "Checked against");
   referenceRow.append(reference);
   const actions = element(document, "div", "pose-editor-actions");
-  const reset = element(document, "button", "pose-editor-reset", "Reset");
-  reset.type = "button";
-  const save = element(document, "button", "pose-editor-save", "Save place");
+  // "[undo][redo][reset] Save Export [download][copy] Clear (n) [?]"
+  const icon = (name: "undo" | "redo" | "reset" | "download" | "copy", label: string, className: string) => {
+    const button = createIconButton(document, { icon: name, label });
+    if (className) button.classList.add(className);
+    return button;
+  };
+  const reset = icon("reset", "Reset to the published place", "pose-editor-reset");
+  const save = element(document, "button", "pose-editor-save", "Save");
   save.type = "button";
+  save.setAttribute("aria-label", "Save place into the scene file");
   const share = element(document, "button", "pose-editor-export", "Export");
   share.type = "button";
-  const download = element(document, "button", "pose-editor-download", "Download");
-  download.type = "button";
-  const copy = element(document, "button", "pose-editor-copy", "Copy JSON");
-  copy.type = "button";
-  const clear = element(document, "button", "pose-editor-clear", "Clear saved edits");
+  const download = icon("download", "Download edits", "pose-editor-download");
+  const copy = icon("copy", "Copy edits as JSON", "pose-editor-copy");
+  const clear = element(document, "button", "pose-editor-clear", "Clear");
   clear.type = "button";
-  const undo = element(document, "button", "", "Undo");
-  const redo = element(document, "button", "", "Redo");
-  undo.type = redo.type = "button";
-  actions.append(undo, redo, reset, save, share, download, copy, clear);
+  const undo = icon("undo", "Undo", "");
+  const redo = icon("redo", "Redo", "");
+  actions.append(undo, redo, reset, save, share, download, copy, clear, help.element);
   const replace = element(document, "button", "pose-editor-replace", "Replace unreadable saved data");
   replace.type = "button";
-  const copyOriginal = element(document, "button", "pose-editor-copy", "Copy original saved text");
+  const copyOriginal = element(document, "button", "pose-editor-copy", "Copy original");
   copyOriginal.type = "button";
+  copyOriginal.setAttribute("aria-label", "Copy the original saved text");
   const persistent = element(document, "p", "pose-editor-status", "");
   persistent.setAttribute("role", "status");
   const status = element(document, "p", "pose-editor-status", "");
   status.setAttribute("role", "status");
   const exported = element(document, "pre", "pose-editor-export pose-editor-export-text");
   exported.hidden = true;
-  body.append(see, tree, fields, northRow, referenceRow, hint, offsetHint, actions, replace, copyOriginal, persistent, status, exported);
+  body.append(see, tree, fields, northRow, referenceRow, offsetHint, actions, replace, copyOriginal, persistent, status, exported);
   panel.append(summary, body);
   host.tab.append(panel);
   const overlay = svg(document, "svg");
@@ -541,7 +553,9 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     download.disabled = counts.all === 0;
     copy.disabled = counts.all === 0;
     clear.disabled = counts.scene === 0;
-    clear.textContent = now < clearArmedUntil ? `Clear ${counts.scene} edits for this scene` : `Clear saved edits (${counts.scene})`;
+    // The confirmation stays explicit; the idle action is short and keeps its full name.
+    if (now < clearArmedUntil) { clear.textContent = `Clear ${counts.scene} edits for this scene`; clear.removeAttribute("aria-label"); clear.removeAttribute("title"); }
+    else { clear.textContent = `Clear (${counts.scene})`; setIconButtonLabel(clear, `Clear this scene's ${counts.scene} saved edits`); }
     replace.hidden = !storeStatus.canReplaceSaved;
     replace.textContent = now < replaceArmedUntil ? "Discard unreadable records and replace them" : "Replace unreadable saved data";
     copyOriginal.hidden = !storeStatus.originalText;
@@ -552,14 +566,11 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
     const east = Math.abs(baseline?.eastM ?? 0);
     const northOffset = Math.abs(baseline?.northM ?? 0);
     offsetHint.hidden = !draft || (east < 1e-3 && northOffset < 1e-3);
-    offsetHint.textContent = "The marker's east and north are display offsets. Capture longitude and latitude above are the photograph's place.";
+    offsetHint.textContent = "Marker drawn offset from the capture place (display offsets).";
     const lines = [...storeStatus.messages];
     if (counts.all > 0) lines.unshift(`${counts.all} saved edit${counts.all === 1 ? "" : "s"} in this browser.`);
     persistent.textContent = lines.join(" ");
-    if (note) status.textContent = note;
-    else if (file && probe === true) status.textContent = record ? "Save place writes this local scene file. Export keeps a copy you can take with you." : "Save place writes a local scene file. Export keeps edits from every scene.";
-    else if (counts.all > 0) status.textContent = "Export keeps a copy of these edits. Keep that file as a backup.";
-    else status.textContent = "";
+    status.textContent = note;
     const inside = scene?.phase === "immersive" && scene.active ? scene.active : null;
     toggle.hidden = !inside || !host.overrides.baseline(inside);
     const on = Boolean(inside && selected === inside);
@@ -1190,7 +1201,7 @@ export function mountPoseEditor(host: PoseEditorHost): { dispose(): void } {
       selected = null; setPoseEditTitle(null);
       showWorld(false);
       host.viewer.setImageOpacity(null, 1);
-      panel.remove(); overlay.remove(); toggle.remove();
+      help.destroy(); panel.remove(); overlay.remove(); toggle.remove();
     },
   };
 }

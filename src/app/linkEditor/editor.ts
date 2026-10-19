@@ -1,32 +1,36 @@
 import type { SceneController } from "@foss-earth/scenes/browser";
+import { createHelpTooltip, createIconButton } from "@foss-earth/ui/browser";
 import { linkGeometry, type LinkOverrides } from "./linkOverrides";
 import "./link-editor.css";
 
 export function createLinkEditor(document: Document, controller: SceneController, links: LinkOverrides) {
   const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
   const element = el("div"); element.className = "foss-earth-link-editor";
-  const intro = el("p", "Choose two photographs to connect. Nearby images appear first. Links with different capture positions appear in the direction of the destination.");
+  // "From [▾] To [▾] Both ways [switch] [Add] [?]": how linking works, behind ?.
+  const help = createHelpTooltip({ label: "Explain image links", content: el("p", "Choose two photographs to connect. Nearby images appear first. Links with different capture positions appear in the direction of the destination.") });
   const sourceLabel = el("label", "From "), source = el("select"); source.setAttribute("aria-label", "Link from image"); sourceLabel.append(source);
   const targetLabel = el("label", "To "), target = el("select"); target.setAttribute("aria-label", "Link to image"); targetLabel.append(target);
-  const bothLabel = el("label"), both = el("input"); both.type = "checkbox"; both.checked = true; bothLabel.append(both, " Link both ways");
+  const bothLabel = el("label", "Both ways"), both = el("input"), knob = el("span"), toggle = el("span");
+  both.type = "checkbox"; both.checked = true; knob.className = "foss-earth-switch__knob"; knob.setAttribute("aria-hidden", "true"); toggle.className = "foss-earth-choice foss-earth-switch"; toggle.append(both, knob); bothLabel.append(toggle);
   const button = (text: string, run: () => void) => { const b = el("button", text); b.type = "button"; b.className = "foss-earth-choice foss-earth-scene-button"; b.addEventListener("click", run); return b; };
-  const add = button("Add link", () => { links.add(source.value, target.value, both.checked); });
-  const controls = el("div"); controls.className = "foss-earth-link-editor__controls"; controls.append(sourceLabel, targetLabel, bothLabel, add);
+  const add = button("Add", () => { links.add(source.value, target.value, both.checked); }); add.setAttribute("aria-label", "Add link");
+  const controls = el("div"); controls.className = "foss-earth-link-editor__controls"; controls.append(sourceLabel, targetLabel, bothLabel, add, help.element);
+  const icon = (name: "download" | "copy" | "reset", label: string, run: () => void) => { const b = createIconButton(document, { icon: name, label }); b.addEventListener("click", run); return b; };
   const list = el("div"), note = el("p"), message = el("p"); note.setAttribute("role", "status"); message.setAttribute("role", "status");
-  const download = button("Download links", () => {
+  const download = icon("download", "Download links", () => {
     const prepared = links.exportDocument(), view = document.defaultView!;
     const url = view.URL.createObjectURL(new view.Blob([prepared.text], { type: "application/json" }));
     const a = el("a"); a.href = url; a.download = prepared.filename; a.hidden = true; element.append(a); a.click(); a.remove();
     view.setTimeout(() => view.URL.revokeObjectURL(url), 0);
   });
-  const copy = button("Copy JSON", () => {
+  const copy = icon("copy", "Copy links as JSON", () => {
     const clipboard = document.defaultView?.navigator.clipboard;
     if (!clipboard) { message.textContent = "Clipboard unavailable. Use Download links."; return; }
     void clipboard.writeText(links.exportDocument().text).then(() => { message.textContent = "Links copied."; }, () => { message.textContent = "Clipboard unavailable. Use Download links."; });
   });
-  const reset = button("Reset this scene", () => links.reset());
+  const reset = icon("reset", "Reset this scene's links", () => links.reset());
   const actions = el("div"); actions.className = "foss-earth-link-editor__controls"; actions.append(download, copy, reset);
-  element.append(intro, controls, list, note, actions, message);
+  element.append(controls, list, note, actions, message);
   let active: string | null = null, rendered = "";
   function render() {
     const status = controller.state().status, entries = status?.entries.filter(e => e.supported) ?? [];
@@ -54,7 +58,7 @@ export function createLinkEditor(document: Document, controller: SceneController
       const go = button(link.label, () => { void controller.handle()?.enter(link.target); }); go.disabled = !link.enabled || !!link.externalDestination;
       row.append(go);
       if (additions.some(l => l.target === link.target)) row.append(button("Remove", () => links.remove(chosen, link.target)));
-      else row.append(el("span", "In scene"));
+      else { const kept = el("span", "In scene"); kept.className = "foss-earth-link-editor__kept"; row.append(kept); }
       list.append(row);
     }
     note.textContent = `${links.count()} added links. ${links.note()}`;
@@ -70,5 +74,5 @@ export function createLinkEditor(document: Document, controller: SceneController
   source.addEventListener("change", render); target.addEventListener("change", updateAdd); both.addEventListener("change", updateAdd);
   const off = controller.subscribe(render), offLinks = links.subscribe(render); render();
   let destroyed = false;
-  return { element, destroy() { if (destroyed) return; destroyed = true; off(); offLinks(); element.remove(); } };
+  return { element, destroy() { if (destroyed) return; destroyed = true; off(); offLinks(); help.destroy(); element.remove(); } };
 }
