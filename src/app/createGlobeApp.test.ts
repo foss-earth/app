@@ -165,10 +165,10 @@ function hudChoice(section: HTMLElement, id: string, mode: "on" | "auto" | "off"
   return input;
 }
 
-/** Performance debug, a section of the Renderer tab. */
+/** Debug, a section of the Renderer tab. */
 function performanceSection(app: { rendererTab: HTMLElement }): HTMLElement {
   const element = app.rendererTab.querySelector<HTMLElement>('[data-section="renderer.performance"]');
-  if (!element) throw new Error("No Performance debug section in the Renderer tab");
+  if (!element) throw new Error("No Debug section in the Renderer tab");
   return element;
 }
 
@@ -793,9 +793,9 @@ describe("createGlobeApp smoke behavior", () => {
       ["diagnostics", "Diagnostics"],
     ]);
     expect(app.aboutTab.classList.contains("foss-earth-about")).toBe(true);
-    // The Renderer tab ends with Performance debug.
+    // The Renderer tab's everyday controls are on the tab itself, and it ends with Debug.
     const rendererSections = [...app.rendererTab.querySelectorAll<HTMLElement>("[data-section]")].map(element => element.dataset.section);
-    expect(rendererSections).toEqual(["renderer.backend", "renderer.frame", "renderer.clipping", "renderer.experiments", "renderer.performance"]);
+    expect(rendererSections).toEqual(["renderer.main", "renderer.clipping", "renderer.experiments", "renderer.performance"]);
     // Exposure and the fill light are the Sky tab's, with the atmosphere, the Moon and stars, the ground and night lights; the time is the Date and time tab's two dials.
     const skySections = [...app.skyTab.querySelectorAll<HTMLElement>("[data-section]")].map(element => element.dataset.section);
     expect(skySections).toEqual(["sky.atmosphere", "sky.night", "sky.surface", "sky.nightLights", "sky.exposure"]);

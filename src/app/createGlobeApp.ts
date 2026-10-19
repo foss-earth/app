@@ -1112,7 +1112,7 @@ export async function createGlobeApp(
     { id: "app-files", title: settings.getSectionTitle("settings", "app-files"), element: sectionOf("settings", "app-files", { footer: appFilesSection.element }), defaultOpen: false },
     { id: "diagnostics", title: settings.getSectionTitle("settings", "diagnostics"), element: sectionOf("settings", "diagnostics", { footer: diagnosticsSection.element }), defaultOpen: false },
   ];
-  // Performance debug is about what the renderer does, so it is the Renderer tab's.
+  // Renderer → Debug is about what the renderer does, so it is the Renderer tab's.
   const rendererPanel = createRendererPanel({
     ui: ui.renderer,
     renderer: runtime.renderer,
