@@ -13,7 +13,7 @@ import { observeResourceTiming, readHeapBytes } from "@foss-earth/renderer/brows
 import { createMemorySource, createNetworkSource } from "@foss-earth/renderer/profiling";
 import { ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-earth/engine";
 import { createMapCache, mapCacheLimits, createGroundBvhPreparer, type GroundBvhWorkerPort, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions, type TerrainDecodeWorkerPort, type TerrainMeshWorkerPort, type TerrainMeshWorkerPoolStats, type HeightBatchWorkerPort } from "@foss-earth/engine/browser";
-import { createBrowserGlobeBindings, loadBrowserGlobeGoogleProviders } from "@foss-earth/engine/browser-globe";
+import { createBrowserGlobeBindings, loadBrowserGlobeGoogleProviders, type BrowserGlobeGoogleProviders } from "@foss-earth/engine/browser-globe";
 import { createTerrainLightingAdapter, createGroundAcceleration, type GroundAcceleration, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
 import { createGlobeRuntimeBudgets, type NativeCoreId, type NativeCorePlan } from "@foss-earth/engine/settings";
 import {
@@ -191,24 +191,41 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     const lighting = createTerrainLightingAdapter({ GROUND_LIGHT_TABLE, GROUND_LIGHT_SAMPLES,
       GROUND_LIGHT_LEAST_SINE, MERCATOR_MAX_LAT_DEG, NIGHT_RADIANCE_UNITS, groundLightAt });
     stage = "Google native provider acquisition";
-    const googleProviders = await loadBrowserGlobeGoogleProviders();
-    const googleAdapter = options.nativePlans?.google.placement === "worker" && options.createGoogleWorker
-      ? await import("@foss-earth/renderer/google-preparation") : null;
-    const preparedGoogleProviders = { ...googleProviders, createTilesRenderer: ((...args: Parameters<typeof googleProviders.createTilesRenderer>) => {
-      const tiles = googleProviders.createTilesRenderer(...args);
-      if (googleAdapter && options.createGoogleWorker) {
-        const client = googleAdapter.createGoogleTileWorkerClient({ imageColorSpaceConversion: scene.getEngine().isWebGPU ? "none" : "default", createWorker: () => {
-          const worker = options.createGoogleWorker!();
-          if (!worker) throw new Error("Google preparation worker unavailable");
-          return worker;
-        } });
-        googlePreparation = client; googlePreparations.add(client);
-        // The engine's public provider type deliberately exposes only traversal;
-        // the Babylon adapter refines that boundary to its actual parser port.
-        googleAdapter.installGoogleTilePreparation(tiles as typeof tiles & GoogleTilePreparationRenderer, scene, client);
-      }
-      return tiles;
-    }) };
+    // The 3D Tiles code comes before the globe only where the globe starts on Google, and otherwise when Google is
+    // first chosen: on a cold visit it put the first frame about 1.2 s later (Fast 4G, 4× CPU).
+    const savedGoogleKey = settings.get("map.source.googleKey");
+    const startsOnGoogle = options.preferGoogleTiles !== false
+      && Boolean(options.googleApiKey?.trim() || (typeof savedGoogleKey === "string" && savedGoogleKey.trim()));
+    let googleCode: { providers: BrowserGlobeGoogleProviders; adapter: typeof import("@foss-earth/renderer/google-preparation") | null } | null = null;
+    let googleCodeLoad: Promise<void> | null = null;
+    const loadGoogleCode = (): Promise<void> => googleCodeLoad ??= Promise.all([loadBrowserGlobeGoogleProviders(),
+      options.nativePlans?.google.placement === "worker" && options.createGoogleWorker ? import("@foss-earth/renderer/google-preparation") : null,
+    ]).then(([providers, adapter]) => { googleCode = { providers, adapter }; }, (error: unknown) => { googleCodeLoad = null; throw error; });
+    const loadedGoogleCode = () => {
+      if (!googleCode) throw new Error("The Google 3D Tiles code has not loaded.");
+      return googleCode;
+    };
+    if (startsOnGoogle) await loadGoogleCode();
+    const preparedGoogleProviders: BrowserGlobeGoogleProviders = {
+      ready: () => (googleCode ? null : loadGoogleCode()),
+      createAuthPlugin: authOptions => loadedGoogleCode().providers.createAuthPlugin(authOptions),
+      createTilesRenderer: (...args) => {
+        const { providers, adapter: googleAdapter } = loadedGoogleCode();
+        const tiles = providers.createTilesRenderer(...args);
+        if (googleAdapter && options.createGoogleWorker) {
+          const client = googleAdapter.createGoogleTileWorkerClient({ imageColorSpaceConversion: scene.getEngine().isWebGPU ? "none" : "default", createWorker: () => {
+            const worker = options.createGoogleWorker!();
+            if (!worker) throw new Error("Google preparation worker unavailable");
+            return worker;
+          } });
+          googlePreparation = client; googlePreparations.add(client);
+          // The engine's public provider type deliberately exposes only traversal;
+          // the Babylon adapter refines that boundary to its actual parser port.
+          googleAdapter.installGoogleTilePreparation(tiles as typeof tiles & GoogleTilePreparationRenderer, scene, client);
+        }
+        return tiles;
+      },
+    };
     cancellation.signal.throwIfAborted();
     bindings = createBrowserGlobeBindings({
       renderer, scene, broker: imageBroker, native: resources, settings, clock, timers, googleProviders: preparedGoogleProviders,

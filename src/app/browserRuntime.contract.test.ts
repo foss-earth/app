@@ -14,7 +14,7 @@ import { createEarthBrowserRuntime } from "./browserRuntime";
 const observed = vi.hoisted(() => {
   // The shared settings catalogue is imported by setup before these host mocks.
   vi.resetModules();
-  return { bootstrap: vi.fn(), worlds: [] as GlobeRuntimeOptions[], maps: [] as BoundedMapTexturePorts[] };
+  return { bootstrap: vi.fn(), worlds: [] as GlobeRuntimeOptions[], maps: [] as BoundedMapTexturePorts[], googleCodeLoads: 0 };
 });
 vi.mock("@foss-earth/renderer/babylon", async importOriginal => {
   const actual = await importOriginal<typeof import("@foss-earth/renderer/babylon")>();
@@ -57,6 +57,7 @@ vi.mock("@foss-earth/engine/browser-globe", async importOriginal => {
   const actual = await importOriginal<typeof import("@foss-earth/engine/browser-globe")>();
   return { ...actual,
     async loadBrowserGlobeGoogleProviders() {
+      observed.googleCodeLoads++;
       return { createTilesRenderer() { throw new Error("CPU fixture must supply Google native work explicitly."); },
         createAuthPlugin() { throw new Error("CPU fixture must supply Google authentication explicitly."); } };
     },
@@ -67,8 +68,8 @@ vi.mock("@foss-earth/engine/browser-globe", async importOriginal => {
     return binding;
   } };
 });
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); observed.worlds = []; observed.maps = []; });
-async function host(beforeRuntime?: (scene: Scene) => void) {
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); observed.worlds = []; observed.maps = []; observed.googleCodeLoads = 0; });
+async function host(beforeRuntime?: (scene: Scene) => void, google: { googleApiKey?: string; preferGoogleTiles?: boolean } = {}) {
   const engine = new NullEngine(), scene = new Scene(engine); engine.getCaps().maxTextureSize = 8192;
   // NullEngine stores no GPU data and leaves raw textures unready by default.
   // The CPU native boundary completes those allocations explicitly.
@@ -93,6 +94,7 @@ async function host(beforeRuntime?: (scene: Scene) => void) {
   try {
     const preparing = createEarthBrowserRuntime(canvas, { ...policy, settings, rendererForce: "webgl2",
       preferGoogleTiles: false, rasterBaseMap: RASTER_BASE_MAP_SOURCES[0], rasterImagery: "atlas", createWorker: () => null, onFrameError,
+      ...google,
     });
     const session = await preparing;
     return { ...session, engine, scene, canvas, settings, onFrameError, async dispose() {
@@ -102,6 +104,31 @@ async function host(beforeRuntime?: (scene: Scene) => void) {
   } catch (error) { canvas.remove(); scene.dispose(); engine.dispose(); throw error; }
 }
 describe("Earth browser host over exact installed runtime contracts", () => {
+  it("starts the globe without the Google 3D Tiles code unless it starts on Google, and loads it once when Google asks", async () => {
+    const f = await host();
+    try {
+      expect(observed.googleCodeLoads).toBe(0);
+      const google = observed.worlds[0].mapPorts.google;
+      const loading = google.ready?.();
+      expect(loading).toBeInstanceOf(Promise);
+      expect(google.ready?.()).toBe(loading);
+      await loading;
+      expect(google.ready?.()).toBeNull();
+      expect(observed.googleCodeLoads).toBe(1);
+      expect(() => google.createAuthPlugin({ apiToken: "fixture-only" } as Parameters<typeof google.createAuthPlugin>[0]))
+        .toThrow("CPU fixture must supply Google authentication explicitly.");
+    } finally { await f.dispose(); }
+    // A key with another map preferred loads nothing more.
+    const keyed = await host(undefined, { googleApiKey: " fixture-only ", preferGoogleTiles: false });
+    try { expect(observed.googleCodeLoads).toBe(1); } finally { await keyed.dispose(); }
+  });
+  it("loads the Google 3D Tiles code before the globe where it starts on Google", async () => {
+    const f = await host(undefined, { googleApiKey: "fixture-only", preferGoogleTiles: true });
+    try {
+      expect(observed.googleCodeLoads).toBe(1);
+      expect(observed.worlds[0].mapPorts.google.ready?.()).toBeNull();
+    } finally { await f.dispose(); }
+  });
   it("publishes startup after visible content settles through the actual renderer readiness helper", async () => {
     vi.useFakeTimers();
     let ready: ReturnType<typeof vi.spyOn> | undefined;
