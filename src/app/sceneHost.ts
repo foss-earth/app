@@ -99,7 +99,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const n = (suffix: string): number => settings.get<number>(`scene.panorama.${suffix}`);
   const range = (suffix: string) => settings.get<{ min: number; max: number }>(`scene.panorama.${suffix}`);
   const count = (suffix: string, minimum = 1) => Math.max(minimum, Math.round(n(suffix)));
-  const dragMode = (): "grab" | "scroll" => settings.get("scene.panorama.dragMode") === "scroll" ? "scroll" : "grab";
+  const dragMode = (): "grab" | "scroll" => settings.get("scene.panorama.dragMode") === "grab" ? "grab" : "scroll";
   const reducedMotion = () => settings.get("scene.panorama.reducedMotion") === "reduce" ||
     settings.get("scene.panorama.reducedMotion") === "system" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const detailCap = () => {
