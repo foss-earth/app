@@ -15,6 +15,8 @@ import { createSceneDeviceLocationMarker, type DeviceLocationMarker } from "@fos
 import type { DeviceLocationFix } from "@foss-earth/engine";
 import { createEarthBrowserRuntime } from "./browserRuntime";
 import { createEarthBrowserPolicy } from "./browserPolicy";
+import { createNativeSections } from "./nativePanel";
+import { earthNativeCores, type NativeCoreReport } from "./nativeReport";
 import { createEarthFeatureFramePreparation } from "./framePreparation";
 import type { GlobeFramePreparation } from "@foss-earth/engine/babylon";
 import { createEarthUiHost } from "./uiHost";
@@ -34,7 +36,7 @@ import { createParameterSection, type ParameterSectionHandle } from "@foss-earth
 import { createThemeControl } from "@foss-earth/ui/browser";
 import { createPresetsSection } from "@foss-earth/ui/browser";
 import { createSavedSettingsSection } from "@foss-earth/ui/browser";
-import { createAppFilesSection, describeAppFiles } from "@foss-earth/ui/browser";
+import { createAppFilesSection, describeAppFiles, describeIsolation } from "@foss-earth/ui/browser";
 import { createDiagnosticsSection } from "@foss-earth/ui/browser";
 import { createBugReportPanel } from "@foss-earth/ui/browser";
 import { createBrowserDataPanel } from "@foss-earth/ui/browser";
@@ -138,6 +140,8 @@ declare global {
       diagnostics: AppDiagnostics;
       /** Whether this page is the published one: scripts/validation/published-version.mjs reads it. */
       publishedVersion: PublishedVersionWatch;
+      /** The Component execution tab's report: what each converted core was asked to run and ran. */
+      nativeCores?: () => NativeCoreReport[];
       /** The VR headset session: scripts/validation/headset-emulator.mjs reads it. */
       headset: HeadsetSession;
       /** Image tabs, for the browser checks of docs/proposals/shared-image-viewer-implementation.md §11. */
@@ -167,6 +171,8 @@ export interface GlobeAppHandle extends GlobeHandle {
   locationSearchSection: PanelSection;
   /** Presets, saved settings, the app's files and diagnostics, for the host's Settings tab. */
   settingsSections: readonly PanelSection[];
+  /** The startup native selection and what each converted core actually ran, for the host's Component execution tab. */
+  nativeSections: readonly PanelSection[];
   /** Which version runs and what it is built from, for the host's About tab. */
   aboutTab: HTMLElement;
   /** The report form's one home, prepared when this tab is first shown. */
@@ -1048,8 +1054,17 @@ export async function createGlobeApp(
   const appFilesSection = createAppFilesSection(appFiles, publishedVersion, ui.refresh, document);
   cleanup.push(() => appFilesSection.destroy());
   diagnostics.addState(async () => `App files: ${describeAppFiles(await appFiles.status())}`);
-  diagnostics.addState(() => `Native terrain: ${JSON.stringify({ requestedTier: settings.get("native.tier"),
-    workers: browser.bindings.terrainDecodeStats()?.nativeWorkers ?? [], scope: "Terrarium heights only; page decoding remains TypeScript" })}`);
+  // Whether the page is cross-origin isolated, which a threaded core needs, and why not (ui/src/browser/isolation.ts).
+  diagnostics.addState(() => `Isolation: ${describeIsolation(window)}`);
+  // Requested and actual backend per core, from each core's own status.
+  diagnostics.addState(() => `Component execution: ${JSON.stringify(earthNativeCores(browser.runtime) ?? [])}`);
+  const native = createNativeSections({
+    document, settings, section: (section, content) => sectionOf("native", section, content),
+    reload: url => window.location.assign(url),
+    report: () => earthNativeCores(browser.runtime) ?? [],
+    timers: { set: (callback, delayMs) => window.setTimeout(callback, delayMs), clear: handle => window.clearTimeout(handle as number) },
+  });
+  cleanup.push(() => native.destroy());
   const diagnosticsSource = {
     report: () => diagnostics.report({ allSettings: true }),
     previous: () => diagnostics.previous(),
@@ -1223,6 +1238,7 @@ export async function createGlobeApp(
       images: { host: imageTabs, broker: browser.broker, get overlay() { return options.overlayApiRef?.current ?? null; },
         draw: () => readSurface?.() ?? null },
       terrainDecode: () => browser.bindings.terrainDecodeStats(),
+      nativeCores: () => earthNativeCores(browser.runtime) ?? [],
     };
   }
   cleanup.push(() => { if (window.__fossEarthPanoramaTest?.scenes === scenes) delete window.__fossEarthPanoramaTest; });
@@ -1389,6 +1405,7 @@ export async function createGlobeApp(
     interfaceLead,
     locationSearchSection,
     settingsSections,
+    nativeSections: native.sections,
     aboutTab: about.element,
     bugReportTab: bugReportPanel.element,
     browserDataTab: browserData.element,

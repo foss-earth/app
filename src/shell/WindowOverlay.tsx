@@ -16,7 +16,7 @@ type WorldResize = "live" | "release";
 import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/browser";
 import type { ViewerTabs as SphereTabs, ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/sphere-image/panels";
 
-type SectionTabId = "controls" | "interface" | "settings";
+type SectionTabId = "controls" | "interface" | "settings" | "native";
 type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "vr" | "about" | "bug-report" | "browser-data" | "panorama" | "panorama-settings";
 type BuiltInTabId = "location" | SectionTabId | ElementTabId;
 const HIDDEN_IN_SPHERE: ReadonlySet<string> = new Set(["map", "sky", "time"]);
@@ -114,6 +114,8 @@ export interface WindowOverlayProps<TabId extends string = never> {
   controlsSections?: readonly PanelSection[];
   /** Adds the shared Settings tab, the same way. */
   settingsSections?: readonly PanelSection[];
+  /** Adds the Component execution tab: the startup native selection and what each converted core actually ran. */
+  nativeSections?: readonly PanelSection[];
   /** The toolbar, theme and what the interface shows, in an Interface tab. */
   interfaceSections?: readonly PanelSection[];
   /** Theme and window controls, drawn above the Interface tab's sections. */
@@ -171,7 +173,7 @@ export interface WindowOverlayProps<TabId extends string = never> {
 
 export function WindowOverlay<TabId extends string = never>({
   getViewState, setViewState, additionalTabs = [], renderAdditionalTab, renderJoinedTabs,
-  controlsSections, interfaceSections, interfaceLead, settingsSections, locationSearchSection,
+  controlsSections, interfaceSections, interfaceLead, settingsSections, nativeSections, locationSearchSection,
   mapTab, rendererTab, skyTab, timeTab, scenesTab, headsetTab, aboutTab, bugReportTab, browserDataTab,
   onBugReportShow, sphereTabs, locationSearchProvider, onDeviceLocation,
   enableAirportPresets = false, locationContribution, locationHostDataCodec,
@@ -240,6 +242,7 @@ export function WindowOverlay<TabId extends string = never>({
     ...(controlsSections ? { controls: controlsSections } : {}),
     ...(interfaceSections ? { interface: interfaceSections } : {}),
     ...(settingsSections ? { settings: settingsSections } : {}),
+    ...(nativeSections ? { native: nativeSections } : {}),
   };
   const elementTabs: Partial<Record<ElementTabId, HTMLElement>> = {
     ...(mapTab ? { map: mapTab } : {}), ...(rendererTab ? { renderer: rendererTab } : {}),
@@ -249,7 +252,7 @@ export function WindowOverlay<TabId extends string = never>({
     ...(browserDataTab ? { "browser-data": browserDataTab } : {}),
     ...(sphereTabs ? { "panorama": sphereTabs.sphere, "panorama-settings": sphereTabs.settings } : {}),
   };
-  const sectionLabels: Record<SectionTabId, string> = { controls: "Controls", interface: "Interface", settings: "Settings" };
+  const sectionLabels: Record<SectionTabId, string> = { controls: "Controls", interface: "Interface", settings: "Settings", native: "Component execution" };
   const elementLabels: Record<ElementTabId, string> = {
     map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", vr: "VR", about: "About", "bug-report": "Bug report", "browser-data": "Browser data", "panorama": sphere.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
   };

@@ -3,8 +3,9 @@ import { createTerrainNativeDecoder, installTerrainDecodeWorkerKernel, type Terr
 import { loadRasterCore } from "@foss-earth/native-raster";
 import { terrainNativeWorkerConfig } from "./terrainNativeWorkerConfig";
 
+const { sharedHeights, ...config } = terrainNativeWorkerConfig(self.name);
 const native = createTerrainNativeDecoder({
-  ...terrainNativeWorkerConfig(self.name), start: loadRasterCore,
+  ...config, start: loadRasterCore,
   timers: { setTimeout: (callback, delay) => setTimeout(callback, delay), clearTimeout: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
 });
 
@@ -16,4 +17,6 @@ installTerrainDecodeWorkerKernel({
   onError: error => console.error("Earth terrain decode worker", error),
   decodeTerrarium: native.decode,
   decodeBackendStatus: native.status,
+  // Shared memory exists only in a cross-origin isolated realm.
+  sharedHeights: sharedHeights && self.crossOriginIsolated === true,
 });

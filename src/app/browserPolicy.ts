@@ -1,10 +1,17 @@
 /** Earth projects saved host policies into borrowed owner services. */
 import { MIB } from "@foss-earth/images";
 import { DEFAULT_TERRAIN_LOADER_LIMITS, type TerrainPreparationPolicy } from "@foss-earth/engine";
-import { createGlobeRuntimeBudgets, nativeTierPreference } from "@foss-earth/engine/settings";
+import { createGlobeRuntimeBudgets, nativeCorePlan, terrainDecoderTier } from "@foss-earth/engine/settings";
+import { createSkyWorkerEvaluator } from "@foss-earth/sky";
 import { defaultReadinessPolicy } from "@foss-earth/renderer";
 import type { DerivedDefault, DeviceContext, ParameterSpec, SettingsRegistry } from "@foss-earth/ui/settings";
 import type { EarthBrowserRuntimeOptions } from "./browserRuntime";
+import { startSkySharedHelpers } from "./skySharedHelpers";
+import { skyWorkerName } from "./skyWorkerConfig";
+import { terrainMeshWorkerName } from "./terrainMeshWorkerConfig";
+import { TERRAIN_SHARED_HEIGHTS_PARAMETER } from "./terrainNativeWorkerConfig";
+
+export { TERRAIN_SHARED_HEIGHTS_PARAMETER };
 
 /**
  * One terrain decode worker per hardware thread but the page's own, 1–16, and
@@ -29,7 +36,7 @@ export const TERRAIN_DECODE_WORKERS_PARAMETER: ParameterSpec = {
   source: "src/app/browserPolicy.ts",
 };
 
-/** Existing inherited defaults are explicit host policy, available in their existing tabs. The decode workers follow the other elevation loader controls. */
+/** Existing inherited defaults are explicit host policy, available in their existing tabs. The decode worker count follows the other elevation loader controls; shared heights belong to Component execution. */
 export const EARTH_BROWSER_POLICY_PARAMETERS: readonly ParameterSpec[] = [
   ["scene.overview.minimumPreparationRadius", "Overview preparation minimum radius", 200, 1, 1000000, "m", "scenes", "motion"],
   ["scene.panorama.savedGroupsShown", "Saved image groups shown", 60, 0, 100000, "count", "scenes", "saved"],
@@ -50,18 +57,48 @@ export const EARTH_BROWSER_POLICY_PARAMETERS: readonly ParameterSpec[] = [
   defaultReason: "Retains the existing browser runtime's initial policy; no device recommendation is implied.",
   home: { tab: String(tab), section: String(section), level: "all" }, appliesLive: true,
   source: "src/app/browserPolicy.ts",
-})).flatMap(spec => spec.id === "map.loader.timeout" ? [spec, TERRAIN_DECODE_WORKERS_PARAMETER] : [spec]);
+})).flatMap(spec => spec.id === "map.loader.timeout" ? [spec, TERRAIN_DECODE_WORKERS_PARAMETER] : [spec]).concat(TERRAIN_SHARED_HEIGHTS_PARAMETER as ParameterSpec);
 
 export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<EarthBrowserRuntimeOptions,
   "imageSessionLimits" | "imageTransferLimits" | "imageUploadLimits" | "resourceParameterIds" |
   "terrainLoaderLimits" | "terrainPreparation" | "readinessPolicy" | "describeMapTransfer" |
-  "mapPriority" | "createWorker" | "createTerrainWorker" | "terrainDecodeWorkers" | "onFrameError"> {
+  "mapPriority" | "createWorker" | "createTerrainWorker" | "terrainDecodeWorkers" | "createTerrainMeshWorker" | "terrainMeshWorkers" | "createTerrainHeightWorker" | "createGoogleWorker" | "createGroundWorker" | "createSkyEvaluator" | "nativePlans" | "onFrameError"> {
   const n = (id: string) => settings.get<number>(id);
   const p = (suffix: string) => n(`scene.panorama.${suffix}`);
   const count = (suffix: string) => Math.max(1, Math.round(p(suffix)));
   const budgets = createGlobeRuntimeBudgets(settings);
-  const nativeTier = nativeTierPreference(settings);
+  // Read once: native execution applies from the next reload.
+  const nativePlans = { raster: nativeCorePlan(settings, "raster"), sky: nativeCorePlan(settings, "sky"), terrain: nativeCorePlan(settings, "terrain"),
+    imagery: nativeCorePlan(settings, "imagery"), google: nativeCorePlan(settings, "google"), ground: nativeCorePlan(settings, "ground") };
+  const nativeTier = terrainDecoderTier(nativePlans.raster);
+  // Read once: decode workers are told at startup. Each still checks its realm can share.
+  // Only mesh workers read whole grids; for targets on the page a transfer already costs nothing.
+  const sharedHeights = settings.get<boolean>(TERRAIN_SHARED_HEIGHTS_PARAMETER.id) === true && nativePlans.terrain.placement === "worker";
   let nextTerrainWorker = 0;
+  let nextTerrainMeshWorker = 0;
+  const workerLimit = Math.max(1, Math.round(n("native.workers")));
+  const activeWorkers = new Set<Worker>();
+  const activeDecoders = new Set<Worker>();
+  const reserved = 1 + Number(nativePlans.sky.placement === "worker") + Number(nativePlans.imagery.placement === "worker")
+    + Number(nativePlans.google.placement === "worker") + Number(nativePlans.ground.placement === "worker")
+    + (nativePlans.terrain.placement === "worker" ? nativePlans.terrain.parallelism === "serial" ? 1 : 2 : 0)
+    // A threaded sky's helpers are workers from the same budget; a page that
+    // cannot share memory starts none, so it keeps their slots for decoding.
+    + (nativePlans.sky.sharedMemory && globalThis.crossOriginIsolated === true ? nativePlans.sky.threads - 1 : 0);
+  // A pool that is refused a worker decodes every later tile on the page, so
+  // the decode pool never asks for more workers than the budget leaves it.
+  const decoderSlots = Math.max(0, workerLimit - reserved);
+  const budgeted = (factory: () => Worker, decoder = false): Worker | null => {
+    if (typeof Worker === "undefined" || activeWorkers.size >= workerLimit) return null;
+    // Reserve dedicated-core slots before the decode pool fills, so a forced
+    // native core can start when its first batch arrives later in startup.
+    if (decoder && activeDecoders.size >= decoderSlots) return null;
+    const worker = factory(), terminate = worker.terminate.bind(worker);
+    activeWorkers.add(worker);
+    if (decoder) activeDecoders.add(worker);
+    worker.terminate = () => { activeWorkers.delete(worker); activeDecoders.delete(worker); terminate(); };
+    return worker;
+  };
   const altitude: TerrainPreparationPolicy["fallback"] = (request, groundHeightMeters) => ({
     groundHeightMeters,
     altitudeMeters: Math.max(request.altitudeMeters ?? -Infinity,
@@ -112,11 +149,33 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
       get backoffFactor() { return n("renderer.readiness.backoff"); } },
     // Compressed response size is unknown. Common transport reserves each chunk before allocation.
     describeMapTransfer: () => ({ declaredBytes: 0 }), mapPriority: () => 0,
-    createWorker: () => typeof Worker === "undefined" ? null : new Worker(new URL("./atlasImagery.worker.ts", import.meta.url), { type: "module" }),
-    createTerrainWorker: () => typeof Worker === "undefined" ? null : new Worker(new URL("./terrainDecode.worker.ts", import.meta.url), {
-      type: "module", name: JSON.stringify({ kind: "earth-terrain", id: `terrain-${++nextTerrainWorker}`, nativeTier }),
+    createWorker: () => budgeted(() => new Worker(new URL("./atlasImagery.worker.ts", import.meta.url), { type: "module" })),
+    createTerrainWorker: () => budgeted(() => new Worker(new URL("./terrainDecode.worker.ts", import.meta.url), {
+      type: "module", name: JSON.stringify({ kind: "earth-terrain", id: `terrain-${++nextTerrainWorker}`, nativeTier, sharedHeights }),
+    }), true),
+    terrainDecodeWorkers: () => Math.min(decoderSlots, nativePlans.raster.parallelism === "serial" ? Math.min(1, n("map.loader.decodeWorkers")) : n("map.loader.decodeWorkers")),
+    createTerrainMeshWorker: () => nativePlans.terrain.placement === "original" ? null : budgeted(() => new Worker(new URL("./terrainMesh.worker.ts", import.meta.url), {
+      type: "module", name: terrainMeshWorkerName(nativePlans.terrain.kernel, `terrain-mesh-${++nextTerrainMeshWorker}`),
+    })),
+    terrainMeshWorkers: () => Math.min(nativePlans.terrain.parallelism === "serial" ? 1 : 2, n("map.loader.decodeWorkers")),
+    createTerrainHeightWorker: () => nativePlans.imagery.placement === "original" ? null
+      : budgeted(() => new Worker(new URL("./terrainHeights.worker.ts", import.meta.url), { type: "module", name: nativePlans.imagery.kernel })),
+    createGoogleWorker: () => nativePlans.google.placement === "original" ? null
+      : budgeted(() => new Worker(new URL("./googlePreparation.worker.ts", import.meta.url), { type: "module", name: nativePlans.google.kernel })),
+    createGroundWorker: () => nativePlans.ground.placement === "original" ? null
+      : budgeted(() => new Worker(new URL("./groundBvh.worker.ts", import.meta.url), { type: "module", name: nativePlans.ground.kernel })),
+    // The original sky evaluates on the page; the A/B arms both evaluate in one sky worker.
+    createSkyEvaluator: () => nativePlans.sky.placement === "original" ? null : createSkyWorkerEvaluator({
+      kernel: nativePlans.sky.kernel,
+      createWorker: () => budgeted(() => new Worker(new URL("./skyEvaluation.worker.ts", import.meta.url), {
+        type: "module", name: skyWorkerName(nativePlans.sky.kernel, nativePlans.sky.threads),
+      })),
+      createHelpers: nativePlans.sky.sharedMemory ? () => startSkySharedHelpers(nativePlans.sky.threads - 1,
+        index => budgeted(() => new Worker(new URL("./skySharedHelper.worker.ts", import.meta.url), { type: "module", name: `earth-sky-helper-${index + 1}` }))) : undefined,
+      now: () => performance.now(),
+      timers: { set: (callback, delayMs) => setTimeout(callback, delayMs), clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
     }),
-    terrainDecodeWorkers: () => n("map.loader.decodeWorkers"),
+    nativePlans,
     onFrameError: error => console.error("Earth frame failed", error),
   };
 }

@@ -1,0 +1,99 @@
+/* Component execution follows the same natural-width paragraph layout as settings. */
+.foss-earth-execution-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.foss-earth-execution-status { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.foss-earth-execution-settings > .foss-earth-execution-note,
+.foss-earth-execution-pending { flex-basis: 100%; }
+.foss-earth-execution-settings [hidden] { display: none !important; }
+.foss-earth-execution-settings p,
+.foss-earth-execution-status p { margin: 3px 0; overflow-wrap: anywhere; }
+.foss-earth-execution-pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+}
+.foss-earth-execution-pending > p { flex-basis: 100%; }
+/* The host section's own Changes pending would repeat the panel's, which compares what would run. */
+.foss-earth-execution-section .foss-earth-parameter-section__pending { display: none !important; }
+.foss-earth-execution-pending[data-pending="false"] { border-color: transparent; padding: 0; }
+.foss-earth-execution-control-pending { font-size: 14px; font-weight: 700; }
+.foss-earth-execution-shared__end { display: inline-flex; flex: none; align-items: center; gap: 4px; }
+.foss-earth-execution-note { font-size: 12px; opacity: 0.8; }
+.foss-earth-execution-override,
+.foss-earth-execution-component { border-top: 1px solid #8886; padding-top: 6px; }
+.foss-earth-execution-override {
+  width: max-content;
+  max-width: 100%;
+  padding: 3px 6px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
+  box-sizing: border-box;
+}
+/* Actual execution, not a pending selection, colors both collapsed and open components. */
+.foss-earth-execution-override:has([data-running-implementation="typescript"]) {
+  border-color: rgba(49, 120, 198, 0.75);
+  background: rgba(49, 120, 198, 0.09);
+}
+.foss-earth-execution-override:has([data-running-implementation="wasm"]) {
+  border-color: rgba(101, 79, 240, 0.75);
+  background: rgba(101, 79, 240, 0.09);
+}
+.foss-earth-execution-override:has([data-running-implementation="mixed"]) {
+  border-color: rgba(49, 120, 198, 0.75) rgba(101, 79, 240, 0.75) rgba(101, 79, 240, 0.75) rgba(49, 120, 198, 0.75);
+  background: linear-gradient(110deg, rgba(49, 120, 198, 0.09), rgba(101, 79, 240, 0.09));
+}
+/* The title is the first paragraph item, followed by controls at natural widths. */
+.foss-earth-execution-override[open] {
+  order: -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%;
+}
+.foss-earth-execution-override > summary {
+  cursor: pointer;
+  font-size: 12px;
+  max-width: 100%;
+  list-style-position: inside;
+}
+.foss-earth-execution-override[open]::details-content,
+.foss-earth-execution-override[open] > div { display: contents; }
+.foss-earth-execution-override > div > p,
+.foss-earth-execution-override > div > details { flex-basis: 100%; }
+/* Expanded headers show one compact status phrase; diagnostics use trailing help. */
+.foss-earth-execution-component { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 6px; font-size: 12px; }
+.foss-earth-execution-status [hidden] { display: none !important; }
+.foss-earth-execution-component h4 { margin: 0; font-size: inherit; }
+.foss-earth-execution-component__next { flex-basis: 100%; }
+.foss-earth-execution-component__actual { font-weight: 600; }
+.foss-earth-execution-settings .foss-earth-choices__heading { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.foss-earth-execution-settings > .foss-earth-execution-note { font-size: 12px; }
+.foss-earth-execution-override .foss-earth-execution-component { display: contents; }
+.foss-earth-execution-override .foss-earth-execution-component h4 { display: none; }
+.foss-earth-execution-override > summary { overflow-wrap: anywhere; }
+.foss-earth-execution-override:not([open]) > summary .foss-earth-execution-override__running { display: none; }
+
+/* Implementation choices keep their technology colors in both themes. */
+.foss-earth-execution-settings .foss-earth-choice-group[data-execution-control$=".implementation"] .foss-earth-parameter__pills > .foss-earth-choice:has(input[value="typescript"]:checked) {
+  --execution-selected-color: #3178c6;
+}
+.foss-earth-execution-settings .foss-earth-choice-group[data-execution-control$=".implementation"] .foss-earth-parameter__pills > .foss-earth-choice:has(input[value="wasm"]:checked) {
+  --execution-selected-color: #654ff0;
+}
+.foss-earth-execution-settings .foss-earth-choice-group[data-execution-control$=".implementation"] .foss-earth-parameter__pills > .foss-earth-choice:has(input:is([value="typescript"], [value="wasm"]):checked) {
+  color: #fff;
+  border-color: transparent;
+  background: var(--execution-selected-color);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
