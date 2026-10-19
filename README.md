@@ -52,8 +52,12 @@ npm run dev
 ```
 
 and open `http://localhost:5173/app/`. `npm run dev -- --host` also serves it
-on the LAN, so a phone on the same Wi-Fi can open `http://<this-machine>:5173/app/`.
-That page is plain HTTP, so `crypto.randomUUID` is missing. `randomId` in
+on the LAN, over HTTPS with a self-signed certificate (`vite/networkHttps.ts`),
+so a phone on the same Wi-Fi can open `https://<this-machine>:5173/app/`. Its
+browser warns once per address; in Chrome, tap Advanced, then Proceed. After that
+the page is secure, so it can use WebGPU, and with `FOSS_EARTH_ISOLATION=enforce`
+it can share memory. `FOSS_EARTH_DEV_HTTPS=off` keeps plain HTTP. That page has
+neither, and `crypto.randomUUID` is missing there. `randomId` in
 `src/app/randomId.ts` uses `crypto.getRandomValues` instead, and startup depends
 on that. The other commands are `npm run typecheck`,
 `npm run lint`, `npm test`, `npm run build` (output in `dist/`, built for the

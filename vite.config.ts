@@ -5,6 +5,7 @@ import { execSync } from 'node:child_process'
 import { appFiles } from './vite/appFiles.ts'
 import { builtFrom } from './vite/builtFrom.ts'
 import { crossOriginIsolation } from './vite/crossOriginIsolation.ts'
+import { networkHttps } from './vite/networkHttps.ts'
 import { headsetEmulator } from './vite/headsetEmulator.ts'
 import { lazyFeatures } from './vite/lazyFeatures.ts'
 import { localSource } from './vite/localSource.ts'
@@ -72,5 +73,6 @@ export default defineConfig({
   },
   // The app's own files are kept on the visitor's device by a service worker (docs/app-files.md),
   // and each page says what it is built from, for the About tab. The boot terminal shows from the page's first bytes.
-  plugins: [crossOriginIsolation(), bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), lazyFeatures(), appFiles(), builtFrom(), poseSave(), headsetEmulator()],
+  // With --host the dev server serves https, so a phone's page is secure: it shares memory and uses WebGPU only then.
+  plugins: [crossOriginIsolation(), networkHttps(), bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), lazyFeatures(), appFiles(), builtFrom(), poseSave(), headsetEmulator()],
 })
