@@ -61,7 +61,9 @@ import { MAX_PITCH_DEG } from "@foss-earth/engine";
 import { ecefToGeodetic, RAD_TO_DEG } from "@foss-earth/engine";
 import { createStatusHud, type CameraAltitude, type StatusHudHandle } from "@foss-earth/toolbar/browser";
 import { surfaceHeightDatum } from "@foss-earth/engine";
-import { PERFORMANCE_METRIC_DEFINITIONS, MAP_SOURCE_HUD_LAYOUT_ID, MAP_SOURCE_JOIN_ID, TOOLBAR_BOTTOM_CLEARANCE_ID, hudBarEndPlace, type PerformanceMetricId } from "@foss-earth/toolbar";
+import {
+  PERFORMANCE_METRIC_DEFINITIONS, MAP_SOURCE_HUD_LAYOUT_ID, MAP_SOURCE_JOIN_ID, TOOLBAR_ACTIVITY_OUTLINE_ID, TOOLBAR_BOTTOM_CLEARANCE_ID, hudBarEndPlace, type PerformanceMetricId,
+} from "@foss-earth/toolbar";
 import { createNorthButton, type NorthButtonHandle } from "@foss-earth/toolbar/browser";
 import { createHelpModal, type HelpModalHandle } from "@foss-earth/toolbar/browser";
 import { HUD_BUTTON_IDS, hudButtonParameterId, type HudButtonId } from "@foss-earth/toolbar";
@@ -457,6 +459,12 @@ export async function createGlobeApp(
     else delete document.documentElement.dataset.hudHomeClearance;
   };
   applyBottomClearance();
+  // A still outline spares the page restyling and repainting the busy chips every frame.
+  const applyActivityOutline = (): void => {
+    if (settings.get(TOOLBAR_ACTIVITY_OUTLINE_ID) === "still") document.documentElement.dataset.hudActivity = "still";
+    else delete document.documentElement.dataset.hudActivity;
+  };
+  applyActivityOutline();
   if (!settings.has(FRAME_PROFILING_IDS.enabled)) settings.register(frameProfilingParameters({ tab: "renderer", section: "performance" }));
   const ui = createEarthUiHost(settings, document);
   cleanup.push(() => ui.dispose());
@@ -864,6 +872,7 @@ export async function createGlobeApp(
     hudFit?.update();
   }));
   retainSettingsRelease(settings.watch(TOOLBAR_BOTTOM_CLEARANCE_ID, applyBottomClearance));
+  retainSettingsRelease(settings.watch(TOOLBAR_ACTIVITY_OUTLINE_ID, applyActivityOutline));
   retainSettingsRelease(settings.subscribe(changed => {
       if (![...changed].some(id => fittingIds.has(id))) return;
       // On pins the chip, Auto fits it by priority, and Off removes it.

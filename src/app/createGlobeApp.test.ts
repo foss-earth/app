@@ -677,6 +677,13 @@ describe("createGlobeApp smoke behavior", () => {
     expect(document.documentElement.hasAttribute("data-hud-home-clearance")).toBe(true);
     settings.reset("interface.toolbar.bottomClearance");
     expect(document.documentElement.hasAttribute("data-hud-home-clearance")).toBe(false);
+    expect(settings.get("interface.toolbar.activityOutline")).toBe("spinning");
+    expect(document.documentElement.hasAttribute("data-hud-activity")).toBe(false);
+    expect(sectionElement(app.interfaceSections, "toolbar").querySelector(`[data-parameter="interface.toolbar.activityOutline"]`)).not.toBeNull();
+    settings.set("interface.toolbar.activityOutline", "still");
+    expect(document.documentElement.dataset.hudActivity).toBe("still");
+    settings.reset("interface.toolbar.activityOutline");
+    expect(document.documentElement.hasAttribute("data-hud-activity")).toBe(false);
     expect(group.dataset.mapHudLayout).toBe("compact");
     expect(slot.classList.contains("hud-bar-end")).toBe(true);
     expect(sectionElement(app.interfaceSections, "toolbar").querySelectorAll(`[data-parameter="${id}"]`)).toHaveLength(1);
