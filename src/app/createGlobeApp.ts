@@ -1340,6 +1340,7 @@ export async function createGlobeApp(
       const poiCamera = runtime.geospatialCamera;
       const poiEngine = runtime.engine;
       const poiCanvas = poiEngine.getRenderingCanvas();
+      let shown = false;
       if (orbitTarget && poiCamera && poiCanvas) {
         const txMatrix = runtime.scene.getTransformMatrix();
         // Project measures its viewport from the top, the camera's from the bottom.
@@ -1350,15 +1351,13 @@ export async function createGlobeApp(
           const rect = poiCanvas.getBoundingClientRect();
           const scaleX = rect.width / poiEngine.getRenderWidth();
           const scaleY = rect.height / poiEngine.getRenderHeight();
-          poiExitBtnEl.hidden = false;
+          shown = true;
           poiExitBtnEl.style.left = `${rect.left + sp.x * scaleX + POI_EXIT_BTN_OFFSET_PX}px`;
           poiExitBtnEl.style.top = `${rect.top + sp.y * scaleY - POI_EXIT_BTN_OFFSET_PX}px`;
-        } else {
-          poiExitBtnEl.hidden = true;
         }
-      } else {
-        poiExitBtnEl.hidden = true;
       }
+      // Chrome restyles the page for `hidden = true` even when the button is hidden already, as it is in most frames.
+      if (poiExitBtnEl.hidden === shown) poiExitBtnEl.hidden = !shown;
     }
     const perfSnapshot = performanceMetrics.update();
     lastPerfSnapshot = perfSnapshot;

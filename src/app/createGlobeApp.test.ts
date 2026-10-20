@@ -435,6 +435,19 @@ describe("createGlobeApp smoke behavior", () => {
     expect(review?.getAttribute("href")).not.toContain("keepApiKeys");
   });
 
+  it("leaves the hidden POI exit button untouched in frames without a tracked place", async () => {
+    const { root } = await createAppUnderTest();
+    const button = root.querySelector<HTMLButtonElement>("#poiExitBtn")!;
+    const observer = new MutationObserver(() => {});
+    observer.observe(button, { attributes: true });
+    mockState.frameCallback?.();
+    mockState.frameCallback?.();
+    expect(button.hidden).toBe(true);
+    // Chrome restyles the page for each `hidden = true`, even on a hidden element.
+    expect(observer.takeRecords()).toHaveLength(0);
+    observer.disconnect();
+  });
+
   it("keeps the FPS chip mounted across frame updates so its animation can advance", async () => {
     const { root } = await createAppUnderTest();
     mockState.frameCallback?.();
