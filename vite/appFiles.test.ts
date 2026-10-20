@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BUILD_STAMP_META, buildStampOf } from "../src/app/buildStamp";
 import { APP_FILES_WORKER, APP_SOURCE_META, appFiles, appFilesWorker, buildStamp, FOSS_EARTH_SOURCE_META, fossEarthSource } from "./appFiles";
 import type { IsolationMode } from "./crossOriginIsolation";
+import { APP_ISOLATION_PREPARE } from "@foss-earth/ui/vite";
 
 const ORIGIN = "https://tour.test";
 const SCRIPT = "assets/twinCities-SkvAwjjw.js";
@@ -247,11 +248,13 @@ describe("the appFiles Vite plugin", () => {
   it("writes the worker beside the build's pages, and warns of files it cannot keep", () => {
     const emitted: { type: string; fileName: string; source: string }[] = [];
     const warn = vi.fn();
-    (appFiles().generateBundle as unknown as BundleHook).call({ warn, emitFile: file => { emitted.push(file); } }, {}, Object.fromEntries(BUNDLE.map(name => [name, {}])));
-    expect(emitted).toHaveLength(1);
+    (appFiles({ isolation: "enforce" }).generateBundle as unknown as BundleHook).call({ warn, emitFile: file => { emitted.push(file); } }, {}, Object.fromEntries(BUNDLE.map(name => [name, {}])));
+    expect(emitted).toHaveLength(2);
     expect(emitted[0]).toMatchObject({ type: "asset", fileName: APP_FILES_WORKER });
     expect(emitted[0].source).toContain(SCRIPT);
     expect(emitted[0].source).not.toContain("index.html");
+    expect(emitted[1]).toMatchObject({ type: "asset", fileName: APP_ISOLATION_PREPARE });
+    expect(emitted[1].source).toContain("void prepareIsolation(document,");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("assets/logo.svg"));
   });
 });
