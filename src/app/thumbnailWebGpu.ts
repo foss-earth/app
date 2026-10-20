@@ -56,7 +56,9 @@ export async function createWebGpuThumbnailStage(document: Document, engine: Abs
     const module = device.createShaderModule({ label: "scene-thumbnail", code: THUMBNAIL_WGSL });
     const pipeline = await device.createRenderPipelineAsync({ label: "scene-thumbnail", layout: "auto",
       vertex: { module, entryPoint: "vertex" }, fragment: { module, entryPoint: "fragment", targets: [{ format }] }, primitive: { topology: "triangle-list" }, depthStencil: { format: "depth24plus", depthWriteEnabled: false, depthCompare: "less" } });
-    const maskPipeline = await device.createRenderPipelineAsync({ label: "scene-thumbnail-occlusion", layout: device.createPipelineLayout({ bindGroupLayouts: [pipeline.getBindGroupLayout(0)] }),
+    // Babylon declares this type itself; 0SFS fly also has @webgpu/types, whose type is distinct.
+    const layout = pipeline.getBindGroupLayout(0) as GPUBindGroupLayout;
+    const maskPipeline = await device.createRenderPipelineAsync({ label: "scene-thumbnail-occlusion", layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       vertex: { module, entryPoint: "maskVertex" }, fragment: { module, entryPoint: "mask", targets: [{ format, writeMask: 0 }] }, primitive: { topology: "triangle-list" },
       depthStencil: { format: "depth24plus", depthWriteEnabled: true, depthCompare: "always" } });
     buffer = device.createBuffer({ label: "scene-thumbnail-camera", size: 128, usage: BufferUsage.Uniform | BufferUsage.CopyDst, mappedAtCreation: false });
@@ -78,7 +80,7 @@ export async function createWebGpuThumbnailStage(document: Document, engine: Abs
           usage: TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment });
         try {
           device.queue.copyExternalImageToTexture({ source: image, flipY: false }, { texture, colorSpace: "srgb" }, [image.naturalWidth, image.naturalHeight, 1]);
-          groups.set(texture, device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [
+          groups.set(texture, device.createBindGroup({ layout, entries: [
             { binding: 0, resource: { buffer: uniform } }, { binding: 1, resource: texture.createView() },
           ] }));
           return texture;
