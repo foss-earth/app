@@ -3,7 +3,7 @@ const kernel = self.name === "single" ? "single" : self.name === "threaded" ? "t
 installGroundBvhWorker({ scope: self as unknown as GroundBvhWorkerScope, kernel, now: () => performance.now(),
   timers: { set: (callback, ms) => setTimeout(callback, ms), clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
   loadNumericCore: kernel === "single" ? async () => {
-    const { loadGroundCore } = await import("@foss-earth/native-ground");
+    const { loadGroundCore } = await import("@foss-earth/engine/ground-WASM");
     return loadGroundCore();
   } : undefined,
 });

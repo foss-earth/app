@@ -1,6 +1,6 @@
 /** Earth supplies the worker realm; Engine owns the terrain decode protocol. */
 import { createTerrainNativeDecoder, installTerrainDecodeWorkerKernel, type TerrainDecodeWorkerKernelPorts } from "@foss-earth/engine/browser";
-import { loadRasterCore } from "@foss-earth/native-raster";
+import { loadRasterCore } from "@foss-earth/engine/raster-WASM";
 import { terrainNativeWorkerConfig } from "./terrainNativeWorkerConfig";
 
 const { sharedHeights, ...config } = terrainNativeWorkerConfig(self.name);

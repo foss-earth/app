@@ -7,7 +7,7 @@ const { kernel } = terrainMeshWorkerConfig(self.name);
 installTerrainMeshWorkerKernel({
   scope: self as unknown as TerrainMeshWorkerScope,
   loadNative: kernel === "single" ? async () => {
-    const { loadTerrainCore } = await import("@foss-earth/native-terrain");
+    const { loadTerrainCore } = await import("@foss-earth/engine/terrain-WASM");
     const core = await loadTerrainCore();
     return {
       actualTier: "single",

@@ -2,7 +2,7 @@ import { installTerrainHeightBatchKernel, type HeightBatchWorkerScope } from "@f
 const kernel = self.name === "single" ? "single" : self.name === "threaded" ? "threaded" : "typescript";
 installTerrainHeightBatchKernel({ scope: self as unknown as HeightBatchWorkerScope, kernel, now: () => performance.now(),
   loadNative: kernel === "single" ? async () => {
-    const { loadTerrainCore } = await import("@foss-earth/native-terrain");
+    const { loadTerrainCore } = await import("@foss-earth/engine/terrain-WASM");
     return loadTerrainCore();
   } : undefined,
 });
