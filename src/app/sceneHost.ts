@@ -122,6 +122,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
     entryOrientation: settings.get("scene.panorama.entryOrientation") === "authored" ? "authored" : "geographic",
     entryFovDeg: typeof settings.get("scene.panorama.entryFov") === "number" ? n("entryFov") : null,
     flightDurationMs: !restoringView && !reducedMotion() && typeof settings.get("scene.panorama.flightDuration") === "number" ? n("flightDuration") : 0,
+    flightGrowth: n("flightGrowth"),
     expandDurationMs: restoringView ? 0 : n("expandDuration"), fadeDurationMs: restoringView ? 0 : n("fadeDuration"),
     reducedFadeDurationMs: restoringView ? 0 : n("reducedFadeDuration"), orientDurationMs: restoringView ? 0 : n("orientDuration"), hoverDurationMs: n("hoverDuration"),
     previewHoldMs: typeof settings.get("scene.panorama.previewHold") === "number" ? n("previewHold") * 1000 : null,
