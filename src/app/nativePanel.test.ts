@@ -61,12 +61,12 @@ describe("Component execution", () => {
     expect([...mode.querySelectorAll("label span")].map(span => span.textContent)).toEqual(["Global", "Auto", "Manual"]);
     expect(mode.querySelectorAll(":scope > a")).toHaveLength(0);
     expect(mode.lastElementChild?.querySelector("button")?.textContent).toBe("?");
-    mode.querySelector<HTMLButtonElement>("button")!.click();
-    const tooltip = document.getElementById(mode.querySelector("button")!.getAttribute("aria-controls")!)!;
+    mode.querySelector<HTMLButtonElement>("button[aria-controls]")!.click();
+    const tooltip = document.getElementById(mode.querySelector("button[aria-controls]")!.getAttribute("aria-controls")!)!;
     expect(tooltip.querySelector<HTMLAnchorElement>("a")!.textContent).toBe("↗");
     expect(tooltip.querySelector<HTMLAnchorElement>("a")!.getAttribute("aria-label")).toContain("source code");
     expect(tooltip.querySelector("p")!.lastElementChild).toBe(tooltip.querySelector("a"));
-    mode.querySelector<HTMLButtonElement>("button")!.click();
+    mode.querySelector<HTMLButtonElement>("button[aria-controls]")!.click();
     for (const field of ["mode", "implementation", "placement", "parallelism"]) {
       expect(document.querySelector(`[data-execution-control="global.${field}"]`)).not.toBeNull();
     }
@@ -368,8 +368,8 @@ describe("Component execution", () => {
     };
     const slide = (slider: HTMLInputElement, value: "0" | "1") => { slider.value = value; slider.dispatchEvent(new Event("input")); };
     const explain = () => {
-      control().querySelector<HTMLButtonElement>("button")!.click();
-      return document.getElementById(control().querySelector("button")!.getAttribute("aria-controls")!)!.textContent;
+      control().querySelector<HTMLButtonElement>("button[aria-controls]")!.click();
+      return document.getElementById(control().querySelector("button[aria-controls]")!.getAttribute("aria-controls")!)!.textContent;
     };
 
     it("turns on every use of shared memory at once, says when only some are on, and reloads with them", () => {
@@ -441,8 +441,8 @@ describe("Component execution", () => {
     expect(slider.title).toBe("Shared memory needs a cross-origin isolated page.");
     expect(shared.querySelector<HTMLElement>(".foss-earth-choice-group__status")!.hidden).toBe(false);
     expect(shared.querySelector(".foss-earth-choice-group__status")!.textContent).toBe("Not isolated");
-    shared.querySelector<HTMLButtonElement>("button")!.click();
-    const help = document.getElementById(shared.querySelector("button")!.getAttribute("aria-controls")!)!;
+    shared.querySelector<HTMLButtonElement>("button[aria-controls]")!.click();
+    const help = document.getElementById(shared.querySelector("button[aria-controls]")!.getAttribute("aria-controls")!)!;
     expect(help.textContent).toContain("This page isn't cross-origin isolated, so a shared-memory sky runs single-threaded WASM. In development the server's headers decide");
     // The runtime falls back the same way; After reload says so rather than promising threads.
     settings.set("native.core.sky", "threaded");
@@ -483,6 +483,75 @@ describe("Component execution", () => {
     expect(url.hash).toBe("#camera");
     expect(url.searchParams.get("panoramaTest")).toBe("1");
     expect(nativeCorePlan(settingsFor(url.search), "sky")).toMatchObject({ kernel: "typescript", placement: "worker" });
+  });
+
+  describe("resets", () => {
+    const badge = (control: string) => document.querySelector<HTMLButtonElement>(`[data-execution-control="${control}"] .foss-earth-parameter__reset`)!;
+    const pending = () => document.querySelector<HTMLElement>(".foss-earth-execution-pending")!.dataset.pending;
+    const slide = (control: string, value: "0" | "1") => {
+      const slider = document.querySelector<HTMLInputElement>(`[data-execution-control="${control}"] input[type="range"]`)!;
+      slider.value = value;
+      slider.dispatchEvent(new Event("input"));
+    };
+
+    it("sits on a choice's pills while it shows other than the default, and stages the default as its pill would", () => {
+      const { settings, choose } = mount();
+      // By default the global choices show Manual, WebAssembly, background workers and pools, and each component Global.
+      for (const control of ["global.mode", "global.implementation", "global.placement", "global.parallelism", "sky.mode"]) expect(badge(control).hidden, control).toBe(true);
+      expect(badge("global.implementation").parentElement!.className).toBe("foss-earth-parameter__pills foss-earth-parameter__reset-anchor");
+      choose("global.implementation", "typescript");
+      expect(badge("global.implementation").hidden).toBe(false);
+      expect(badge("global.implementation").getAttribute("aria-label")).toBe("Reset Implementation to the default: WebAssembly");
+      badge("global.implementation").click();
+      expect(settings.get("native.implementation")).toBe("wasm");
+      expect(badge("global.implementation").hidden).toBe(true);
+      // Mode returns to its own default, which runs as it did before.
+      choose("global.mode", "auto");
+      expect(badge("global.mode").getAttribute("aria-label")).toBe("Reset Mode to the default: Manual");
+      badge("global.mode").click();
+      expect([settings.get("native.tier"), pending(), badge("global.mode").hidden]).toEqual(["single", "false", true]);
+      // A component's choices name it, and Global is their default.
+      choose("sky.mode", "custom");
+      expect(badge("sky.mode").getAttribute("aria-label")).toBe("Reset Sky mode to the default: Use global settings");
+      expect(badge("sky.implementation").hidden).toBe(true);
+      choose("sky.implementation", "typescript");
+      expect(badge("sky.implementation").getAttribute("aria-label")).toBe("Reset Sky implementation to the default: Global");
+      badge("sky.implementation").click();
+      expect(settings.get("native.core.sky.implementation")).toBe("inherit");
+      expect(badge("sky.implementation").hidden).toBe(true);
+      badge("sky.mode").click();
+      expect([settings.get("native.core.sky"), pending()]).toEqual(["inherit", "false"]);
+    });
+
+    it("sits on each shared-memory switch while it stands away from the default, and turns it back", () => {
+      isolate();
+      const settings = settingsFor();
+      settings.register([TERRAIN_SHARED_HEIGHTS_PARAMETER as ParameterSpec]);
+      mount(settings);
+      for (const [control, name] of [["sky.shared", "Sky shared memory"], ["raster.sharedHeights", "Terrain heights shared memory"], ["global.shared", "Shared memory"]]) {
+        expect(badge(control).hidden, control).toBe(true);
+        expect(badge(control).parentElement!.classList).toContain("foss-earth-two-position-slider");
+        slide(control, "0");
+        expect(badge(control).getAttribute("aria-label")).toBe(`Reset ${name} to the default: On`);
+        expect(pending()).toBe("true");
+        badge(control).click();
+        expect([settings.get("native.sharedSky"), settings.get("native.sharedHeights"), pending(), badge(control).hidden], control).toEqual([true, true, "false", true]);
+      }
+    });
+
+    it("turns off a URL's request where the page cannot share memory, and hides for what the host forces", () => {
+      const settings = settingsFor("set.native.sharedSky=true");
+      mount(settings);
+      // Off is the default here: a page that is not isolated shares nothing.
+      expect(badge("sky.shared").getAttribute("aria-label")).toBe("Reset Sky shared memory to the default: Off");
+      badge("sky.shared").click();
+      expect([settings.get("native.sharedSky"), badge("sky.shared").hidden]).toEqual([false, true]);
+      const forced = settingsFor();
+      forced.force("native.tier", "typescript", "Host requires the reference implementation");
+      document.body.replaceChildren();
+      mount(forced);
+      expect(badge("global.implementation").hidden).toBe(true);
+    });
   });
 
   it("does not offer the unavailable threaded tier and respects forced host settings", () => {

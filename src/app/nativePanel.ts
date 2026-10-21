@@ -2,7 +2,7 @@
 import "./nativePanel.css";
 import type { PanelSection } from "@foss-earth/ui/react";
 import type { ParameterValue, SettingsRegistry } from "@foss-earth/ui/settings";
-import { checkChoice, closeHelpTooltipWithin, createChoiceGroup, createHelpTooltip, createParameterControl, createTwoPositionSlider, isolationStatus } from "@foss-earth/ui/browser";
+import { attachResetButton, checkChoice, closeHelpTooltipWithin, createChoiceGroup, createHelpTooltip, createParameterControl, createTwoPositionSlider, isolationStatus } from "@foss-earth/ui/browser";
 import { componentExecutionChoices, componentExecutionEdits, componentExecutionSettingId, nativeCorePlan,
   NATIVE_CORES, NATIVE_CORE_SETTING_IDS, NATIVE_MANUAL_FIELDS, NATIVE_PARAMETERS, NATIVE_SHARED_SKY_ID, NATIVE_THREADS_ID, NATIVE_TIER_ID,
   COMPUTE_PARAMETERS,
@@ -326,6 +326,11 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     error.hidden = result.ok;
     error.textContent = result.ok ? "" : result.reason;
   };
+  // Every setting at its default. A control's reset shows while it shows something other than it would then, and
+  // stages that as choosing it would, for Apply & reload.
+  const defaults = { get: (id: string) => settings.has(id) ? settings.inspect(id).defaultValue : undefined } as Pick<SettingsRegistry, "get">;
+  const reset = (widget: HTMLElement, name: string, shown: () => boolean, value: () => string, apply: () => void): { update(): void } =>
+    attachResetButton(document, widget, { label: () => `Reset ${name} to the default: ${value()}`, shown, reset: apply });
   // Only the sky has a shared-memory build; its switch and the global Shared memory set it the same way:
   // native.sharedSky shares a WASM sky, and a sky that would not run WASM is asked for its threaded build.
   const skyId = NATIVE_CORE_SETTING_IDS.sky;
@@ -347,8 +352,12 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   const skyShown = (): boolean => skyShared() && (isolated || nativeCorePlan(settings, "sky").requested === "threaded"
     || (settings.has(sharedSkyId) && asked(sharedSkyId)));
   const heightsShown = (): boolean => heightsShared() && (isolated || asked(sharedHeightsId));
+  // Where the switches stand with every setting at its default; no one has asked for anything there.
+  const skyDefault = (): boolean => { const plan = nativeCorePlan(defaults, "sky"); return plan.sharedMemory && (isolated || plan.requested === "threaded"); };
+  const heightsDefault = (): boolean => heightsShareable && isolated && defaults.get(sharedHeightsId) === true;
+  const onOff = (on: boolean): string => on ? "On" : "Off";
   const group = (parent: HTMLElement, core: NativeCoreId | undefined, field: ComponentExecutionField | "mode",
-    label: string, choices: readonly { id: string; label: string }[], read: () => string, helpText: string): HTMLElement => {
+    label: string, choices: readonly { id: string; label: string }[], read: (from?: Pick<SettingsRegistry, "get">) => string, helpText: string): HTMLElement => {
     const id = field === "mode" ? core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID : componentExecutionSettingId(field, core);
     const name = `execution-${panelId}-${core ?? "global"}-${field}`;
     const shortLabels: Record<string, string> = { inherit: "Global", typescript: "TS", wasm: "WASM", original: "Default", worker: "Workers", serial: "1 worker", auto: field === "parallelism" ? "Pool" : "Auto" };
@@ -385,6 +394,14 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
       if (target.type === "radio" && target.checked) notify(componentExecutionEdits(settings, core, field, target.value));
     };
     element.addEventListener("change", onChange);
+    // Mode returns to its setting's default; a field to the choice the default shows, as its pill would.
+    const tierId = core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID;
+    const pills = element.querySelector<HTMLElement>(".foss-earth-parameter__pills")!;
+    const preset = (): HTMLInputElement | null => pills.querySelector<HTMLInputElement>(`input[value="${read(defaults)}"]`);
+    const badge = reset(pills, core ? `${NATIVE_CORES[core].label} ${label.toLowerCase()}` : label,
+      () => read() !== read(defaults) && preset()?.disabled !== true,
+      () => choices.find(choice => choice.id === read(defaults))?.label ?? read(defaults),
+      () => notify(field === "mode" ? { [tierId]: defaults.get(tierId) } : componentExecutionEdits(settings, core, field, read(defaults))));
     updates.push(() => {
       checkChoice(element, name, read());
       changed.hidden = read() === original;
@@ -399,23 +416,24 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
         input.disabled = forced || requiresWorker || fixedWorker;
         input.title = requiresWorker ? "WebAssembly currently requires background workers." : fixedWorker ? "This component currently supports only one worker." : "";
       }
+      badge.update();
     });
     cleanups.push(() => { element.removeEventListener("change", onChange); tooltip.destroy(); });
     parent.append(element);
     return element;
   };
-  const mode = (core?: NativeCoreId): string => {
-    const tier = settings.get(core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID);
+  const mode = (core?: NativeCoreId, from: Pick<SettingsRegistry, "get"> = settings): string => {
+    const tier = from.get(core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID);
     return tier === "inherit" || tier === "auto" ? tier : "custom";
   };
   /** Mode and the manual fields; returns the Implementation control, which shared memory follows. */
   const manual = (parent: HTMLElement, core?: NativeCoreId): HTMLElement => {
     group(parent, core, "mode", "Mode", [...(core ? [{ id: "inherit", label: "Use global settings" }] : []),
-      { id: "auto", label: "Auto" }, { id: "custom", label: "Manual" }], () => mode(core),
+      { id: "auto", label: "Auto" }, { id: "custom", label: "Manual" }], from => mode(core, from),
       core ? "Use global settings inherits each global decision. Auto uses this component's measured choice. Manual can override individual decisions." : "Auto uses each component's measured configuration. Manual sets the global defaults below.");
     const fields = NATIVE_MANUAL_FIELDS.map(field => {
       const spec = settings.spec(componentExecutionSettingId(field, core))!;
-      return group(parent, core, field, field === "parallelism" ? "Parallelism" : field === "placement" ? "Location" : spec.label, spec.choices!, () => componentExecutionChoices(settings, core)[field], spec.description);
+      return group(parent, core, field, field === "parallelism" ? "Parallelism" : field === "placement" ? "Location" : spec.label, spec.choices!, (from = settings) => componentExecutionChoices(from, core)[field], spec.description);
     });
     return fields[NATIVE_MANUAL_FIELDS.indexOf("implementation")];
   };
@@ -453,6 +471,8 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     end.className = "foss-earth-execution-shared__end";
     end.append(unavailable, changed, tooltip.element);
     element.append(heading, slider.element, end);
+    const badge = reset(slider.element, "Sky shared memory", () => !slider.input.disabled && skyShown() !== skyDefault(),
+      () => onOff(skyDefault()), () => setSkyShared(skyDefault()));
     // The standard count control, shown while shared memory is asked for.
     const threads = createParameterControl(settings, NATIVE_THREADS_ID, document);
     threads.element.dataset.executionControl = "sky.threads";
@@ -465,6 +485,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
       changed.hidden = shared === original;
       threads.element.hidden = !shown;
       threads.update();
+      badge.update();
     });
     cleanups.push(() => { slider.destroy(); tooltip.destroy(); threads.destroy(); });
   };
@@ -485,6 +506,8 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     heading.textContent = "Shared memory";
     const slider = createTwoPositionSlider({ document, label: "Shared memory for terrain heights", options: [{ label: "Off" }, { label: "On" }],
       onInput: index => notify({ [sharedHeightsId]: index === 1 }) });
+    const badge = reset(slider.element, "Terrain heights shared memory", () => !slider.input.disabled && heightsShown() !== heightsDefault(),
+      () => onOff(heightsDefault()), () => notify({ [sharedHeightsId]: heightsDefault() }));
     // Why On would not share anything here: no isolation, or no geometry workers to read the tiles.
     const unused = document.createElement("span");
     unused.className = "foss-earth-choice-group__status";
@@ -511,6 +534,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
       unused.textContent = isolated ? "Needs geometry workers" : unavailableStatus;
       unused.title = isolated ? "Used only while Terrain geometry runs in background workers." : "";
       changed.hidden = shared === original;
+      badge.update();
     });
     cleanups.push(() => { slider.destroy(); tooltip.destroy(); });
   };
@@ -527,11 +551,18 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     const heading = document.createElement("div");
     heading.className = "foss-earth-choices__heading";
     heading.textContent = "Shared memory";
+    const setAll = (on: boolean): void => {
+      setSkyShared(on);
+      if (heightsShareable) notify({ [sharedHeightsId]: on });
+    };
     const slider = createTwoPositionSlider({ document, label: "Shared memory wherever it is supported", options: [{ label: "Off" }, { label: "On" }],
-      onInput: index => {
-        setSkyShared(index === 1);
-        if (heightsShareable) notify({ [sharedHeightsId]: index === 1 });
-      } });
+      onInput: index => setAll(index === 1) });
+    // On where it shows every use on, or on a page that cannot share memory, any.
+    const position = (shown: boolean[]): boolean => isolated ? shown.every(Boolean) : shown.some(Boolean);
+    const shownNow = (): boolean[] => [skyShown(), ...(heightsShareable ? [heightsShown()] : [])];
+    const shownByDefault = (): boolean[] => [skyDefault(), ...(heightsShareable ? [heightsDefault()] : [])];
+    const badge = reset(slider.element, "Shared memory", () => !slider.input.disabled && position(shownNow()) !== position(shownByDefault()),
+      () => onOff(position(shownByDefault())), () => setAll(position(shownByDefault())));
     const state = document.createElement("span");
     state.className = "foss-earth-choice-group__status";
     const changed = document.createElement("span");
@@ -551,7 +582,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     element.append(heading, slider.element, end);
     parent.append(element);
     updates.push(() => {
-      const now = uses(), shown = [skyShown(), ...(heightsShareable ? [heightsShown()] : [])];
+      const now = uses(), shown = shownNow();
       const all = shown.every(Boolean), some = shown.some(Boolean);
       const forced = settings.inspect(skyId).provenance === "host" && (!heightsShareable || settings.inspect(sharedHeightsId).provenance === "host");
       // Where it cannot run, a request from the URL shows On, so the switch only turns it off.
@@ -561,6 +592,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
       state.textContent = isolated ? "Partly on" : unavailableStatus;
       state.title = isolated ? "Some components share memory and some do not; each component's Shared memory says which." : "";
       changed.hidden = now.join() === original;
+      badge.update();
     });
     cleanups.push(() => { slider.destroy(); tooltip.destroy(); });
   };
