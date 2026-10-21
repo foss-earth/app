@@ -100,8 +100,11 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   const range = (suffix: string) => settings.get<{ min: number; max: number }>(`scene.panorama.${suffix}`);
   const count = (suffix: string, minimum = 1) => Math.max(minimum, Math.round(n(suffix)));
   const dragMode = (): "grab" | "scroll" => settings.get("scene.panorama.dragMode") === "grab" ? "grab" : "scroll";
+  // One query, made on first use: its `matches` always reports the current
+  // system setting, and the viewer reads it in every frame.
+  let systemReducedMotion: MediaQueryList | undefined;
   const reducedMotion = () => settings.get("scene.panorama.reducedMotion") === "reduce" ||
-    settings.get("scene.panorama.reducedMotion") === "system" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    settings.get("scene.panorama.reducedMotion") === "system" && (systemReducedMotion ??= window.matchMedia("(prefers-reduced-motion: reduce)")).matches;
   const detailCap = () => {
     const current = settings.inspect("scene.panorama.immersionWidth");
     return typeof current.value !== "number" || current.bounds && current.value >= current.bounds.max ? Infinity : current.value;

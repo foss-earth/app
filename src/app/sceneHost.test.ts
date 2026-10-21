@@ -20,4 +20,8 @@ describe("Earth Scenes adoption uses the public sphere bindings", () => {
     expect(source).not.toContain("createRenderScheduler(");
     expect(source).not.toContain("bootstrapGlobeRenderer(");
   });
+  it("keeps one reduced-motion query, whose matches stays current, instead of making one in every frame", () => {
+    expect(source.match(/matchMedia\(/g)).toHaveLength(1);
+    expect(source).toContain('(systemReducedMotion ??= window.matchMedia("(prefers-reduced-motion: reduce)")).matches');
+  });
 });
