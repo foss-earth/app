@@ -5,9 +5,11 @@ import type { ParameterValue, SettingsRegistry } from "@foss-earth/ui/settings";
 import { checkChoice, closeHelpTooltipWithin, createChoiceGroup, createHelpTooltip, createParameterControl, createTwoPositionSlider, isolationStatus } from "@foss-earth/ui/browser";
 import { componentExecutionChoices, componentExecutionEdits, componentExecutionSettingId, nativeCorePlan,
   NATIVE_CORES, NATIVE_CORE_SETTING_IDS, NATIVE_MANUAL_FIELDS, NATIVE_PARAMETERS, NATIVE_SHARED_SKY_ID, NATIVE_THREADS_ID, NATIVE_TIER_ID,
+  COMPUTE_PARAMETERS,
   type ComponentExecutionField, type NativeCoreId } from "@foss-earth/engine/settings";
 import type { NativeCoreReport, NativeSharedReport } from "./nativeReport";
 import { TERRAIN_SHARED_HEIGHTS_PARAMETER } from "./terrainNativeWorkerConfig";
+import type { ComputeSchedulingReport } from "./computeReport";
 
 export interface NativeStatusView {
   element: HTMLElement;
@@ -240,6 +242,7 @@ export interface NativeSectionsOptions {
    */
   section(section: "selection" | "cores", content: { main: HTMLElement; covers: readonly string[]; footer?: HTMLElement; reload?: () => void }): HTMLElement;
   report(): readonly NativeCoreReport[];
+  computeReport?(): ComputeSchedulingReport | null;
   /** The host owns navigation, so browser tests and embedding apps can provide it explicitly. */
   reload(url: string): void;
   timers: { set(callback: () => void, delayMs: number): unknown; clear(handle: unknown): void };
@@ -286,6 +289,19 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   const updates: (() => void)[] = [];
   const global = document.createElement("div");
   global.className = "foss-earth-execution-settings";
+  const computeIds = COMPUTE_PARAMETERS.map(spec => spec.id).filter(id => settings.has(id));
+  for (const id of computeIds) {
+    const control = createParameterControl(settings, id, document);
+    global.append(control.element); cleanups.push(() => control.destroy());
+  }
+  const computeState = document.createElement("span");
+  computeState.setAttribute("aria-label", "Active compute scheduling");
+  global.append(computeState);
+  updates.push(() => {
+    const report = options.computeReport?.();
+    computeState.hidden = !report || report.requested === "legacy";
+    if (report?.admission) computeState.textContent = `${report.admission.active}/${report.admission.limit} lanes · ${report.liveWorkers} workers · ${report.admission.queued} queued · CPU topology unknown`;
+  });
   const pending = document.createElement("div");
   pending.className = "foss-earth-execution-pending";
   const pendingText = document.createElement("p");
@@ -579,7 +595,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
         || (core === "google" ? basemap === "google" : basemap !== "google");
       if (!visible && !details.hidden) {
         closeHelpTooltipWithin(details);
-        if (details.contains(document.activeElement)) global.querySelector<HTMLInputElement>("input:checked:not(:disabled)")?.focus();
+        if (details.contains(document.activeElement)) global.querySelector<HTMLInputElement>('[data-execution-control="global.mode"] input:checked:not(:disabled)')?.focus();
       }
       details.hidden = !visible;
       const plan = nativeCorePlan(settings, core);
@@ -592,6 +608,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   const refresh = (): void => {
     for (const update of updates) update();
     const dirty = settings.get("native.workers") !== initial["native.workers"] || settings.get(NATIVE_THREADS_ID) !== initial[NATIVE_THREADS_ID]
+      || computeIds.some(id => settings.get(id) !== initial[id])
       || [...initialPlans].some(([core, value]) => planKey(core) !== value) || heightsChanged();
     pending.dataset.pending = String(dirty);
     pending.hidden = !dirty;

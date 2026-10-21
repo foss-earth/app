@@ -10,6 +10,8 @@ import { startSkySharedHelpers } from "./skySharedHelpers";
 import { skyWorkerName } from "./skyWorkerConfig";
 import { terrainMeshWorkerName } from "./terrainMeshWorkerConfig";
 import { TERRAIN_SHARED_HEIGHTS_PARAMETER } from "./terrainNativeWorkerConfig";
+import { createComputeAdmission } from "@foss-earth/engine/browser";
+import { workerComputePort } from "./computeWorker";
 
 export { TERRAIN_SHARED_HEIGHTS_PARAMETER };
 
@@ -62,7 +64,7 @@ export const EARTH_BROWSER_POLICY_PARAMETERS: readonly ParameterSpec[] = [
 export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<EarthBrowserRuntimeOptions,
   "imageSessionLimits" | "imageTransferLimits" | "imageUploadLimits" | "resourceParameterIds" |
   "terrainLoaderLimits" | "terrainPreparation" | "readinessPolicy" | "describeMapTransfer" |
-  "mapPriority" | "createWorker" | "createTerrainWorker" | "terrainDecodeWorkers" | "createTerrainMeshWorker" | "terrainMeshWorkers" | "createTerrainHeightWorker" | "createGoogleWorker" | "createGroundWorker" | "createSkyEvaluator" | "nativePlans" | "onFrameError"> {
+  "mapPriority" | "createWorker" | "createTerrainWorker" | "terrainDecodeWorkers" | "createTerrainMeshWorker" | "terrainMeshWorkers" | "createTerrainHeightWorker" | "createGoogleWorker" | "createGroundWorker" | "createSkyEvaluator" | "nativePlans" | "computeScheduling" | "onFrameError"> {
   const n = (id: string) => settings.get<number>(id);
   const p = (suffix: string) => n(`scene.panorama.${suffix}`);
   const count = (suffix: string) => Math.max(1, Math.round(p(suffix)));
@@ -77,6 +79,10 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
   let nextTerrainWorker = 0;
   let nextTerrainMeshWorker = 0;
   const workerLimit = Math.max(1, Math.round(n("native.workers")));
+  const fixed = settings.get("native.compute") === "fixed";
+  const requestedComputeLanes = n("native.computeLanes");
+  const compute = fixed ? createComputeAdmission({ limit: Math.min(workerLimit, requestedComputeLanes), now: () => performance.now(), agingMs: n("native.computeAging"), observe: settings.get("native.computeObserve") === true }) : null;
+  const initialization = fixed ? createComputeAdmission({ limit: Math.min(workerLimit, n("native.computeInitialization")), now: () => performance.now() }) : null;
   const activeWorkers = new Set<Worker>();
   const activeDecoders = new Set<Worker>();
   const reserved = 1 + Number(nativePlans.sky.placement === "worker") + Number(nativePlans.imagery.placement === "worker")
@@ -88,15 +94,17 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
   // A pool that is refused a worker decodes every later tile on the page, so
   // the decode pool never asks for more workers than the budget leaves it.
   const decoderSlots = Math.max(0, workerLimit - reserved);
-  const budgeted = (factory: () => Worker, decoder = false): Worker | null => {
+  const budgeted = (factory: () => Worker, decoder = false, component = "atlas"): Worker | null => {
     if (typeof Worker === "undefined" || activeWorkers.size >= workerLimit) return null;
     // Reserve dedicated-core slots before the decode pool fills, so a forced
     // native core can start when its first batch arrives later in startup.
     if (decoder && activeDecoders.size >= decoderSlots) return null;
     const worker = factory(), terminate = worker.terminate.bind(worker);
+    const admission = compute && initialization ? workerComputePort(worker, compute.port(component, component === "height-cache" ? -1 : 0), initialization.port("initialization")) : null;
+    if (admission) Object.defineProperty(worker, "compute", { value: admission.port });
     activeWorkers.add(worker);
     if (decoder) activeDecoders.add(worker);
-    worker.terminate = () => { activeWorkers.delete(worker); activeDecoders.delete(worker); terminate(); };
+    worker.terminate = () => { activeWorkers.delete(worker); activeDecoders.delete(worker); try { terminate(); } finally { admission?.retire(); } };
     return worker;
   };
   const altitude: TerrainPreparationPolicy["fallback"] = (request, groundHeightMeters) => ({
@@ -152,30 +160,33 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
     createWorker: () => budgeted(() => new Worker(new URL("./atlasImagery.worker.ts", import.meta.url), { type: "module" })),
     createTerrainWorker: () => budgeted(() => new Worker(new URL("./terrainDecode.worker.ts", import.meta.url), {
       type: "module", name: JSON.stringify({ kind: "earth-terrain", id: `terrain-${++nextTerrainWorker}`, nativeTier, sharedHeights }),
-    }), true),
+    }), true, "raster"),
     terrainDecodeWorkers: () => Math.min(decoderSlots, nativePlans.raster.parallelism === "serial" ? Math.min(1, n("map.loader.decodeWorkers")) : n("map.loader.decodeWorkers")),
     createTerrainMeshWorker: () => nativePlans.terrain.placement === "original" ? null : budgeted(() => new Worker(new URL("./terrainMesh.worker.ts", import.meta.url), {
       type: "module", name: terrainMeshWorkerName(nativePlans.terrain.kernel, `terrain-mesh-${++nextTerrainMeshWorker}`),
-    })),
+    }), false, "terrain"),
     terrainMeshWorkers: () => Math.min(nativePlans.terrain.parallelism === "serial" ? 1 : 2, n("map.loader.decodeWorkers")),
     createTerrainHeightWorker: () => nativePlans.imagery.placement === "original" ? null
-      : budgeted(() => new Worker(new URL("./terrainHeights.worker.ts", import.meta.url), { type: "module", name: nativePlans.imagery.kernel })),
+      : budgeted(() => new Worker(new URL("./terrainHeights.worker.ts", import.meta.url), { type: "module", name: nativePlans.imagery.kernel }), false, "height-cache"),
     createGoogleWorker: () => nativePlans.google.placement === "original" ? null
-      : budgeted(() => new Worker(new URL("./googlePreparation.worker.ts", import.meta.url), { type: "module", name: nativePlans.google.kernel })),
+      : budgeted(() => new Worker(new URL("./googlePreparation.worker.ts", import.meta.url), { type: "module", name: nativePlans.google.kernel }), false, "google"),
     createGroundWorker: () => nativePlans.ground.placement === "original" ? null
-      : budgeted(() => new Worker(new URL("./groundBvh.worker.ts", import.meta.url), { type: "module", name: nativePlans.ground.kernel })),
+      : budgeted(() => new Worker(new URL("./groundBvh.worker.ts", import.meta.url), { type: "module", name: nativePlans.ground.kernel }), false, "ground"),
     // The original sky evaluates on the page; the A/B arms both evaluate in one sky worker.
     createSkyEvaluator: () => nativePlans.sky.placement === "original" ? null : createSkyWorkerEvaluator({
       kernel: nativePlans.sky.kernel,
       createWorker: () => budgeted(() => new Worker(new URL("./skyEvaluation.worker.ts", import.meta.url), {
         type: "module", name: skyWorkerName(nativePlans.sky.kernel, nativePlans.sky.threads),
-      })),
+      }), false, "sky"),
       createHelpers: nativePlans.sky.sharedMemory ? () => startSkySharedHelpers(nativePlans.sky.threads - 1,
         index => budgeted(() => new Worker(new URL("./skySharedHelper.worker.ts", import.meta.url), { type: "module", name: `earth-sky-helper-${index + 1}` }))) : undefined,
       now: () => performance.now(),
       timers: { set: (callback, delayMs) => setTimeout(callback, delayMs), clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
     }),
     nativePlans,
+    computeScheduling: { snapshot: () => ({ requested: fixed ? "fixed" as const : "legacy" as const, requestedLanes: requestedComputeLanes,
+      liveWorkers: activeWorkers.size, topology: { logicalConcurrency: settings.getDeviceContext().hardwareConcurrency, efficiencyCores: null, source: "browser-logical-only" as const },
+      admission: compute?.snapshot() ?? null }), dispose() { compute?.dispose(); initialization?.dispose(); } },
     onFrameError: error => console.error("Earth frame failed", error),
   };
 }

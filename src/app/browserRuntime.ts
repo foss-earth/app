@@ -29,6 +29,7 @@ import { gpuMemoryOwner, meterMapFetch, METERED_REQUEST_OWNERS, requestOwner } f
 import { markBoot, markBootOnFrame } from "./bootMarks";
 import { bootStep, finishBoot } from "@foss-earth/ui/browser";
 import { describeNativeCores, registerNativeCores } from "./nativeReport";
+import { registerComputeScheduling, type ComputeSchedulingService } from "./computeReport";
 
 type EarthSelections = Pick<GlobeRuntimeOptions,
   "googleApiKey" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
@@ -66,6 +67,8 @@ export interface EarthBrowserRuntimeOptions extends EarthSelections {
   createSkyEvaluator?(): SkyEvaluator | null;
   /** The startup native selection of each core, for the Native tab and reports. */
   nativePlans?: Readonly<Record<NativeCoreId, NativeCorePlan>>;
+  /** Shared host compute policy, independently of live Worker/memory limits. */
+  computeScheduling?: ComputeSchedulingService;
   onFrameError(error: unknown): void;
   signal?: AbortSignal;
 }
@@ -124,7 +127,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     const failures: unknown[] = [];
     for (const release of [() => cancellation.abort(new DOMException("Earth host retired.", "AbortError")), ...detachResourcePolicy, () => detachRestore?.(),
       () => bindings?.retire(), ...[...googlePreparations].map(client => () => client.dispose()), () => groundAcceleration?.dispose(), () => native?.retire(),
-      () => options.signal?.removeEventListener("abort", abortHost)]) {
+      () => options.computeScheduling?.dispose(), () => options.signal?.removeEventListener("abort", abortHost)]) {
       try { release(); } catch (error) { failures.push(error); }
     }
     hostRetirement = (async () => {
@@ -314,6 +317,26 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     const runtime = Object.create(composition.world) as typeof composition.world;
     Object.defineProperty(runtime, "destroy", { value: () => composition!.destroy() });
     const skyRuntime = composition.sky;
+    if (options.computeScheduling) {
+      const service = options.computeScheduling, observing = service.snapshot().admission?.observing === true;
+      let frames = 0, renderStart = 0;
+      const renderElapsed: number[] = [], inputDelay: number[] = [];
+      const keep = (values: number[], value: number): void => { if (values.length === 128) values.shift(); values.push(value); };
+      if (observing) {
+        const before = scene.onBeforeRenderObservable.add(() => { renderStart = performance.now(); });
+        const after = scene.onAfterRenderObservable.add(() => { frames++; keep(renderElapsed, Math.max(0, performance.now() - renderStart)); });
+        const input = (event: Event): void => { const delay = performance.now() - event.timeStamp; if (delay >= 0 && delay < 60_000) keep(inputDelay, delay); };
+        const events = ["pointerdown", "pointermove", "wheel", "keydown"];
+        for (const name of events) canvas.addEventListener(name, input, { passive: true, capture: true });
+        detachResourcePolicy.push(() => { scene.onBeforeRenderObservable.remove(before); scene.onAfterRenderObservable.remove(after); for (const name of events) canvas.removeEventListener(name, input, true); });
+      }
+      registerComputeScheduling(runtime, () => {
+        const skyStatus = skyRuntime.getEvaluation().evaluator;
+        return { ...service.snapshot(), progress: { actualSceneFrames: observing ? frames : null, recentRenderElapsedMs: [...renderElapsed], inputDispatchDelayMs: [...inputDelay],
+          terrainRevision: runtime.surface.revision?.() ?? null, rasterDetailPending: runtime.getRasterDetailFeedback()?.pending ?? null,
+          skyJobs: skyStatus?.jobs ?? null, skyBusy: skyStatus ? skyStatus.state === "busy" : null } };
+      });
+    }
     registerNativeCores(runtime, () => describeNativeCores({ plans: options.nativePlans ?? null,
       terrainDecode: () => ports.terrainDecodeStats(), skyEvaluation: () => skyRuntime.getEvaluation(),
       terrainMesh: () => (runtime as { getTerrainMeshStats?: () => TerrainMeshWorkerPoolStats | null }).getTerrainMeshStats?.() ?? null,

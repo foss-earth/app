@@ -66,6 +66,18 @@ describe("native execution", () => {
     terminate(): void {}
   }
 
+  it("keeps shared compute opt-in and separate from worker lifetime and unknown CPU topology", () => {
+    const legacy = policyFor({ "native.workers": 12 });
+    expect(legacy.computeScheduling?.snapshot()).toMatchObject({ requested: "legacy", admission: null });
+    const fixed = policyFor({ "native.workers": 12, "native.compute": "fixed", "native.computeLanes": 2, "native.computeObserve": true });
+    expect(fixed.terrainDecodeWorkers?.()).toBe(legacy.terrainDecodeWorkers?.());
+    expect(fixed.computeScheduling?.snapshot()).toMatchObject({ requested: "fixed", requestedLanes: 2, liveWorkers: 0,
+      admission: { limit: 2, active: 0, queued: 0, observing: true }, topology: { efficiencyCores: null, source: "browser-logical-only" } });
+    const full = policyFor({ "native.workers": 24, "native.compute": "fixed", "native.computeLanes": 32 });
+    expect(full.computeScheduling?.snapshot()).toMatchObject({ requestedLanes: 32, admission: { limit: 24 } });
+    legacy.computeScheduling?.dispose(); fixed.computeScheduling?.dispose(); full.computeScheduling?.dispose();
+  });
+
   it("keeps the sky on the page for TypeScript, and gives the A/B pair the same worker", () => {
     expect(policyFor({ "native.tier": "typescript" }).createSkyEvaluator?.()).toBeNull();
     const autoEvaluator = policyFor({ "native.tier": "auto" }).createSkyEvaluator?.();

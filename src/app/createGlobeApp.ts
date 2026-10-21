@@ -17,6 +17,7 @@ import { createEarthBrowserRuntime } from "./browserRuntime";
 import { createEarthBrowserPolicy } from "./browserPolicy";
 import { createNativeSections } from "./nativePanel";
 import { earthNativeCores, type NativeCoreReport } from "./nativeReport";
+import { earthComputeScheduling } from "./computeReport";
 import { createEarthFeatureFramePreparation } from "./framePreparation";
 import type { GlobeFramePreparation } from "@foss-earth/engine/babylon";
 import { createEarthUiHost } from "./uiHost";
@@ -1067,10 +1068,12 @@ export async function createGlobeApp(
   diagnostics.addState(() => `Isolation: ${describeIsolation(window)}`);
   // Requested and actual backend per core, from each core's own status.
   diagnostics.addState(() => `Component execution: ${JSON.stringify(earthNativeCores(browser.runtime) ?? [])}`);
+  diagnostics.addState(() => `Compute scheduling: ${JSON.stringify(earthComputeScheduling(browser.runtime))}`);
   const native = createNativeSections({
     document, settings, section: (section, content) => sectionOf("native", section, content),
     reload: url => window.location.assign(url),
     report: () => earthNativeCores(browser.runtime) ?? [],
+    computeReport: () => earthComputeScheduling(browser.runtime),
     timers: { set: (callback, delayMs) => window.setTimeout(callback, delayMs), clear: handle => window.clearTimeout(handle as number) },
   });
   cleanup.push(() => native.destroy());

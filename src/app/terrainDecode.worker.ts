@@ -2,10 +2,14 @@
 import { createTerrainNativeDecoder, installTerrainDecodeWorkerKernel, type TerrainDecodeWorkerKernelPorts } from "@foss-earth/engine/browser";
 import { loadRasterCore } from "@foss-earth/engine/raster-WASM";
 import { terrainNativeWorkerConfig } from "./terrainNativeWorkerConfig";
+import { boundedComputeModule, installComputePreparation } from "./computeWorker";
 
 const { sharedHeights, ...config } = terrainNativeWorkerConfig(self.name);
+let loading: ReturnType<typeof loadRasterCore> | undefined;
+const load = () => loading ??= loadRasterCore();
+installComputePreparation(() => config.requestedTier === "single" || config.requestedTier === "auto" ? loading = boundedComputeModule(load()) : Promise.resolve());
 const native = createTerrainNativeDecoder({
-  ...config, start: loadRasterCore,
+  ...config, start: load,
   timers: { setTimeout: (callback, delay) => setTimeout(callback, delay), clearTimeout: handle => clearTimeout(handle as ReturnType<typeof setTimeout>) },
 });
 

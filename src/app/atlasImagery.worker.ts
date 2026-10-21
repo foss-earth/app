@@ -1,6 +1,8 @@
 /** Earth supplies the worker realm; Engine owns the preparation protocol. */
 import { installAtlasImageryWorkerKernel, type AtlasImageryWorkerKernelPorts } from "@foss-earth/engine/browser";
 import { createCanvasRgbaSurface } from "@foss-earth/images/browser";
+import { installComputePreparation } from "./computeWorker";
+installComputePreparation(() => Promise.resolve());
 
 installAtlasImageryWorkerKernel({
   scope: self as unknown as AtlasImageryWorkerKernelPorts["scope"],
