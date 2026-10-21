@@ -117,12 +117,12 @@ describe("describeBuild", () => {
     expect(tree.dev).toBeUndefined();
     expect(outline(tree.app)).toEqual([
       // The app's and each checkout's version is its commit's: the day, then the commit's count that day.
-      "osfs 26.10.07.#1 app a2c6c28 dirty",
+      "osfs 26.10.07#1 app a2c6c28 dirty",
       // Checkouts first, then packages, each by name.
-      "  @felipegalind0/gamepad-tools 26.10.07.#1 checkout fd1a3e6 dirty",
+      "  @felipegalind0/gamepad-tools 26.10.07#1 checkout fd1a3e6 dirty",
       "    @babylonjs/core 8.56.2 registry",
-      "  foss-earth 26.10.07.#3 checkout 35ad0e3",
-      "    @felipegalind0/gamepad-tools 26.10.07.#1 checkout listed above",
+      "  foss-earth 26.10.07#3 checkout 35ad0e3",
+      "    @felipegalind0/gamepad-tools 26.10.07#1 checkout listed above",
       // FOSS Earth's own React is not in the bundle: the app's is.
       "    react 19.2.6 registry listed above",
       "  @felipegalind0/jsbsim 1.2.4-fork.16 file",
@@ -164,12 +164,12 @@ describe("describeBuild", () => {
     const tree = describeBuild({ root: "/w/0sfs", built: "", bundled: null, dedupe: ["react"], reader: flightWorkspace() });
     expect(tree.dev).toBe(true);
     expect(outline(tree.app)).toEqual([
-      "osfs 26.10.07.#1 app a2c6c28",
-      "  @felipegalind0/gamepad-tools 26.10.07.#1 checkout fd1a3e6 dirty",
+      "osfs 26.10.07#1 app a2c6c28",
+      "  @felipegalind0/gamepad-tools 26.10.07#1 checkout fd1a3e6 dirty",
       // A peer is the app's copy.
       "    @babylonjs/core 8.56.2 registry",
-      "  foss-earth 26.10.07.#3 checkout 35ad0e3",
-      "    @felipegalind0/gamepad-tools 26.10.07.#1 checkout listed above",
+      "  foss-earth 26.10.07#3 checkout 35ad0e3",
+      "    @felipegalind0/gamepad-tools 26.10.07#1 checkout listed above",
       // Deduplicated by the app's config: its copy.
       "    react 19.2.6 registry listed above",
       "  @felipegalind0/jsbsim 1.2.4-fork.16 file",
@@ -221,8 +221,8 @@ describe("describeBuild with two installs of one package", () => {
       bundled: new Set(["/w/earth", "/w/pads", "/w/earth/node_modules/@babylonjs/core", "/w/pads/node_modules/@babylonjs/core"]),
     });
     expect(outline(tree.app)).toEqual([
-      "foss-earth 26.10.07.#1 app 35ad0e3",
-      "  @felipegalind0/gamepad-tools 26.10.07.#1 checkout fd1a3e6",
+      "foss-earth 26.10.07#1 app 35ad0e3",
+      "  @felipegalind0/gamepad-tools 26.10.07#1 checkout fd1a3e6",
       "    @babylonjs/core 8.56.2 registry listed above",
       "  @babylonjs/core 8.56.2 registry",
       "  @babylonjs/core 8.56.2 registry",
@@ -237,10 +237,10 @@ describe("commitVersion", () => {
    * digits of the year, the month, the day, and the commit's count that day.
    */
   it("is the commit's day and its count among that day's commits", () => {
-    expect(commitVersion(["2026-10-07", "2026-10-07", "2026-10-07", "2026-10-06", "2026-10-06"])).toBe("26.10.07.#3");
-    expect(commitVersion(["2026-10-07"])).toBe("26.10.07.#1");
+    expect(commitVersion(["2026-10-07", "2026-10-07", "2026-10-07", "2026-10-06", "2026-10-06"])).toBe("26.10.07#3");
+    expect(commitVersion(["2026-10-07"])).toBe("26.10.07#1");
     // Two digits of the year, and no zeros before a month or a day.
-    expect(commitVersion(["2105-01-09", "2105-01-09"])).toBe("05.01.09.#2");
+    expect(commitVersion(["2105-01-09", "2105-01-09"])).toBe("05.01.09#2");
   });
 
   it("is nothing without a date", () => {
@@ -305,7 +305,7 @@ describe("builtFrom", () => {
     expect(tree.built).toBe("2026-10-04T17:33:49.408Z");
     expect(tree.app.name).toBe("foss-earth");
     expect(tree.app.commit).toMatch(/^[0-9a-f]{40}$/);
-    expect(tree.app.version).toMatch(/^\d{2}\.\d{2}\.\d{2}\.#\d+$/);
+    expect(tree.app.version).toMatch(/^\d{2}\.\d{2}\.\d{2}#\d+$/);
     expect(tree.app.dirty).toBeUndefined();
   });
 
