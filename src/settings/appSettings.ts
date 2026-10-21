@@ -26,6 +26,9 @@ export function getAppSettings(): SettingsRegistry {
   const registry = createBrowserSettingsRegistry({
     searchParams: typeof window === "undefined" ? null : new URLSearchParams(window.location.search),
     urlAliases: fossEarthUrlAliases,
+    // Hosts register their own namespaces after this shared registry exists.
+    // Prune only Earth's namespaces, including on later storage refreshes.
+    ownedPrefixes: [...new Set(FOSS_EARTH_PARAMETERS.map(spec => spec.id.split(".")[0]))],
     deviceContext: readDeviceContext({
       navigator: typeof navigator === "undefined" ? null : navigator,
       window: typeof window === "undefined" ? null : window,
@@ -37,7 +40,7 @@ export function getAppSettings(): SettingsRegistry {
   if (typeof window !== "undefined" && wantsDev(window.location.search)) registry.register(DEV_CONTROLS_PARAMETERS);
   for (const [tab, section, title] of FOSS_EARTH_SECTION_TITLES) registry.setSectionTitle(tab, section, title);
   registry.migrateLegacy(FOSS_EARTH_MIGRATIONS);
-  // Ids that are no longer parameters, and values saved under them. Registered settings stay.
+  // Retired Earth ids are removed; another host's unregistered ids stay saved.
   registry.dropStale();
   registry.registerPresets(BUILT_IN_PRESETS);
   // The engine owns the zoom point presets; they set those four choices only.

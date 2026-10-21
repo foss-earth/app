@@ -43,6 +43,7 @@ export {
   type SectionsElementHandle,
 } from "../app/shellCompatibility";
 export { createParameterControl, describeProvenance, type ParameterControlHandle } from "../app/shellCompatibility";
+export { markParametersApplied } from "@foss-earth/ui/browser";
 export { createHelpTooltip, closeHelpTooltipWithin, type HelpTooltipHandle, type HelpTooltipOptions } from "../app/shellCompatibility";
 export { createParameterList, createSettingsTransfer, type ParameterListHandle, type SettingsTransferHandle } from "../app/shellCompatibility";
 export { createTrack, detailColour, type TrackFrame, type TrackHandle, type TrackOptions, type TrackRamp, type TrackThumb } from "../app/shellCompatibility";

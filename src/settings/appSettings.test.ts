@@ -10,6 +10,23 @@ function savedValues(): Record<string, unknown> {
 afterEach(() => { window.history.replaceState(null, "", "/"); });
 
 describe("the app registry and the address bar", () => {
+  it("keeps a host's saved namespace until registration while cleaning retired Earth settings", () => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ version: 1, values: {
+      "osfs.aircraft.id": "f-35b", "map.retiredSetting": true,
+    } }));
+    const settings = getAppSettings();
+    expect(savedValues()).toEqual({ "osfs.aircraft.id": "f-35b" });
+    settings.reload();
+    expect(savedValues()).toEqual({ "osfs.aircraft.id": "f-35b" });
+    settings.register([{
+      id: "osfs.aircraft.id", label: "Aircraft", description: "The flight's aircraft.",
+      kind: "choice", unit: "none", choices: [{ id: "cessna-172", label: "C172" }, { id: "f-35b", label: "F-35B" }],
+      default: "cessna-172", defaultReason: "The trainer.", home: { tab: "aircraft", section: "model", level: "main" },
+      appliesLive: true, source: "src/flight/settings.ts",
+    }]);
+    expect(settings.get("osfs.aircraft.id")).toBe("f-35b");
+  });
+
   it("saves a key given in the query on this device and takes it off the address bar", () => {
     const state = { fossEarthScene: { id: "campus" } };
     window.history.replaceState(state, "", "/fly/?key=abc&scene=campus&set.map.source.cartoKey=c#invite");
