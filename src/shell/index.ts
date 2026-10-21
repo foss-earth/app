@@ -44,6 +44,7 @@ export {
 } from "../app/shellCompatibility";
 export { createParameterControl, describeProvenance, type ParameterControlHandle } from "../app/shellCompatibility";
 export { markParametersApplied } from "@foss-earth/ui/browser";
+export { attachParameterReset, createResetButton, resetAnchor, type ResetBadgeHandle, type ResetButtonOptions } from "@foss-earth/ui/browser";
 export { createHelpTooltip, closeHelpTooltipWithin, type HelpTooltipHandle, type HelpTooltipOptions } from "../app/shellCompatibility";
 export { createParameterList, createSettingsTransfer, type ParameterListHandle, type SettingsTransferHandle } from "../app/shellCompatibility";
 export { createTrack, detailColour, type TrackFrame, type TrackHandle, type TrackOptions, type TrackRamp, type TrackThumb } from "../app/shellCompatibility";
@@ -63,7 +64,7 @@ export { connectMapDetailLog } from "@foss-earth/engine/panels";
 export { WindowOverlay, type WindowOverlayHandle, type WindowOverlayProps } from "./WindowOverlay";
 export { SectionsPanel, type PanelSection } from "@foss-earth/ui/react";
 export { MeshInspectorPanel, type MeshInspectorPanelProps } from "@foss-earth/ui/react";
-export { ChoiceTrack, HelpTip, IconButton, type ChoiceTrackChoice, type ChoiceTrackProps, type IconButtonProps } from "@foss-earth/ui/react";
+export { ChoiceTrack, HelpTip, IconButton, ParameterSettings, Resettable, type ChoiceTrackChoice, type ChoiceTrackProps, type IconButtonProps, type ResettableProps } from "@foss-earth/ui/react";
 export { createMapSourcePanel, type MapSourcePanelHandle, type MapSourcePanelOptions, type MapSourceStatus } from "@foss-earth/engine/panels";
 export { createRendererPanel, getRendererLabel, type RendererPanelHandle, type RendererPanelOptions } from "@foss-earth/renderer/panel";
 export { reportRendererStart } from "../app/rendererAdviceLog";

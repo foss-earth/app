@@ -1,6 +1,6 @@
 /** Earth binds presentation owners to its document and existing frame notifications. */
 import {
-  appendHostSections, checkChoice, createChoiceGroup, createChoiceNote,
+  appendHostSections, attachParameterReset, checkChoice, createChoiceGroup, createChoiceNote,
   createDial, createExternalLinkIcon, createHelpTooltip, createIconButton, createParameterControl,
   createParameterSection, createSectionsElement, createTrack, wrapTurn,
 } from "@foss-earth/ui/browser";
@@ -42,7 +42,7 @@ export function createEarthUiHost(settings: SettingsRegistry, document: Document
     document, storage, refresh, emit, parameterSection, sections, renderer,
     control: (registry: SettingsRegistry, id: string) => createParameterControl(registry, id, document),
     /** Owners whose interfaces already include document/refresh retain their public signatures. */
-    publicUi: { appendHostSections, checkChoice, createChoiceGroup, createChoiceNote,
+    publicUi: { appendHostSections, attachParameterReset, checkChoice, createChoiceGroup, createChoiceNote,
       createParameterSection, createSectionsElement, createDial, wrapTurn, createHelpTooltip, createIconButton },
     /** Choice, action and help bound to this document, for owners such as Scenes that take them so. */
     choiceGroup: (name: string, heading: string, choices: Parameters<typeof createChoiceGroup>[2], options?: Parameters<typeof createChoiceGroup>[4]) =>
