@@ -21,6 +21,27 @@ export function headsetSpaceRotation(frame: EnuFrame, headingDeg: number): numbe
   ];
 }
 
+/**
+ * A seat's headset space, as Babylon's row-vector rotation: its −z along
+ * `forward` and its y along `up`, made square to it, as a vehicle's seat
+ * turns with the vehicle. Null when the two are parallel or either is zero.
+ */
+export function seatRotation(forward: Vec3, up: Vec3): number[] | null {
+  const unit = (a: Vec3): Vec3 | null => { const size = Math.hypot(a[0], a[1], a[2]); return size > 1e-9 ? [a[0] / size, a[1] / size, a[2] / size] : null; };
+  const ahead = unit(forward);
+  if (!ahead) return null;
+  // Right is forward × up; up again is right × forward, square to both.
+  const right = unit([ahead[1] * up[2] - ahead[2] * up[1], ahead[2] * up[0] - ahead[0] * up[2], ahead[0] * up[1] - ahead[1] * up[0]]);
+  if (!right) return null;
+  const square: Vec3 = [right[1] * ahead[2] - right[2] * ahead[1], right[2] * ahead[0] - right[0] * ahead[2], right[0] * ahead[1] - right[1] * ahead[0]];
+  return [
+    right[0], right[1], right[2], 0,
+    square[0], square[1], square[2], 0,
+    -ahead[0], -ahead[1], -ahead[2], 0,
+    0, 0, 0, 1,
+  ];
+}
+
 /** The heading of an ECEF look direction at a place, keeping `fallbackDeg` when it looks straight up or down. */
 export function headingAt(frame: EnuFrame, forward: Vec3, fallbackDeg = 0): number {
   const enu: Vec3 = [
@@ -42,6 +63,17 @@ export function reverseProjectionDepth(values: number[]): boolean {
   if (!(values[10]! < 0)) return false;
   for (const index of [2, 6, 10, 14]) values[index] = -values[index]!;
   return true;
+}
+
+/**
+ * A projection that clips nothing ahead of the eye, however near: every
+ * point at the same depth, halfway. For what draws over the scene without a
+ * depth test, such as a panel at arm's length, nearer than a globe camera's
+ * near plane. `values` is Babylon's row-vector matrix, changed in place.
+ */
+export function flatDepthProjection(values: number[]): number[] {
+  for (const row of [0, 1, 2, 3]) values[row * 4 + 2] = 0.5 * values[row * 4 + 3]!;
+  return values;
 }
 
 /**

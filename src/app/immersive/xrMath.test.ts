@@ -1,12 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { enuFrame, type Vec3 } from "@foss-earth/engine";
 import {
-  createSnapTurn, headingAt, headsetDepthRange, headsetSpaceRotation, pointedAt, reverseProjectionDepth,
+  createSnapTurn, flatDepthProjection, headingAt, headsetDepthRange, headsetSpaceRotation, pointedAt, reverseProjectionDepth, seatRotation,
 } from "./xrMath";
 
 const row = (m: number[], index: number): Vec3 => [m[index * 4]!, m[index * 4 + 1]!, m[index * 4 + 2]!];
 const dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const close = (a: Vec3, b: Vec3): void => a.forEach((value, i) => expect(value).toBeCloseTo(b[i]!, 9));
+
+describe("seatRotation", () => {
+  it("looks along the seat's forward with its up, squared, as a right-handed rotation", () => {
+    // A seat pitched 10° up and rolled: its up is not quite square to its forward.
+    const forward: Vec3 = [0, Math.sin(0.17), -Math.cos(0.17)];
+    const m = seatRotation(forward, [0.2, 1, 0.3])!;
+    const [x, y, z] = [row(m, 0), row(m, 1), row(m, 2)];
+    close(z, forward.map(v => -v) as Vec3);
+    for (const axis of [x, y, z]) expect(dot(axis, axis)).toBeCloseTo(1, 12);
+    expect(dot(x, y)).toBeCloseTo(0, 12);
+    expect(dot(y, z)).toBeCloseTo(0, 12);
+    close([x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]], z);
+    expect(y[1]).toBeGreaterThan(0.9);
+    expect(seatRotation([0, 1, 0], [0, 2, 0])).toBeNull();
+    expect(seatRotation([0, 0, 0], [0, 1, 0])).toBeNull();
+  });
+});
 
 describe("headsetSpaceRotation", () => {
   const frame = enuFrame(-93.265, 44.978);
@@ -117,5 +134,22 @@ describe("pointedAt", () => {
   it("chooses none outside every reach, or along no ray", () => {
     expect(pointedAt(items, [1, 1, 0])).toBeNull();
     expect(pointedAt(items, [0, 0, 0])).toBeNull();
+  });
+});
+
+describe("flatDepthProjection", () => {
+  it("puts every point ahead halfway in depth, so none nearer than the near plane is clipped, and keeps where it is on screen", () => {
+    // A right-handed perspective, near 1 m, far 1000 m, row vectors.
+    const near = 1, far = 1000;
+    const values = [1.2, 0, 0, 0, 0, 1.6, 0, 0, 0.1, 0, -(far + near) / (far - near), -1, 0, 0, (-2 * far * near) / (far - near), 0];
+    const clip = (m: number[], p: Vec3): number[] => [0, 1, 2, 3].map(c => p[0] * m[c]! + p[1] * m[4 + c]! + p[2] * m[8 + c]! + m[12 + c]!);
+    const flat = flatDepthProjection([...values]);
+    for (const point of [[0.1, -0.3, -0.4], [2, 1, -50]] as Vec3[]) {
+      const [x, y, z, w] = clip(flat, point);
+      expect(z! / w!).toBeCloseTo(0.5, 12);
+      const before = clip(values, point);
+      expect(x! / w!).toBeCloseTo(before[0]! / before[3]!, 12);
+      expect(y! / w!).toBeCloseTo(before[1]! / before[3]!, 12);
+    }
   });
 });

@@ -19,31 +19,3 @@ html[data-world-presentation="split"] .foss-earth-sphere-return {
   display: grid;
   gap: 3px;
 }
-
-.foss-earth-headset {
-  align-items: center;
-}
-
-/* The instruction follows Enter VR on its line, wrapping within it so ? still ends the line. */
-.foss-earth-headset > .foss-earth-headset__where {
-  flex: 1 1 10em;
-  min-width: 0;
-}
-
-.foss-earth-headset__controls {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.foss-earth-headset__controls dt {
-  font-weight: 600;
-}
-
-.foss-earth-headset__controls dd {
-  margin: 0;
-  opacity: 0.72;
-}

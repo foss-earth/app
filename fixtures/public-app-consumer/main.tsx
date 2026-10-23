@@ -4,6 +4,7 @@ import * as runtime from "foss-earth/runtime";
 import * as shell from "foss-earth/shell";
 import * as input from "foss-earth/input";
 import * as windowing from "foss-earth/windowing";
+import * as immersive from "foss-earth/immersive";
 import * as layers from "foss-earth/layers";
 import * as lights from "foss-earth/lights";
 import * as cameraMath from "foss-earth/cameraMath";
@@ -22,11 +23,12 @@ import "foss-earth/style.css";
 import "foss-earth/input-mode.css";
 import "foss-earth/shell.css";
 import "foss-earth/windowing.css";
+import "foss-earth/immersive.css";
 
 // Static public assembly only: this consumer does not construct a renderer,
 // mount an application, open a socket or acquire browser/GPU resources.
 export const publicApp = {
-  app, runtime, shell, input, windowing, layers, lights, cameraMath,
+  app, runtime, shell, input, windowing, immersive, layers, lights, cameraMath,
   diagnostics, heights, drawing, mapDetail, perf, scenes, sceneSchema,
   settings, sky, weather, elevation,
 };

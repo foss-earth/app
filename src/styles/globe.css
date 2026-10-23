@@ -17,4 +17,5 @@
 @import "@foss-earth/about/panel.css";
 @import "@foss-earth/dev/panel.css";
 @import "./sphere.css";
+@import "./immersive.css";
 @import "@foss-earth/ui/theme.css";

@@ -7,13 +7,23 @@ export interface HeadsetPanel {
   destroy(): void;
 }
 
-const CONTROLS: readonly [string, string][] = [
-  ["Trigger or pinch", "Go through the link you point at, or open the photograph you point at on the map."],
-  ["Grip", "Leave the photograph for the map."],
+export interface HeadsetPanelOptions {
+  /** What VR shows, behind ?. */
+  about?: string;
+  /** Each control and what it does, in the order shown. */
+  controls?: readonly (readonly [string, string])[];
+}
+
+/** The globe's: its windows and toolbar, its photographs and their links. */
+export const HEADSET_CONTROLS: readonly (readonly [string, string])[] = [
+  ["Trigger or pinch", "Press what you point at on a window or the toolbar. Elsewhere, go through the link you point at, or open the photograph you point at on the map."],
+  ["Grip", "Hold a window to move it; let it go near its place to put it back. Elsewhere, leave the photograph for the map."],
+  ["Thumbstick up or down", "Scroll the window you point at, or push a held window away and bring it near."],
   ["Thumbstick left or right", "Turn 30°."],
+  ["+ on the toolbar", "Open a window, or a tab once both sides hold one."],
 ];
 
-export function createHeadsetPanel(document: Document, headset: HeadsetSession): HeadsetPanel {
+export function createHeadsetPanel(document: Document, headset: HeadsetSession, options: HeadsetPanelOptions = {}): HeadsetPanel {
   const element = document.createElement("div");
   element.className = "foss-earth-status-section foss-earth-choices foss-earth-headset";
   // "[Enter VR] Open this page in the headset's browser. [?]": what VR shows is behind ?.
@@ -21,7 +31,7 @@ export function createHeadsetPanel(document: Document, headset: HeadsetSession):
   where.className = "foss-earth-choices__note foss-earth-headset__where";
   where.textContent = "Open this page in the headset's browser.";
   const about = document.createElement("p");
-  about.textContent = "See the globe and its photographs around you in a VR headset.";
+  about.textContent = options.about ?? "See the globe and its photographs around you in a VR headset.";
   const help = createHelpTooltip({ label: "Explain VR", content: about });
   const button = document.createElement("button");
   button.type = "button";
@@ -31,7 +41,7 @@ export function createHeadsetPanel(document: Document, headset: HeadsetSession):
   status.setAttribute("role", "status");
   const controls = document.createElement("dl");
   controls.className = "foss-earth-headset__controls";
-  for (const [input, action] of CONTROLS) {
+  for (const [input, action] of options.controls ?? HEADSET_CONTROLS) {
     const term = document.createElement("dt");
     term.textContent = input;
     const detail = document.createElement("dd");

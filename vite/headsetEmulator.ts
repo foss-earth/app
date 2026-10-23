@@ -25,6 +25,20 @@ export function headsetEmulatorTag(base: string, client = CLIENT): HtmlTagDescri
   return { tag: "script", attrs: { type: "module", src }, injectTo: "head-prepend" };
 }
 
+/**
+ * The emulator's library as the dev server's optimizer names it: the app's
+ * own, or, for an app built on FOSS Earth without it, FOSS Earth's; null
+ * where neither has it.
+ */
+export function headsetEmulatorDependency(resolves: { fromApp(id: string): boolean; fromEmulator(id: string): boolean }): string | null {
+  if (resolves.fromApp("iwer")) return "iwer";
+  return resolves.fromApp("foss-earth") && resolves.fromEmulator("iwer") ? "foss-earth > iwer" : null;
+}
+
+const resolvesFrom = (file: string) => (id: string): boolean => {
+  try { createRequire(file).resolve(id); return true; } catch { return false; }
+};
+
 export function headsetEmulator(): Plugin {
   let base = "/";
   return {
@@ -33,8 +47,8 @@ export function headsetEmulator(): Plugin {
     config(config) {
       // Prepared with the other dependencies, so a first emulated page does not reload the dev server's.
       const root = path.resolve(config.root ?? process.cwd());
-      try { createRequire(path.join(root, "package.json")).resolve("iwer"); } catch { return; }
-      return { optimizeDeps: { include: ["iwer"] } };
+      const dependency = headsetEmulatorDependency({ fromApp: resolvesFrom(path.join(root, "package.json")), fromEmulator: resolvesFrom(CLIENT) });
+      return dependency ? { optimizeDeps: { include: [dependency] } } : undefined;
     },
     configResolved(config) { base = config.base; },
     transformIndexHtml(_html, context) {

@@ -52,8 +52,10 @@ import { LAYER_STORAGE_KEY } from "./layerEditor/layerStore";
 import { createLinkOverrides } from "./linkEditor/linkOverrides";
 import { createLinkEditor } from "./linkEditor/editor";
 import { openingOptions, lookUpOpening, createOpeningViews, type OpeningLook, type OpeningMode } from "./openingView";
+import { readPanoramaLookSettings } from "../input/panoramaLook";
 import { createHeadsetSession, type HeadsetSession } from "./immersive/headsetSession";
 import { createHeadsetTour, type HeadsetLink } from "./immersive/headsetTour";
+import { HEADSET_UI_SELECTORS } from "./immersive/headsetUi";
 
 export interface EarthSceneHostOptions {
   browser: Awaited<ReturnType<typeof createEarthBrowserRuntime>>;
@@ -118,10 +120,7 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
   let headset: HeadsetSession | null = null;
   const viewerSettings = (): ViewerSettings => ({
     appearance: appearance(),
-    look: { dragMode: dragMode(), dragSensitivity: n("dragSensitivity"), swipeSensitivity: n("swipeSensitivity"),
-      lookRate: n("lookRate"), zoomPerNotch: n("zoomPerNotch"), zoomRate: n("zoomRate"),
-      pinchGain: n("pinchGain"), inertiaHalfLifeMs: n("inertiaHalfLife"),
-      fovRangeDeg: range("verticalFovRange"), pitchRangeDeg: range("pitchRange"), reducedMotion: reducedMotion() },
+    look: readPanoramaLookSettings(settings, reducedMotion()),
     entryOrientation: settings.get("scene.panorama.entryOrientation") === "authored" ? "authored" : "geographic",
     entryFovDeg: typeof settings.get("scene.panorama.entryFov") === "number" ? n("entryFov") : null,
     flightDurationMs: !restoringView && !reducedMotion() && typeof settings.get("scene.panorama.flightDuration") === "number" ? n("flightDuration") : 0,
@@ -510,7 +509,8 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         cleanup.push(() => { poseEditorGone = true; poseEditor?.dispose(); });
       }
     }
-    const hotspots = createSceneHotspots({ document, controller, container: canvas.parentElement ?? canvas });
+    const hotspots = createSceneHotspots({ document, controller, container: canvas.parentElement ?? canvas, surface: canvas,
+      dragThresholdPx: () => settings.get<number>("input.mouse.dragThreshold") });
     cleanup.push(() => hotspots.destroy());
     const headsetLinks = (): readonly HeadsetLink[] => {
       const status = viewer.status();
@@ -540,6 +540,14 @@ export function createEarthSceneHost(options: EarthSceneHostOptions) {
         return { position: [eye.x, eye.y, eye.z], forward: [-view[2]!, -view[6]!, -view[10]!] };
       },
       globeCamera: () => runtime.geospatialCamera,
+      layerMask: 0x0fffffff | NAVIGATION_PRESENTATION_LAYER,
+      ui: {
+        document,
+        selectors: { popups: `${HEADSET_UI_SELECTORS.popups}, .modal-overlay:not([hidden]) .modal-card` },
+        // The map's labels stand over the flat view, which the headset does not show.
+        never: ".foss-earth-scene-hotspots",
+        seeThrough: ".globe-shell",
+      },
       createTour: () => createHeadsetTour({
         scene: runtime.scene, layerMask: 0x0fffffff | NAVIGATION_PRESENTATION_LAYER, links: headsetLinks,
         pickImages: ray => controller.handle() ? viewer.pickRay?.(ray.origin, ray.direction) ?? [] : [],

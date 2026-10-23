@@ -10,6 +10,8 @@
     "./shell": "./src/shell/index.ts",
     "./input": "./src/input/public.ts",
     "./input-mode.css": "./src/styles/input-mode.css",
+    "./immersive": "./src/compat/immersive.ts",
+    "./immersive.css": "./src/styles/immersive.css",
     "./shell.css": "./src/styles/shell.css",
     "./windowing": "./src/compat/windowing.ts",
     "./windowing.css": "./src/styles/windowing.css",

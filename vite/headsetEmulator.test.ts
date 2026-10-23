@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { IndexHtmlTransformContext, Plugin, ResolvedConfig } from "vite";
 import { describe, expect, it } from "vitest";
-import { headsetEmulator, headsetEmulatorRequested, headsetEmulatorTag } from "./headsetEmulator";
+import { headsetEmulator, headsetEmulatorDependency, headsetEmulatorRequested, headsetEmulatorTag } from "./headsetEmulator";
 
 type Hook = (this: unknown, ...args: never[]) => unknown;
 const call = (hook: Plugin[keyof Plugin], ...args: unknown[]): unknown =>
@@ -27,6 +27,13 @@ describe("headsetEmulator", () => {
     const plugin = headsetEmulator();
     expect(call(plugin.config, { root: path.resolve(import.meta.dirname, "..") })).toEqual({ optimizeDeps: { include: ["iwer"] } });
     expect(call(plugin.config, { root: path.parse(import.meta.dirname).root })).toBeUndefined();
+  });
+
+  it("reaches it through FOSS Earth for an app that does not have it", () => {
+    const has = (...ids: string[]) => (id: string) => ids.includes(id);
+    expect(headsetEmulatorDependency({ fromApp: has("foss-earth"), fromEmulator: has("iwer") })).toBe("foss-earth > iwer");
+    expect(headsetEmulatorDependency({ fromApp: has("iwer", "foss-earth"), fromEmulator: has("iwer") })).toBe("iwer");
+    expect(headsetEmulatorDependency({ fromApp: has(), fromEmulator: has("iwer") })).toBeNull();
   });
 
   it("reads the request, whatever else it asks", () => {

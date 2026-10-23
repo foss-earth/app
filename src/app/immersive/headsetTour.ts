@@ -1,12 +1,13 @@
 /**
  * What a headset shows and does on the tour: the open photograph's links as
- * markers to point at, the controllers' pointer rays, and following a link or
- * entering a photograph on the map with a controller's trigger or a pinch.
+ * markers to point at, and following a link or entering a photograph on the
+ * map with a controller's trigger or a pinch. The session draws the rays.
  */
 import {
-  Color3, Constants, DynamicTexture, Matrix, Mesh, CreateCylinder, CreateDisc, CreatePlane, Quaternion, StandardMaterial, Vector3, type Scene,
+  Color3, Constants, DynamicTexture, Matrix, Mesh, CreateDisc, CreatePlane, Quaternion, StandardMaterial, type Scene,
 } from "@babylonjs/core";
 import { add, cross, scale, sub, type Vec3 } from "@foss-earth/engine";
+import { HEADSET_ACTIVE as ACTIVE, HEADSET_OVERLAY_GROUP as OVERLAY_GROUP } from "./headsetPointers";
 import { pointedAt } from "./xrMath";
 
 export interface HeadsetRay { origin: Vec3; direction: Vec3 }
@@ -42,20 +43,14 @@ const MARKER_DISTANCE = 10;
 const MARKER_RADIUS = 0.3;
 /** A marker is pointed at within this angle of its centre, as seen from the controller. */
 const MARKER_REACH_DEG = 4;
-const LASER_LENGTH = 30;
-const LASER_DIAMETER = 0.006;
-/** Drawn after the photograph (group 2), with the device-position marker. */
-const OVERLAY_GROUP = 3;
 
 const IDLE = new Color3(1, 1, 1);
-const ACTIVE = new Color3(0.35, 0.75, 1);
 
 type Marker = { link: HeadsetLink; disc: Mesh; label: Mesh; material: StandardMaterial; texture: DynamicTexture; labelMaterial: StandardMaterial };
 
 export function createHeadsetTour(options: HeadsetTourOptions): HeadsetTour {
   const { scene } = options;
   const markers = new Map<string, Marker>();
-  const lasers: Mesh[] = [];
   let hoveredLink: string | null = null;
   let hoveredImage: string | null = null;
   let disposed = false;
@@ -74,9 +69,6 @@ export function createHeadsetTour(options: HeadsetTourOptions): HeadsetTour {
     mesh.rotationQuaternion = new Quaternion();
     return mesh;
   };
-  const laserMaterial = overlay(new StandardMaterial("headset-laser", scene));
-  laserMaterial.emissiveColor = ACTIVE;
-  laserMaterial.alpha = 0.7;
 
   function createMarker(link: HeadsetLink): Marker {
     const material = overlay(new StandardMaterial(`headset-link-${link.id}`, scene));
@@ -178,22 +170,6 @@ export function createHeadsetTour(options: HeadsetTourOptions): HeadsetTour {
         marker.material.alpha = active ? 0.9 : 0.55;
         marker.disc.scaling.setAll(active ? 1.3 : 1);
       }
-      while (lasers.length < rays.length) {
-        const laser = place(CreateCylinder(`headset-laser-${lasers.length}`, { height: 1, diameter: LASER_DIAMETER, tessellation: 8 }, scene));
-        laser.material = laserMaterial;
-        lasers.push(laser);
-      }
-      lasers.forEach((laser, index) => {
-        const ray = rays[index];
-        laser.setEnabled(ray !== undefined);
-        if (!ray) return;
-        const direction = normalize(ray.direction);
-        const middle = add(ray.origin, scale(direction, LASER_LENGTH / 2));
-        laser.position.set(middle[0], middle[1], middle[2]);
-        laser.scaling.set(1, LASER_LENGTH, 1);
-        // A cylinder's axis is its y.
-        Quaternion.FromUnitVectorsToRef(Vector3.Up(), new Vector3(direction[0], direction[1], direction[2]), laser.rotationQuaternion!);
-      });
     },
     select(ray) {
       if (disposed) return;
@@ -211,8 +187,6 @@ export function createHeadsetTour(options: HeadsetTourOptions): HeadsetTour {
       if (hoveredImage) options.hoverImage(null);
       for (const marker of markers.values()) disposeMarker(marker);
       markers.clear();
-      for (const laser of lasers.splice(0)) laser.dispose();
-      laserMaterial.dispose();
     },
   };
 }

@@ -10,6 +10,7 @@ export { type HudInputMode, type InputSensitivitySettings, DEFAULT_ORBIT_INVERT_
   type GlobeNavigationActionId, type GlobeNavigationIntent, type GlobeNavigationIntentFrame } from "@foss-earth/engine";
 export { GLOBE_GAMEPAD_ACTIONS, STANDARD_GLOBE_PROFILE_ID, STANDARD_GLOBE_PROFILE_NAME, type GlobeGamepadAdapterOptions, type GlobeNavigationTarget } from "@foss-earth/engine/gamepad";
 export { SPHERE_GAMEPAD_ACTIONS } from "@foss-earth/sphere-image";
+export { attachPanoramaLook, type LookState, type PanoramaLookBinding, type PanoramaLookOptions } from "./panoramaLook";
 export const loadInputModePreference = (modes: ReadonlySet<HudInputMode>): HudInputMode => preferences.loadInputModePreference(getAppSettings(), modes);
 export const saveInputModePreference = (mode: HudInputMode): void => preferences.saveInputModePreference(getAppSettings(), mode);
 export const loadInputSensitivityPreference = (): InputSensitivitySettings => preferences.loadInputSensitivityPreference(getAppSettings());

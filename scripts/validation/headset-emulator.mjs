@@ -4,9 +4,13 @@
  * with `?headsetEmulator=quest3` (vite/headsetEmulator.ts) and goes through a
  * visit as a headset would: the VR tab offered, Enter VR, both eyes drawn,
  * looking around, a snap turn, a photograph opened from the map with the
- * trigger, a link followed, the grip back to the map, and the session ended.
+ * trigger, a link followed, the grip back to the map; then the page's
+ * interface in the headset: the toolbar below the view, its "+" opening a
+ * window, the thumbstick scrolling it, the grip floating it and putting it
+ * back, a toolbar button pressed; and the session ended. It drives the
+ * headset with the page's `window.__fossEarthHeadset` (src/dev/headsetEmulator.ts).
  *
- *   npm run check:headset [-- --url=http://127.0.0.1:5173/app/] [--scene=<id>|page] [--binary=<chrome>] [--output=build/headset/<name>]
+ *   npm run check:headset [-- --url=http://127.0.0.1:3600/app/] [--scene=<id>|page] [--binary=<chrome>] [--output=build/headset/<name>]
  *
  * Without --url it starts the app's dev server on a free port. --url takes any
  * page that mounts the app from a dev server with the headset emulator, such as
@@ -167,15 +171,6 @@ function installProbe() {
       return handle ? Promise.race([handle.whenSettled().then(() => true), new Promise(resolve => setTimeout(() => resolve(false), timeoutMs))]) : false;
     },
     lasers: () => scene.meshes.filter(mesh => mesh.name.startsWith('headset-laser-') && mesh.isEnabled()).length,
-    aim(hand, local) { return device.remote.dispatch('look_at', { device: `controller-${hand}`, target: { x: local[0], y: local[1], z: local[2] } }); },
-    /** Turns the head `yawDeg` to the left and `pitchDeg` up, as a level head turns and then tilts. */
-    turnHead(yawDeg, pitchDeg = 0) {
-      const h = yawDeg * Math.PI / 360, p = pitchDeg * Math.PI / 360;
-      const [sy, cy, sp, cp] = [Math.sin(h), Math.cos(h), Math.sin(p), Math.cos(p)];
-      return device.remote.dispatch('set_transform', { device: 'headset', orientation: { x: cy * sp, y: sy * cp, z: -sy * sp, w: cy * cp } });
-    },
-    button(hand, id, value) { device.controllers[hand].updateButtonValue(id, value); },
-    stick(hand, x, y) { device.controllers[hand].updateAxes('thumbstick', x, y); },
     endSession() { return device.activeSession?.end(); },
     canvasRestored() { const canvas = engine.getRenderingCanvas(); return Boolean(canvas && !canvas.closest('[data-webxr_runtime]')); },
   };
@@ -207,6 +202,7 @@ export async function run(options, injected = {}) {
     report.browser = { product: page.product, facts: page.facts };
     const evaluate = expression => page.evaluate(expression);
     const probe = (call, ...args) => evaluate(`window.__headsetProbe.${call}(${args.map(arg => JSON.stringify(arg)).join(', ')})`);
+    const headset = (call, ...args) => evaluate(`window.__fossEarthHeadset.${call}(${args.map(arg => JSON.stringify(arg)).join(', ')})`);
     /** The first value that passes, or the last one read once the time is up. */
     const poll = async (read, test, timeoutMs) => {
       const until = Date.now() + timeoutMs;
@@ -223,15 +219,13 @@ export async function run(options, injected = {}) {
       if (!ok) record(name, false, value);
       return value;
     };
-    const press = async (id) => {
-      await probe('button', 'right', id, 1);
-      await probe('afterFrames', 3);
-      await probe('button', 'right', id, 0);
-    };
+    const press = id => headset('click', 'right', id);
     const screenshot = async name => {
       const file = path.join(options.output, `${name}.png`);
       await writeFile(file, await page.screenshot());
-      report.screenshots.push(path.relative(APP_ROOT, file));
+      // What the headset showed then: each panel, the part of the page it shows, and what each hand points at.
+      const shown = await evaluate(`(() => { const state = window.__fossEarthHeadset?.state(); return state?.headset === 'presenting' ? { panels: state.panels.map(panel => ({ id: panel.id, floating: panel.floating, source: panel.source, center: panel.pose.center })), hands: state.hands } : null; })()`);
+      report.screenshots.push(shown ? { file: path.relative(APP_ROOT, file), headset: shown } : path.relative(APP_ROOT, file));
     };
 
     const url = pageUrl(base, options.scene);
@@ -267,29 +261,29 @@ export async function run(options, injected = {}) {
     await screenshot('2-map-in-vr');
 
     const before = await probe('headForward');
-    await probe('turnHead', 90);
+    await headset('look', -90);
     await probe('afterFrames', 5);
     const after = await probe('headForward');
     const headTurn = await evaluate(`window.__headsetProbe.angleDeg(${JSON.stringify(before)}, ${JSON.stringify(after)})`);
     record('Turning the head turns the view', Math.abs(headTurn - 90) < 3, { headTurnDeg: headTurn });
-    await probe('turnHead', 0, -60);
+    await headset('look', 0, -60);
     const below = await waitFor('Looking down shows the map', () => probe('pixels'), value => value.left.spread > 12 && value.right.spread > 12);
     record('Looking down shows the map', true, below);
     await screenshot('2b-map-below-in-vr');
-    await probe('turnHead', 0);
+    await headset('look', 0);
     await probe('afterFrames', 5);
 
     const spaceBefore = await probe('spaceForward');
-    await probe('stick', 'right', 1, 0);
+    await headset('stick', 'right', 1, 0);
     await probe('afterFrames', 5);
-    await probe('stick', 'right', 0, 0);
+    await headset('stick', 'right', 0, 0);
     await probe('afterFrames', 5);
     const spaceAfter = await probe('spaceForward');
     const snap = await evaluate(`window.__headsetProbe.angleDeg(${JSON.stringify(spaceBefore)}, ${JSON.stringify(spaceAfter)})`);
     record('The thumbstick turns 30°, once per push', Math.abs(snap - 30) < 1, { turnDeg: snap });
-    await probe('stick', 'right', -1, 0);
+    await headset('stick', 'right', -1, 0);
     await probe('afterFrames', 5);
-    await probe('stick', 'right', 0, 0);
+    await headset('stick', 'right', 0, 0);
     await probe('afterFrames', 5);
     record('Each controller has a pointer', await probe('lasers') >= 1, { lasers: await probe('lasers') });
 
@@ -300,7 +294,7 @@ export async function run(options, injected = {}) {
     for (let attempt = 0; ; attempt++) {
       photograph = await waitFor('A photograph on the map is in reach of the controller', () => probe('findPhotograph', report.withoutHeadsetLinks), Boolean);
       if (attempt === 0) record('A photograph on the map is in reach of the controller', true, photograph);
-      await probe('aim', 'right', photograph.local);
+      await headset('aim', 'right', photograph.local);
       await probe('afterFrames', 5);
       await press('trigger');
       const entered = await waitFor('The trigger opens the photograph it points at', () => probe('state'), value => value.status?.active === photograph.id && value.status.phase === 'immersive');
@@ -321,7 +315,7 @@ export async function run(options, injected = {}) {
     record('Both eyes show the photograph', true, { ...photo, settled: report.photographSettled });
     await screenshot('3-photograph-in-vr');
 
-    await probe('aim', 'right', links[0].local);
+    await headset('aim', 'right', links[0].local);
     const hovered = await waitFor('Pointing at a link marks it', () => probe('links'), value => value.find(link => link.id === links[0].id)?.scale > 1.2);
     record('Pointing at a link marks it', true, hovered);
     await press('trigger');
@@ -331,6 +325,63 @@ export async function run(options, injected = {}) {
     await press('squeeze');
     const back = await waitFor('The grip goes back to the map', () => probe('state'), value => value.status?.active === null && value.status.phase === 'overview');
     record('The grip goes back to the map', true, back.status);
+
+    // The page's interface: each panel a part of the page, pointed at and
+    // pressed as a mouse would be.
+    const ui = await waitFor('The toolbar shows below the view, a "+" at its left end', () => headset('state'),
+      value => value.revision > 0 && value.panels.some(panel => panel.id === 'plus') && value.panels.some(panel => panel.kind === 'toolbar'));
+    const plus = ui.panels.find(panel => panel.id === 'plus'), bar = ui.panels.filter(panel => panel.kind === 'toolbar');
+    /** How far `to` is from `from` along `axis`. */
+    const along = (from, to, axis) => (to[0] - from[0]) * axis[0] + (to[1] - from[1]) * axis[1] + (to[2] - from[2]) * axis[2];
+    record('The toolbar shows below the view, a "+" at its left end', plus.pose.center[1] < ui.head.position[1] - 0.1
+      && bar.every(part => along(plus.pose.center, part.pose.center, plus.pose.right) > 0 && part.pose.center[1] < ui.head.position[1] - 0.1),
+      { head: ui.head, plus: plus.pose.center, toolbar: bar.map(part => ({ id: part.id, source: part.source, center: part.pose.center })) });
+
+    await headset('tap', { panel: 'plus' });
+    const menu = await waitFor('The "+" opens the window menu', () => evaluate(`(() => ({ items: [...document.querySelectorAll('.foss-earth-window-menu-item')].map(item => item.textContent.trim()), panels: window.__fossEarthHeadset.state().panels.filter(panel => panel.kind === 'popup').map(panel => panel.id) }))()`),
+      value => value.items.length > 0 && value.panels.length > 0);
+    record('The "+" opens the window menu', true, menu);
+    // Sky's settings run longer than a window, for the thumbstick to scroll.
+    const choice = menu.items.includes('Sky') ? 'Sky' : menu.items[0];
+    await evaluate(`[...document.querySelectorAll('.foss-earth-window-menu-item')].find(item => item.textContent.trim() === ${JSON.stringify(choice)}).setAttribute('data-headset-check', '')`);
+    const windowsBefore = new Set(ui.panels.filter(panel => panel.kind === 'window').map(panel => panel.id));
+    await headset('tap', '[data-headset-check]');
+    const opened = await waitFor('Choosing a window opens it beside the view', () => headset('state'),
+      value => value.panels.some(panel => panel.kind === 'window' && !windowsBefore.has(panel.id)) && !value.panels.some(panel => panel.kind === 'popup'));
+    const shown = opened.panels.find(panel => panel.kind === 'window' && !windowsBefore.has(panel.id));
+    const [fx, , fz] = opened.head.forward, level = Math.hypot(fx, fz) || 1;
+    record('Choosing a window opens it beside the view', Math.abs(along(opened.head.position, shown.pose.center, [-fz / level, 0, fx / level])) > 0.1,
+      { window: choice, id: shown.id, source: shown.source, center: shown.pose.center });
+
+    const body = `document.querySelector('.foss-earth-dock-panel[data-side=${shown.side}] .foss-earth-dock-panel-body')`;
+    const scrolled = () => evaluate(`(() => { const body = ${body}; return { top: body?.scrollTop ?? null, height: body?.scrollHeight ?? null, shown: body?.clientHeight ?? null, revision: window.__fossEarthHeadset.state().revision }; })()`);
+    const unscrolled = await scrolled();
+    await headset('aim', 'right', { panel: shown.id, u: 0.5, v: 0.6 });
+    await headset('scroll', 'right', 1, 20);
+    const scroll = await waitFor('The thumbstick scrolls the window pointed at', scrolled, value => value.top > unscrolled.top && value.revision > unscrolled.revision);
+    const popups = (await headset('state')).panels.filter(panel => panel.kind === 'popup').map(panel => ({ id: panel.id, source: panel.source, center: panel.pose.center }));
+    record('The thumbstick scrolls the window pointed at', true, { before: unscrolled, after: scroll, popups });
+    await screenshot('5-interface-in-vr');
+
+    // Where the window stands, seen from the eye; the grip takes it 20° up and away, then back.
+    const [ex, ey, ez] = opened.head.position, [cx, cy, cz] = shown.pose.center;
+    const rightDeg = Math.atan2(cx - ex, -(cz - ez)) * 180 / Math.PI, upDeg = Math.atan2(cy - ey, Math.hypot(cx - ex, cz - ez)) * 180 / Math.PI;
+    const away = await headset('move', shown.id, rightDeg + (shown.side === 'left' ? 15 : -15), upDeg + 20);
+    const floated = away.panels.find(panel => panel.id === shown.id);
+    record('The grip floats a window', floated?.floating === true, { center: floated?.pose.center });
+    await screenshot('6-floating-window-in-vr');
+    const home = await headset('move', shown.id, rightDeg, upDeg);
+    const docked = home.panels.find(panel => panel.id === shown.id);
+    record('Let go near its place, it goes back', docked?.floating === false, { center: docked?.pose.center, place: shown.pose.center });
+
+    const theme = () => evaluate('document.documentElement.dataset.theme ?? null');
+    if (await evaluate(`Boolean(document.querySelector('.theme-button'))`)) {
+      const was = await theme();
+      await headset('tap', '.theme-button');
+      const now = await waitFor('A toolbar button presses from the headset', theme, value => value !== was);
+      record('A toolbar button presses from the headset', true, { theme: [was, now] });
+      await headset('tap', '.theme-button');
+    } else console.log('     The page has no theme button on its toolbar to press');
 
     await probe('endSession');
     const ended = await waitFor('Ending the session hands the page back', () => probe('state'), value => value.headset === 'ready' && !value.session && value.activeCamera !== 'headset-camera');

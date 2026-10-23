@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const owner = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = path.join(owner, "fixtures", "public-app-consumer");
-const routes = [".", "./runtime", "./shell", "./input", "./input-mode.css", "./shell.css", "./windowing", "./windowing.css", "./layers", "./lights", "./cameraMath", "./diagnostics", "./heights", "./diagnosticDrawing", "./mapDetailPolicy", "./perf", "./scenes", "./scenes/schema.json", "./settings", "./sky", "./weather", "./smoothElevation", "./style.css", "./vite"];
+const routes = [".", "./runtime", "./shell", "./input", "./input-mode.css", "./immersive", "./immersive.css", "./shell.css", "./windowing", "./windowing.css", "./layers", "./lights", "./cameraMath", "./diagnostics", "./heights", "./diagnosticDrawing", "./mapDetailPolicy", "./perf", "./scenes", "./scenes/schema.json", "./settings", "./sky", "./weather", "./smoothElevation", "./style.css", "./vite"];
 const runtimeVersions = {
   "foss-earth": "0.1.0",
   ...Object.fromEntries(["ui", "renderer", "engine", "toolbar", "about", "dev", "sky", "weather", "images", "rectangle-image", "image-viewer", "scenes", "sphere-cubemap", "sphere-equirectangular", "sphere-tiled-cubemap", "preview-sheets"].map(name => [`@foss-earth/${name}`, "0.1.0"])),
@@ -293,7 +293,7 @@ try {
     }
   }
   receipt.buildProof = proof; receipt.outputFiles = outputProof(distribution);
-  receipt.checks = ["All sealed input digests/bytes and runtime archive package identities", "Fresh offline scripts-disabled npm ci with unchanged sealed consumer lock", "Every installed package version/path matched consumer lock; full installed file map retained", "Every packed app file matched actual installed bytes", "Runtime/provider dependency edges and built modules converged on one physical package inside workspace", "Strict export-aware Bundler TypeScript consumed all 20 non-CSS public routes", "Declaration/realpath/private-export negative controls", "Actual Vite build consumed all 24 routes/four CSS routes and three plugins; packed service-worker bytes emitted"];
+  receipt.checks = ["All sealed input digests/bytes and runtime archive package identities", "Fresh offline scripts-disabled npm ci with unchanged sealed consumer lock", "Every installed package version/path matched consumer lock; full installed file map retained", "Every packed app file matched actual installed bytes", "Runtime/provider dependency edges and built modules converged on one physical package inside workspace", "Strict export-aware Bundler TypeScript consumed all 21 non-CSS public routes", "Declaration/realpath/private-export negative controls", "Actual Vite build consumed all 26 routes/five CSS routes and three plugins; packed service-worker bytes emitted"];
   receipt.status = "passed";
 } catch (error) {
   receipt.status = "failed"; receipt.failure = { name: error?.name ?? "Error", message: error?.message ?? String(error), stack: error?.stack ?? null };
