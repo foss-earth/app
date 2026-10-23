@@ -9,12 +9,15 @@
  */
 export {
   createHeadsetSession, HEADSET_SESSION_EVENT,
-  type HeadsetInspection, type HeadsetPlace, type HeadsetSession, type HeadsetSessionOptions, type HeadsetState,
+  type HeadsetBranch, type HeadsetInspection, type HeadsetPlace, type HeadsetSession, type HeadsetSessionOptions, type HeadsetState,
 } from "../app/immersive/headsetSession";
 export {
   HEADSET_UI_SELECTORS,
   type HeadsetSurface, type HeadsetUi, type HeadsetUiInspection, type HeadsetUiParts, type HeadsetUiSelectors,
 } from "../app/immersive/headsetUi";
-export { createHeadsetPanel, HEADSET_CONTROLS, offerHeadsetTab, type HeadsetPanel, type HeadsetPanelOptions } from "../app/immersive/headsetPanel";
+export {
+  createHeadsetPanel, HEADSET_CONTROLS, HEADSET_CONTROLLER_CONTROLS, HEADSET_CONTROLLERLESS_CONTROLS, offerHeadsetTab,
+  type HeadsetPanel, type HeadsetPanelOptions,
+} from "../app/immersive/headsetPanel";
 export type { ImmersiveFrames } from "../app/immersive/frames";
 export { headsetFramesOf } from "../app/runtimeCompatibility";

@@ -1,56 +1,80 @@
 #!/usr/bin/env node
 /**
- * VR on an emulated headset: headless Chrome opens the app from the dev server
- * with `?headsetEmulator=quest3` (vite/headsetEmulator.ts) and goes through a
- * visit as a headset would: the VR tab offered, Enter VR, both eyes drawn,
- * looking around, a snap turn, a photograph opened from the map with the
- * trigger, a link followed, the grip back to the map; then the page's
- * interface in the headset: the toolbar below the view, its "+" opening a
- * window, the thumbstick scrolling it, the grip floating it and putting it
- * back, a toolbar button pressed; and the session ended. It drives the
- * headset with the page's `window.__fossEarthHeadset` (src/dev/headsetEmulator.ts).
+ * VR on an emulated headset. Headless Chrome opens the app from the dev server
+ * with `?headsetEmulator=` (vite/headsetEmulator.ts). This file enters VR,
+ * checks both eyes and the head, then runs one visit: the controller visit
+ * (headset-controller.mjs) for Quest 2, Quest 3, and Quest Pro, or the
+ * controllerless visit (headset-controllerless.mjs) for Vision Pro. It drives
+ * the headset with `window.__fossEarthHeadset` (src/dev/headsetEmulator.ts).
  *
- *   npm run check:headset [-- --url=http://127.0.0.1:3600/app/] [--scene=<id>|page] [--binary=<chrome>] [--output=build/headset/<name>]
+ *   npm run check:headset [-- --device=quest2|quest3|questPro|visionpro] [-- --comprehensive]
+ *     [--url=http://127.0.0.1:3600/app/] [--scene=<id>|page] [--binary=<chrome>] [--output=build/headset/<name>]
  *
- * Without --url it starts the app's dev server on a free port. --url takes any
- * page that mounts the app from a dev server with the headset emulator, such as
- * a tour's; --scene=page keeps that page's own scene in place of the linked
- * example pair. The report and
- * screenshots go to a new directory under build/headset/. It needs a Chrome
- * with WebGL 2 and, for the map and photographs, the network.
+ * The default device is Quest 2. --comprehensive runs Quest 2, then Quest 3,
+ * then Vision Pro, and stops at the first failure. It cannot be combined with
+ * --device. Without --url the check starts the app's dev server. --url takes
+ * any page that mounts the app from a dev server with the headset emulator,
+ * such as a tour's; --scene=page keeps that page's own scene. The report and
+ * screenshots go under build/headset/. It needs a Chrome with WebGL 2 and,
+ * for the map and photographs, the network.
  */
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { controllerVisit } from './headset-controller.mjs';
+import { controllerlessVisit } from './headset-controllerless.mjs';
 
 const APP_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 export const SCENE = 'campus-pair';
 export const LIMITS = Object.freeze({ startupMs: 90000, conditionMs: 30000, commandMs: 30000, closeMs: 10000 });
+export const HEADSET_DEVICES = Object.freeze(['quest2', 'quest3', 'questPro', 'visionpro']);
+export const DEVICE_NAMES = Object.freeze({
+  quest2: 'Meta Quest 2', quest3: 'Meta Quest 3', questPro: 'Meta Quest Pro', visionpro: 'Apple Vision Pro',
+});
+export const DEVICE_BRANCH = Object.freeze({
+  quest2: 'controller', quest3: 'controller', questPro: 'controller', visionpro: 'controllerless',
+});
+const COMPREHENSIVE_DEVICES = ['quest2', 'quest3', 'visionpro'];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export function parseOptions(argv, env = process.env, exists = existsSync) {
   const values = new Map();
+  let comprehensive = false;
   for (const arg of argv) {
-    const match = /^--(url|scene|binary|output)=(.+)$/.exec(arg);
+    if (arg === '--comprehensive') {
+      if (comprehensive) throw new Error('Unknown or repeated option: --comprehensive');
+      comprehensive = true;
+      continue;
+    }
+    const match = /^--(url|scene|binary|output|device)=(.+)$/.exec(arg);
     if (!match || values.has(match[1])) throw new Error(`Unknown or repeated option: ${arg.split('=')[0]}`);
     values.set(match[1], match[2]);
   }
+  if (comprehensive && values.has('device')) throw new Error('--comprehensive and --device together are an error.');
+  const device = values.get('device') ?? 'quest2';
+  if (!HEADSET_DEVICES.includes(device)) throw new Error(`Unknown device "${device}". Known: ${HEADSET_DEVICES.join(', ')}.`);
   const binary = values.get('binary') ?? env.CHROME_BINARY ?? (exists(MAC_CHROME) ? MAC_CHROME : null);
   if (!binary) throw new Error('Name a Chrome with --binary= or CHROME_BINARY.');
   const url = values.has('url') ? new URL(values.get('url')) : null;
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const output = path.resolve(APP_ROOT, values.get('output') ?? path.join('build', 'headset', stamp));
   if (!output.startsWith(path.join(APP_ROOT, 'build') + path.sep)) throw new Error('The output goes under build/.');
-  return { url, scene: values.get('scene') ?? SCENE, binary, output };
+  return { url, scene: values.get('scene') ?? SCENE, binary, output, device, comprehensive };
 }
 
-/** The page address: the app with the emulated headset, its test hooks and the scene, or the page's own with "page". */
-export function pageUrl(base, scene = SCENE) {
+/**
+ * The page address: the app with the emulated headset, its test hooks and the
+ * scene, or the page's own with "page". The + menu is the dropdown picker.
+ * The app's own default opens a new tab instead, and the visits open a window
+ * from that menu.
+ */
+export function pageUrl(base, scene = SCENE, device = 'quest2') {
   const url = new URL(base);
-  url.searchParams.set('headsetEmulator', 'quest3');
+  url.searchParams.set('headsetEmulator', device);
   url.searchParams.set('panoramaTest', '1');
+  url.searchParams.set('set.interface.windows.tabPicker', 'dropdown');
   if (scene !== 'page') url.searchParams.set('scene', scene);
   return url;
 }
@@ -88,7 +112,7 @@ function installProbe() {
       const until = frames + count;
       return new Promise(resolve => { const observer = scene.onAfterRenderObservable.add(() => { if (frames >= until) { scene.onAfterRenderObservable.remove(observer); resolve(frames); } }); });
     },
-    state: () => ({ headset: test.headset.state, reason: test.headset.reason, session: Boolean(device.activeSession), activeCamera: scene.activeCamera?.name ?? null, frames, status: status() }),
+    state: () => ({ headset: test.headset.state, branch: test.headset.branch ?? null, reason: test.headset.reason, session: Boolean(device.activeSession), activeCamera: scene.activeCamera?.name ?? null, frames, status: status(), sources: [...device.inputSources].map(source => source.targetRayMode) }),
     renderer: () => ({ mode: test.runtime.renderer.mode ?? null, webGPU: Boolean(engine.isWebGPU), webGLVersion: engine.webGLVersion ?? null }),
     tab() {
       const panel = document.querySelector('.foss-earth-headset');
@@ -186,9 +210,9 @@ async function startDevServer() {
   return { url: new URL(url), close: () => server.close() };
 }
 
-export async function run(options, injected = {}) {
+async function runVisit(options, injected = {}) {
   await mkdir(options.output, { recursive: true });
-  const report = { schemaVersion: 1, startedAt: new Date().toISOString(), scene: options.scene, checks: [], screenshots: [] };
+  const report = { schemaVersion: 1, device: options.device, branch: DEVICE_BRANCH[options.device], startedAt: new Date().toISOString(), scene: options.scene, checks: [], screenshots: [] };
   const record = (name, ok, observed) => { report.checks.push({ name, ok, observed }); console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `: ${JSON.stringify(observed)}`}`); if (!ok) throw Object.assign(new Error(name), { recorded: true }); };
   let server = null, page = null;
   try {
@@ -228,12 +252,12 @@ export async function run(options, injected = {}) {
       report.screenshots.push(shown ? { file: path.relative(APP_ROOT, file), headset: shown } : path.relative(APP_ROOT, file));
     };
 
-    const url = pageUrl(base, options.scene);
+    const url = pageUrl(base, options.scene, options.device);
     report.url = url.href;
     await page.navigate(url);
     const emulator = await waitFor('The emulated headset answers WebXR', () => evaluate(`(async () => ({ device: window.__fossEarthHeadsetEmulator?.name ?? null, vr: await navigator.xr?.isSessionSupported('immersive-vr') }))()`),
       value => value.device && value.vr === true, LIMITS.startupMs);
-    record('The emulated headset answers WebXR', true, emulator);
+    record('The emulated headset answers WebXR', emulator.device === DEVICE_NAMES[options.device] && emulator.vr === true, { ...emulator, expected: DEVICE_NAMES[options.device] });
     await waitFor('The app starts', () => evaluate(`Boolean(window.__fossEarthPanoramaTest?.runtime?.scene?.activeCamera)`), Boolean, LIMITS.startupMs);
     await evaluate(`(${installProbe.toString()})()`);
 
@@ -273,115 +297,17 @@ export async function run(options, injected = {}) {
     await headset('look', 0);
     await probe('afterFrames', 5);
 
-    const spaceBefore = await probe('spaceForward');
-    await headset('stick', 'right', 1, 0);
-    await probe('afterFrames', 5);
-    await headset('stick', 'right', 0, 0);
-    await probe('afterFrames', 5);
-    const spaceAfter = await probe('spaceForward');
-    const snap = await evaluate(`window.__headsetProbe.angleDeg(${JSON.stringify(spaceBefore)}, ${JSON.stringify(spaceAfter)})`);
-    record('The thumbstick turns 30°, once per push', Math.abs(snap - 30) < 1, { turnDeg: snap });
-    await headset('stick', 'right', -1, 0);
-    await probe('afterFrames', 5);
-    await headset('stick', 'right', 0, 0);
-    await probe('afterFrames', 5);
-    record('Each controller has a pointer', await probe('lasers') >= 1, { lasers: await probe('lasers') });
+    const expectedBranch = DEVICE_BRANCH[options.device];
+    const shown = await evaluate(`(() => ({ branch: window.__fossEarthHeadset.state().branch, labels: [...document.querySelectorAll('.foss-earth-headset__controls dt')].map(term => term.textContent) }))()`);
+    const labelsOk = expectedBranch === 'controller'
+      ? shown.labels.includes('Trigger') && shown.labels.includes('Grip') && shown.labels.includes('Thumbstick left or right') && !shown.labels.includes('Pinch')
+      : shown.labels[0] === 'Pinch' && !shown.labels.includes('Grip') && !shown.labels.some(label => String(label).startsWith('Thumbstick'));
+    record(expectedBranch === 'controller' ? 'The controller list is the one showing' : 'The controllerless list is the one showing',
+      shown.branch === expectedBranch && labelsOk, shown);
 
-    // A link shows in the headset where the scene says which way it lies: a
-    // photograph without one is noted, and the grip goes back for the next.
-    report.withoutHeadsetLinks = [];
-    let photograph, links;
-    for (let attempt = 0; ; attempt++) {
-      photograph = await waitFor('A photograph on the map is in reach of the controller', () => probe('findPhotograph', report.withoutHeadsetLinks), Boolean);
-      if (attempt === 0) record('A photograph on the map is in reach of the controller', true, photograph);
-      await headset('aim', 'right', photograph.local);
-      await probe('afterFrames', 5);
-      await press('trigger');
-      const entered = await waitFor('The trigger opens the photograph it points at', () => probe('state'), value => value.status?.active === photograph.id && value.status.phase === 'immersive');
-      if (attempt === 0) record('The trigger opens the photograph it points at', true, entered.status);
-      links = (await poll(() => probe('links'), value => value.length >= 1, 5000)).value;
-      if (links.length) break;
-      report.withoutHeadsetLinks.push(photograph.id);
-      console.log(`     ${photograph.id} has no link the headset can show; trying another`);
-      if (attempt === 4) record('The photograph\'s links float around the headset', false, { withoutHeadsetLinks: report.withoutHeadsetLinks });
-      await press('squeeze');
-      await waitFor('The grip goes back to the map', () => probe('state'), value => value.status?.active === null && value.status.phase === 'overview');
-      await probe('afterFrames', 10);
-    }
-    record('The photograph\'s links float around the headset', true, { photograph: photograph.id, links });
-    const photo = await waitFor('Both eyes show the photograph', () => probe('pixels'), value => value.left.spread > 12 && value.right.spread > 12 && value.eyeDifference < 12);
-    report.photographSettled = await probe('settled', LIMITS.conditionMs);
-    await probe('afterFrames', 10);
-    record('Both eyes show the photograph', true, { ...photo, settled: report.photographSettled });
-    await screenshot('3-photograph-in-vr');
-
-    await headset('aim', 'right', links[0].local);
-    const hovered = await waitFor('Pointing at a link marks it', () => probe('links'), value => value.find(link => link.id === links[0].id)?.scale > 1.2);
-    record('Pointing at a link marks it', true, hovered);
-    await press('trigger');
-    const followed = await waitFor('The trigger follows the link', () => probe('state'), value => value.status?.active && value.status.active !== photograph.id && value.status.phase === 'immersive');
-    record('The trigger follows the link', true, followed.status);
-
-    await press('squeeze');
-    const back = await waitFor('The grip goes back to the map', () => probe('state'), value => value.status?.active === null && value.status.phase === 'overview');
-    record('The grip goes back to the map', true, back.status);
-
-    // The page's interface: each panel a part of the page, pointed at and
-    // pressed as a mouse would be.
-    const ui = await waitFor('The toolbar shows below the view, a "+" at its left end', () => headset('state'),
-      value => value.revision > 0 && value.panels.some(panel => panel.id === 'plus') && value.panels.some(panel => panel.kind === 'toolbar'));
-    const plus = ui.panels.find(panel => panel.id === 'plus'), bar = ui.panels.filter(panel => panel.kind === 'toolbar');
-    /** How far `to` is from `from` along `axis`. */
-    const along = (from, to, axis) => (to[0] - from[0]) * axis[0] + (to[1] - from[1]) * axis[1] + (to[2] - from[2]) * axis[2];
-    record('The toolbar shows below the view, a "+" at its left end', plus.pose.center[1] < ui.head.position[1] - 0.1
-      && bar.every(part => along(plus.pose.center, part.pose.center, plus.pose.right) > 0 && part.pose.center[1] < ui.head.position[1] - 0.1),
-      { head: ui.head, plus: plus.pose.center, toolbar: bar.map(part => ({ id: part.id, source: part.source, center: part.pose.center })) });
-
-    await headset('tap', { panel: 'plus' });
-    const menu = await waitFor('The "+" opens the window menu', () => evaluate(`(() => ({ items: [...document.querySelectorAll('.foss-earth-window-menu-item')].map(item => item.textContent.trim()), panels: window.__fossEarthHeadset.state().panels.filter(panel => panel.kind === 'popup').map(panel => panel.id) }))()`),
-      value => value.items.length > 0 && value.panels.length > 0);
-    record('The "+" opens the window menu', true, menu);
-    // Sky's settings run longer than a window, for the thumbstick to scroll.
-    const choice = menu.items.includes('Sky') ? 'Sky' : menu.items[0];
-    await evaluate(`[...document.querySelectorAll('.foss-earth-window-menu-item')].find(item => item.textContent.trim() === ${JSON.stringify(choice)}).setAttribute('data-headset-check', '')`);
-    const windowsBefore = new Set(ui.panels.filter(panel => panel.kind === 'window').map(panel => panel.id));
-    await headset('tap', '[data-headset-check]');
-    const opened = await waitFor('Choosing a window opens it beside the view', () => headset('state'),
-      value => value.panels.some(panel => panel.kind === 'window' && !windowsBefore.has(panel.id)) && !value.panels.some(panel => panel.kind === 'popup'));
-    const shown = opened.panels.find(panel => panel.kind === 'window' && !windowsBefore.has(panel.id));
-    const [fx, , fz] = opened.head.forward, level = Math.hypot(fx, fz) || 1;
-    record('Choosing a window opens it beside the view', Math.abs(along(opened.head.position, shown.pose.center, [-fz / level, 0, fx / level])) > 0.1,
-      { window: choice, id: shown.id, source: shown.source, center: shown.pose.center });
-
-    const body = `document.querySelector('.foss-earth-dock-panel[data-side=${shown.side}] .foss-earth-dock-panel-body')`;
-    const scrolled = () => evaluate(`(() => { const body = ${body}; return { top: body?.scrollTop ?? null, height: body?.scrollHeight ?? null, shown: body?.clientHeight ?? null, revision: window.__fossEarthHeadset.state().revision }; })()`);
-    const unscrolled = await scrolled();
-    await headset('aim', 'right', { panel: shown.id, u: 0.5, v: 0.6 });
-    await headset('scroll', 'right', 1, 20);
-    const scroll = await waitFor('The thumbstick scrolls the window pointed at', scrolled, value => value.top > unscrolled.top && value.revision > unscrolled.revision);
-    const popups = (await headset('state')).panels.filter(panel => panel.kind === 'popup').map(panel => ({ id: panel.id, source: panel.source, center: panel.pose.center }));
-    record('The thumbstick scrolls the window pointed at', true, { before: unscrolled, after: scroll, popups });
-    await screenshot('5-interface-in-vr');
-
-    // Where the window stands, seen from the eye; the grip takes it 20° up and away, then back.
-    const [ex, ey, ez] = opened.head.position, [cx, cy, cz] = shown.pose.center;
-    const rightDeg = Math.atan2(cx - ex, -(cz - ez)) * 180 / Math.PI, upDeg = Math.atan2(cy - ey, Math.hypot(cx - ex, cz - ez)) * 180 / Math.PI;
-    const away = await headset('move', shown.id, rightDeg + (shown.side === 'left' ? 15 : -15), upDeg + 20);
-    const floated = away.panels.find(panel => panel.id === shown.id);
-    record('The grip floats a window', floated?.floating === true, { center: floated?.pose.center });
-    await screenshot('6-floating-window-in-vr');
-    const home = await headset('move', shown.id, rightDeg, upDeg);
-    const docked = home.panels.find(panel => panel.id === shown.id);
-    record('Let go near its place, it goes back', docked?.floating === false, { center: docked?.pose.center, place: shown.pose.center });
-
-    const theme = () => evaluate('document.documentElement.dataset.theme ?? null');
-    if (await evaluate(`Boolean(document.querySelector('.theme-button'))`)) {
-      const was = await theme();
-      await headset('tap', '.theme-button');
-      const now = await waitFor('A toolbar button presses from the headset', theme, value => value !== was);
-      record('A toolbar button presses from the headset', true, { theme: [was, now] });
-      await headset('tap', '.theme-button');
-    } else console.log('     The page has no theme button on its toolbar to press');
+    const visit = { record, probe, headset, waitFor, poll, screenshot, evaluate, press, report };
+    if (expectedBranch === 'controllerless') await controllerlessVisit(visit);
+    else await controllerVisit(visit);
 
     await probe('endSession');
     const ended = await waitFor('Ending the session hands the page back', () => probe('state'), value => value.headset === 'ready' && !value.session && value.activeCamera !== 'headset-camera');
@@ -410,6 +336,22 @@ export async function run(options, injected = {}) {
     console.log(`${report.ok ? 'Passed' : 'Failed'}: ${path.relative(APP_ROOT, path.join(options.output, 'report.json'))}`);
   }
   return report;
+}
+
+export async function run(options, injected = {}) {
+  if (!options.comprehensive) return runVisit(options, injected);
+  await mkdir(options.output, { recursive: true });
+  const summary = { schemaVersion: 2, startedAt: new Date().toISOString(), scene: options.scene, devices: [], ok: true };
+  for (const device of COMPREHENSIVE_DEVICES) {
+    const output = path.join(options.output, device);
+    const report = await runVisit({ ...options, device, output, comprehensive: false }, injected);
+    summary.devices.push({ device, branch: DEVICE_BRANCH[device], ok: report.ok, report: path.relative(options.output, path.join(output, 'report.json')) });
+    if (!report.ok) { summary.ok = false; break; }
+  }
+  summary.finishedAt = new Date().toISOString();
+  await writeFile(path.join(options.output, 'report.json'), JSON.stringify(summary, null, 2) + '\n');
+  console.log(`${summary.ok ? 'Passed' : 'Failed'}: ${path.relative(APP_ROOT, path.join(options.output, 'report.json'))}`);
+  return summary;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

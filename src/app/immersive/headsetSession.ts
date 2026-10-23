@@ -2,9 +2,10 @@
  * An immersive WebXR session: the globe or the open photograph drawn for both
  * eyes of a headset. The headset space stands where the presented view, or
  * the globe camera, stands, upright on the Earth, and follows it there; the
- * head turns it and the thumbstick turns it in steps. The controllers point
- * at the page's interface on panels around the head (headsetUi.ts) and, past
- * it, at what the tour shows.
+ * head turns it and a controller's thumbstick turns it in steps. Controllers
+ * point at the page's interface on panels around the head (headsetUi.ts) and,
+ * past it, at what the tour shows. A controllerless session has a pointer
+ * only while a pinch lasts, and the VR tab lists that pinch.
  *
  * Each session made is announced as a `foss-earth:headset-session` event on
  * the window, for a test to drive it (src/dev/headsetEmulator.ts).
@@ -18,6 +19,12 @@ import { createHeadsetUi, forwardOf, type HandRay, type HeadsetUi, type HeadsetU
 import { createSnapTurn, flatDepthProjection, headingAt, headsetDepthRange, headsetSpaceRotation, reverseProjectionDepth, seatRotation } from "./xrMath";
 
 export type HeadsetState = "checking" | "unavailable" | "ready" | "starting" | "presenting";
+
+/** Which controls a presenting session has. A tracked pointer with a gamepad is a controller. */
+export type HeadsetBranch = "controller" | "controllerless";
+
+/** Empty input for this many frames is a controllerless headset, so controllers that connect on the first frames are not labeled as one. */
+const CONTROLLERLESS_EMPTY_FRAMES = 12;
 
 export interface HeadsetPlace {
   position: Vec3;
@@ -70,6 +77,8 @@ export interface HeadsetSession {
   /** Why a headset cannot be used, or why the last one failed to start. */
   readonly reason: string | null;
   readonly presenting: boolean;
+  /** Null until the session presents, and again after it ends. */
+  readonly branch: HeadsetBranch | null;
   subscribe(listener: () => void): () => void;
   enter(): Promise<void>;
   exit(): Promise<void>;
@@ -99,7 +108,13 @@ export function createHeadsetSession(options: HeadsetSessionOptions): HeadsetSes
   const listeners = new Set<() => void>();
   let state: HeadsetState = "checking";
   let reason: string | null = null;
+  let branch: HeadsetBranch | null = null;
   let disposed = false;
+  const setBranch = (next: HeadsetBranch | null): void => {
+    if (branch === next) return;
+    branch = next;
+    for (const listener of [...listeners]) listener();
+  };
   let deviceHeight: number | null = null;
   let active: { end(): Promise<void>; inspect(): HeadsetInspection } | null = null;
   const setState = (next: HeadsetState, why: string | null = null): void => {
@@ -185,6 +200,7 @@ export function createHeadsetSession(options: HeadsetSessionOptions): HeadsetSes
     const layerMask = options.layerMask ?? 0x0fffffff;
     const pointers = createHeadsetPointers(scene, anchor, layerMask);
     let frameCount = 0;
+    let emptyFrames = 0;
     let lastRays: readonly HandRay[] = [];
     let lastTime: number | null = null;
     let dtS = 0;
@@ -247,8 +263,20 @@ export function createHeadsetSession(options: HeadsetSessionOptions): HeadsetSes
       return { origin: [origin.x, origin.y, origin.z], direction: [direction.x, direction.y, direction.z] };
     };
 
+    const noteBranch = (): void => {
+      let controller = false;
+      let transient = false;
+      for (const input of session.inputSources) {
+        if (input.targetRayMode === "tracked-pointer" && input.gamepad) controller = true;
+        if (input.targetRayMode === "transient-pointer") transient = true;
+      }
+      if (controller) { emptyFrames = 0; setBranch("controller"); return; }
+      if (branch === "controller") return;
+      if (transient || ++emptyFrames >= CONTROLLERLESS_EMPTY_FRAMES) setBranch("controllerless");
+    };
     const onFrame: Observer<XRFrame> = manager.onXRFrameObservable.add(() => {
       frameCount++;
+      noteBranch();
       const time = manager.currentTimestamp;
       dtS = lastTime === null ? 0 : Math.min(0.1, Math.max(0, (time - lastTime) / 1000));
       lastTime = time;
@@ -325,6 +353,12 @@ export function createHeadsetSession(options: HeadsetSessionOptions): HeadsetSes
     // A press on the interface is the interface's from start to end; the
     // select or squeeze it ends with, in the same frame, is not the tour's.
     const onSelectStart = (event: XRInputSourceEvent): void => {
+      // A controller already has a hit from the frames it was aiming. A pinch's
+      // ray exists only on this turn, so that ray is hit-tested before the press.
+      if (event.inputSource.targetRayMode === "transient-pointer") {
+        const ray = localRayOf(event.frame.getPose(event.inputSource.targetRaySpace, manager.referenceSpace));
+        if (ray) ui?.point({ hand: handOf(event.inputSource), ...ray });
+      }
       if (ui?.press(handOf(event.inputSource))) uiSelects.set(event.inputSource, -1);
       options.requestRender();
     };
@@ -376,6 +410,7 @@ export function createHeadsetSession(options: HeadsetSessionOptions): HeadsetSes
       active = null;
       engine.stopRenderLoop(loop);
       manager.onXRFrameObservable.remove(onFrame);
+      branch = null;
       scene.onBeforeRenderObservable.remove(onRender);
       scene.onBeforeRenderingGroupObservable.remove(beforeGroup);
       scene.onAfterRenderingGroupObservable.remove(afterGroup);
@@ -409,6 +444,7 @@ export function createHeadsetSession(options: HeadsetSessionOptions): HeadsetSes
     get state() { return state; },
     get reason() { return reason; },
     get presenting() { return state === "presenting"; },
+    get branch() { return branch; },
     subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     enter,
     async exit() { await active?.end(); },

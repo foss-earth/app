@@ -92,7 +92,7 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
     expect(size()).toEqual(initial);
     await show("Northrop");
     expect(size()).toEqual(initial);
-    expect(panel().querySelector(".foss-earth-tab-shell-selected .foss-earth-tab-button")!.textContent).toBe("Map");
+    expect(panel().querySelector(".foss-earth-tab-shell-selected .foss-earth-tab-button")!.textContent).toBe("Basemap");
     expect(host.querySelector('[aria-label="Close Northrop tab"]')).toBeNull();
     const grip = document.querySelector<HTMLElement>(`.foss-earth-dock-panel[data-side="${side}"] .foss-earth-dock-panel-resize-handle`)
       ?? document.querySelector<HTMLElement>('.foss-earth-dock-panel-resize-handle[data-lifted="true"]');

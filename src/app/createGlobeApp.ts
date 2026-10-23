@@ -75,7 +75,7 @@ import { createHelpModal, type HelpModalHandle } from "@foss-earth/toolbar/brows
 import { HUD_BUTTON_IDS, hudButtonParameterId, type HudButtonId } from "@foss-earth/toolbar";
 import type { PanelSection } from "@foss-earth/ui/react";
 import type { WindowOverlayHandle } from "../shell/WindowOverlay";
-import { createMapSourcePanel } from "@foss-earth/engine/panels";
+import { createMapSourcePanel, createOverviewMap } from "@foss-earth/engine/panels";
 import { createMapDetailController, type MapDetailController } from "@foss-earth/engine/settings";
 import { connectMapDetailRuntime } from "@foss-earth/engine/settings";
 import { createRendererPanel, getRendererLabel } from "@foss-earth/renderer/panel";
@@ -190,7 +190,9 @@ export interface GlobeAppHandle extends GlobeHandle {
   /** Review and clear this site's browser data, keeping API keys by default. */
   browserDataTab: HTMLElement;
   onBugReportShow(): void;
-  /** The basemap and elevation choice, for the host's Map tab. */
+  /** A flat top-down map of the camera, for the host's Map tab. */
+  overviewTab: HTMLElement;
+  /** The basemap and elevation choice, for the host's Basemap tab. */
   mapTab: HTMLElement;
   /** The GPU renderer choice, for the host's Renderer tab. */
   rendererTab: HTMLElement;
@@ -680,6 +682,17 @@ export async function createGlobeApp(
 
   // The map source sits at the bar's right end: the basemap's name and credit
   cleanup.push(() => mapPanel.destroy());
+  const overviewMap = createOverviewMap({
+    document, sources: RASTER_BASE_MAP_SOURCES, settings,
+    basemap: () => ({ mode: runtime.status.mode, source: runtime.status.mode === "raster-basemap" ? runtime.status.rasterBaseMap : null }),
+    subscribeBasemap: listener => runtime.subscribeStatus(() => listener()),
+    view: () => runtime.getViewState(),
+    frames: { subscribe(listener) {
+      const observer = runtime.scene.onAfterRenderObservable.add(listener);
+      return () => { runtime.scene.onAfterRenderObservable.remove(observer); };
+    } },
+  });
+  cleanup.push(() => overviewMap.destroy());
   // link, the download speed, and a detail rail for Google 3D Tiles.
   const mapSourceSlot = rootElement.querySelector<HTMLElement>("#mapSourceSlot");
   const mapSourceHud = mapSourceSlot
@@ -1452,6 +1465,7 @@ export async function createGlobeApp(
     testFeedback: testFeedback?.session ?? undefined,
     browserDataTab: browserData.element,
     onBugReportShow: () => bugReportPanel.show(),
+    overviewTab: overviewMap.element,
     mapTab: mapPanel.element,
     rendererTab: rendererPanel.element,
     skyTab: skyPanel.element,

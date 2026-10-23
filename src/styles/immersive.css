@@ -10,6 +10,10 @@
   min-width: 0;
 }
 
+.foss-earth-headset__controls[hidden] {
+  display: none;
+}
+
 .foss-earth-headset__controls {
   display: grid;
   grid-template-columns: max-content 1fr;

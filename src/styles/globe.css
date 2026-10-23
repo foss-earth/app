@@ -8,6 +8,7 @@
 @import "@foss-earth/toolbar/styles.css";
 @import "@foss-earth/renderer/frame-budget.css";
 @import "@foss-earth/engine/map.css";
+@import "@foss-earth/engine/overview-map.css";
 @import "@foss-earth/engine/map-cache.css";
 @import "@foss-earth/engine/location.css";
 @import "@foss-earth/engine/input-mode.css";

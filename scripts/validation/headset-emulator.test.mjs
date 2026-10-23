@@ -30,10 +30,19 @@ describe('headset emulator check options', () => {
   it('opens the page with the emulated headset, the test hooks and the linked pair, keeping what the page had', () => {
     const url = pageUrl('http://127.0.0.1:5173/tour/minneapolis/?renderer=auto');
     expect(url.pathname).toBe('/tour/minneapolis/');
-    expect(Object.fromEntries(url.searchParams)).toEqual({ renderer: 'auto', headsetEmulator: 'quest3', panoramaTest: '1', scene: SCENE });
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      renderer: 'auto', headsetEmulator: 'quest2', panoramaTest: '1', scene: SCENE, 'set.interface.windows.tabPicker': 'dropdown',
+    });
+    expect(pageUrl('http://127.0.0.1:5173/app/', 'page', 'visionpro').searchParams.get('headsetEmulator')).toBe('visionpro');
   });
 
   it('keeps a page\'s own scene when asked to', () => {
+    expect(parseOptions(['--binary=/chrome'], {}, () => false).device).toBe('quest2');
+    expect(parseOptions(['--binary=/chrome'], {}, () => false).comprehensive).toBe(false);
+    expect(parseOptions(['--binary=/chrome', '--device=quest3'], {}, () => false).device).toBe('quest3');
+    expect(parseOptions(['--binary=/chrome', '--comprehensive'], {}, () => false).comprehensive).toBe(true);
+    expect(() => parseOptions(['--binary=/chrome', '--device=quest1'], {}, () => false)).toThrow(/quest2, quest3, questPro, visionpro/);
+    expect(() => parseOptions(['--binary=/chrome', '--comprehensive', '--device=quest2'], {}, () => false)).toThrow(/together/);
     expect(parseOptions(['--binary=/chrome'], {}, () => false).scene).toBe(SCENE);
     expect(parseOptions(['--binary=/chrome', '--scene=page'], {}, () => false).scene).toBe('page');
     expect(pageUrl('http://localhost:5199/tour/minneapolis/', 'page').searchParams.has('scene')).toBe(false);

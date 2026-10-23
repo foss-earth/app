@@ -108,10 +108,13 @@ with `cd ~/gh/UMN-VR/tour && npm run deploy`. The steps are in
 ### VR without a headset
 
 `npm run dev` serves an emulated headset, Meta's Immersive Web Emulation
-Runtime (`iwer`), to a page opened with `?headsetEmulator=quest3` (or `quest2`,
-`questPro`), such as `https://localhost:3600/app/?headsetEmulator=quest3`. The
-page then runs as it does on a headset: the VR tab opens, and Enter VR draws
-both eyes side by side over the page. From the console,
+Runtime (`iwer`), to a page opened with `?headsetEmulator=quest2` (or `quest3`,
+`questPro`, `visionpro`). An unknown name is refused. Quest profiles have
+controllers. `visionpro` has none: a pinch is the only pointer, and only while
+the pinch lasts. The VR tab lists the controls of the headset that is
+presenting. A page such as `https://localhost:3600/app/?headsetEmulator=quest2`
+then runs as it does on a headset: the VR tab opens, and Enter VR draws both
+eyes side by side over the page. From the console,
 `__fossEarthHeadsetEmulator` moves the headset and controllers and presses
 their buttons, e.g.
 `__fossEarthHeadsetEmulator.remote.dispatch("set_transform", { device: "headset", orientation: { x: 0, y: 0.383, z: 0, w: 0.924 } })`
@@ -120,11 +123,13 @@ turns the head 45° to the left, and
 pulls the right trigger. A build never contains it (`vite/headsetEmulator.ts`,
 `src/dev/headsetEmulator.ts`).
 
-`npm run check:headset` goes through a headset visit in headless Chrome, using
-the emulated headset and the linked example pair: Enter VR, both eyes drawn,
-turning the head, a snap turn, a photograph opened with the trigger, a link
-followed, the grip back to the map, and the session ended. It starts its own dev
-server and writes a report and screenshots to `build/headset/<time>/`.
+`npm run check:headset` is the controller visit on Quest 2, in headless Chrome:
+Enter VR, both eyes, a snap turn, a photograph opened with the trigger, a link
+followed, the grip back to the map, and the session ended. `--device=visionpro`
+is the controllerless visit: a pinch opens a photograph, follows a link, and
+presses the toolbar.
+`--comprehensive` runs Quest 2, Quest 3, and Vision Pro. The check starts its
+own dev server and writes a report and screenshots to `build/headset/<time>/`.
 `--url=` checks another page that mounts the app from a dev server with
 `headsetEmulator()`, such as the tour's; `--scene=page` keeps that page's own
 scene:

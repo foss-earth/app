@@ -31,6 +31,7 @@
     "./weather": "./src/compat/weather.ts",
     "./smoothElevation": "./src/compat/smoothElevation.ts",
     "./style.css": "./src/styles/globe.css",
+    "./overview-map.css": "./src/styles/overview-map.css",
     "./vite": "./vite/index.ts",
     "./dev-server": "./scripts/dev-server.mjs"
   },

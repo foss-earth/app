@@ -1,6 +1,6 @@
 /**
  * An emulated VR headset for `npm run dev`: a page opened with
- * `?headsetEmulator=quest3` (or `quest2`, `questPro`) gets
+ * `?headsetEmulator=quest2` (or `quest3`, `questPro`, `visionpro`) gets
  * src/dev/headsetEmulator.ts ahead of its own scripts, so VR can be tried and
  * tested without a headset. The dev server only: a build never holds it.
  */

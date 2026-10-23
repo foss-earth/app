@@ -1,7 +1,9 @@
 /**
  * An emulated VR headset in place of the browser's WebXR, installed before the
  * app starts. The dev server adds it to a page opened with
- * `?headsetEmulator=quest3` (vite/headsetEmulator.ts); no build holds it.
+ * `?headsetEmulator=quest2` (or `quest3`, `questPro`, `visionpro`;
+ * vite/headsetEmulator.ts); no build holds it. An unknown name is refused.
+ * Quest profiles have controllers. Vision Pro has none: `pinch` is its press.
  *
  * Meta's Immersive Web Emulation Runtime answers `navigator.xr`: Enter VR
  * starts a session drawn side by side, an eye each, over the page.
@@ -19,9 +21,11 @@
  *
  * docs/agent-testing.md in the FOSS Earth docs has the rest.
  */
-import { XRDevice, metaQuest2, metaQuest3, metaQuestPro } from "iwer";
-import type { HeadsetInspection, HeadsetSession } from "../app/immersive/headsetSession";
+import { XRDevice } from "iwer";
+import type { HeadsetBranch, HeadsetInspection, HeadsetSession } from "../app/immersive/headsetSession";
 import type { HeadsetUiInspection } from "../app/immersive/headsetUi";
+import { headsetProfile } from "./headsetProfiles";
+import { installVisionProPinch, type TransientPinch } from "./transientPinch";
 
 type Hand = "left" | "right";
 type Point = readonly [number, number, number];
@@ -56,6 +60,8 @@ export interface HeadsetHarness {
   scroll(hand: Hand, y: number, frames?: number): Promise<void>;
   /** Takes a window with the grip and lets it go where the controller then points, `rightDeg` and `upDeg` from ahead. */
   move(panel: string, rightDeg: number, upDeg: number, hand?: Hand): Promise<HeadsetHarnessState>;
+  /** Controllerless: aims and pinches a target. The pointer exists only for that gesture. A controller headset throws. The state is from the middle of the pinch, while the pointer is connected. */
+  pinch(target: AimTarget): Promise<HeadsetHarnessState>;
   /** A point of the scene in the headset space, and back. */
   toLocal(point: Point): Point | null;
   toWorld(point: Point): Point | null;
@@ -64,6 +70,10 @@ export interface HeadsetHarness {
 export interface HeadsetHarnessState {
   emulator: string;
   headset: string | null;
+  /** The presenting session's branch, once it has chosen one. */
+  branch: HeadsetBranch | null;
+  /** `targetRayMode` of each connected input. Empty between pinches. */
+  sources: readonly string[];
   reason: string | null;
   frames: number;
   /** The eye and its look direction in the headset space, while it presents. */
@@ -82,10 +92,11 @@ declare global {
   }
 }
 
-const DEVICES = { quest3: metaQuest3, quest2: metaQuest2, questPro: metaQuestPro };
 const requested = new URLSearchParams(window.location.search).get("headsetEmulator") ?? "";
+const profile = headsetProfile(requested);
 // An eye each, as a headset shows it; the emulator starts with one picture.
-const device = new XRDevice(DEVICES[requested as keyof typeof DEVICES] ?? metaQuest3, { stereoEnabled: true });
+const device = new XRDevice(profile.device, { stereoEnabled: true });
+const pinchInput: TransientPinch | null = profile.kind === "controllerless" ? installVisionProPinch(device) : null;
 // Desktop Chrome has a WebXR of its own, with no headset behind it.
 device.installRuntime({ forceInstall: true });
 window.__fossEarthHeadsetEmulator = device;
@@ -141,6 +152,8 @@ function state(): HeadsetHarnessState {
   return {
     emulator: device.name,
     headset: session?.state ?? null,
+    branch: session?.branch ?? null,
+    sources: device.inputSources.map(source => source.targetRayMode),
     reason: session?.reason ?? null,
     frames: inspection()?.frames ?? 0,
     head: head(),
@@ -191,6 +204,7 @@ function resolve(target: AimTarget): { point: Point; panel: string | null; u: nu
 const rayOf = (hand: Hand) => inspection()?.rays.find(ray => ray.hand === hand) ?? null;
 
 async function aim(hand: Hand, target: AimTarget): Promise<Pointed> {
+  if (profile.kind === "controllerless") throw new Error("This headset has no controllers.");
   if (!inspection()) throw new Error("The headset is not presenting: enter() first.");
   let { point } = resolve(target);
   const goal = resolve(target).point;
@@ -212,6 +226,7 @@ async function aim(hand: Hand, target: AimTarget): Promise<Pointed> {
 }
 
 const controller = (hand: Hand) => {
+  if (profile.kind === "controllerless") throw new Error("This headset has no controllers.");
   const found = device.controllers[hand];
   if (!found) throw new Error(`The emulated headset has no ${hand} controller.`);
   return found;
@@ -260,6 +275,18 @@ const harness: HeadsetHarness = {
     await harness.stick(hand, 0, y);
     await frames(count);
     await harness.stick(hand, 0, 0);
+  },
+  async pinch(target) {
+    if (!pinchInput) throw new Error("Pinch is for a controllerless headset.");
+    if (!inspection()) throw new Error("The headset is not presenting: enter() first.");
+    const { point } = resolve(target);
+    pinchInput.aim(point);
+    pinchInput.begin();
+    await frames(2);
+    const during = state();
+    pinchInput.finish();
+    await frames(2);
+    return during;
   },
   async move(panel, rightDeg, upDeg, hand = "right") {
     await aim(hand, { panel });

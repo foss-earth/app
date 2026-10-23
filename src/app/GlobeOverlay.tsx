@@ -53,6 +53,7 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     locationSearchSection={app.locationSearchSection}
     settingsSections={app.settingsSections}
     nativeSections={app.nativeSections}
+    overviewTab={app.overviewTab}
     mapTab={app.mapTab}
     rendererTab={app.rendererTab}
     skyTab={app.skyTab}

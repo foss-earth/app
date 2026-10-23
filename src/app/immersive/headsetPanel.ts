@@ -1,4 +1,4 @@
-/** The VR tab: enter and leave a headset session, and what the controllers do there. */
+/** The VR tab: enter and leave a headset session, and the controls of the headset that is presenting. */
 import { createHelpTooltip } from "@foss-earth/ui/browser";
 import type { HeadsetSession } from "./headsetSession";
 
@@ -14,14 +14,28 @@ export interface HeadsetPanelOptions {
   controls?: readonly (readonly [string, string])[];
 }
 
-/** The globe's: its windows and toolbar, its photographs and their links. */
-export const HEADSET_CONTROLS: readonly (readonly [string, string])[] = [
-  ["Trigger or pinch", "Press what you point at on a window or the toolbar. Elsewhere, go through the link you point at, or open the photograph you point at on the map."],
+/** A controller headset: trigger, grip, thumbstick, and the toolbar's +. */
+export const HEADSET_CONTROLLER_CONTROLS = [
+  ["Trigger", "Press what you point at on a window or the toolbar. Elsewhere, go through the link you point at, or open the photograph you point at on the map."],
   ["Grip", "Hold a window to move it; let it go near its place to put it back. Elsewhere, leave the photograph for the map."],
   ["Thumbstick up or down", "Scroll the window you point at, or push a held window away and bring it near."],
   ["Thumbstick left or right", "Turn 30°."],
   ["+ on the toolbar", "Open a window, or a tab once both sides hold one."],
-];
+] as const;
+
+/** A controllerless headset: pinch, and the toolbar's +. No grip and no thumbstick. */
+export const HEADSET_CONTROLLERLESS_CONTROLS = [
+  ["Pinch", "Press what the pointer meets on a window or the toolbar. Elsewhere, go through the link it meets, or open the photograph it meets on the map."],
+  ["+ on the toolbar", "Open a window, or a tab once both sides hold one."],
+] as const;
+
+/** The controller list. A presenting session shows this or the controllerless list. */
+export const HEADSET_CONTROLS = HEADSET_CONTROLLER_CONTROLS;
+
+const CONTROLS = {
+  controller: HEADSET_CONTROLLER_CONTROLS,
+  controllerless: HEADSET_CONTROLLERLESS_CONTROLS,
+} as const;
 
 export function createHeadsetPanel(document: Document, headset: HeadsetSession, options: HeadsetPanelOptions = {}): HeadsetPanel {
   const element = document.createElement("div");
@@ -41,13 +55,6 @@ export function createHeadsetPanel(document: Document, headset: HeadsetSession, 
   status.setAttribute("role", "status");
   const controls = document.createElement("dl");
   controls.className = "foss-earth-headset__controls";
-  for (const [input, action] of options.controls ?? HEADSET_CONTROLS) {
-    const term = document.createElement("dt");
-    term.textContent = input;
-    const detail = document.createElement("dd");
-    detail.textContent = action;
-    controls.append(term, detail);
-  }
   element.append(button, where, help.element, status, controls);
 
   const show = (): void => {
@@ -58,6 +65,19 @@ export function createHeadsetPanel(document: Document, headset: HeadsetSession, 
       : headset.state === "presenting" ? "Showing in the headset."
         : headset.reason ?? "";
     status.hidden = status.textContent === "";
+    // One list, once the session knows which headset it is. A caller that
+    // passes `controls` has chosen the list itself.
+    const list = options.controls ?? (headset.branch ? CONTROLS[headset.branch] : null);
+    controls.replaceChildren();
+    controls.hidden = !list;
+    if (!list) return;
+    for (const [input, action] of list) {
+      const term = document.createElement("dt");
+      term.textContent = input;
+      const detail = document.createElement("dd");
+      detail.textContent = action;
+      controls.append(term, detail);
+    }
   };
   const onClick = (): void => { void (headset.state === "presenting" ? headset.exit() : headset.enter()); };
   button.addEventListener("click", onClick);

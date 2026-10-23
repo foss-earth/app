@@ -126,6 +126,12 @@ export interface HeadsetUi {
    * each hand's ray to the panel it points at, for its laser to end there.
    */
   frame(head: HeadsetHead, rays: readonly HandRay[], dtS: number): Map<string, number>;
+  /**
+   * Hit-tests this one ray and keeps that hit for the next press. A
+   * controllerless pinch calls it on selectstart, the turn the ray appears.
+   * A controller press uses the hit from earlier frames and does not call this.
+   */
+  point(ray: HandRay): void;
   /** The trigger pressed: true when it pressed the interface. */
   press(hand: string): boolean;
   release(hand: string): boolean;
@@ -224,8 +230,9 @@ export function createHeadsetUi(options: HeadsetUiOptions): HeadsetUi {
   const selectors = { ...HEADSET_UI_SELECTORS, ...options.selectors };
   const view = scene.getEngine().getRenderingCanvas();
   // The emulated headset's own picture covers the page, as a headset's does not.
+  // The picture's canvases sit inside it, so a press has to land on the page beneath.
   const never = ["[data-webxr_runtime]", options.never].filter(Boolean).join(", ");
-  const include = (element: Element): boolean => element !== view && !element.matches(never);
+  const include = (element: Element): boolean => element !== view && !element.closest(never);
   // The instruments are copied apart: a window over them on the page is on none of their panels.
   const layers = selectors.instruments ? [selectors.instruments] : [];
   const mirror = createDomMirror({ document, include, seeThrough: options.seeThrough, layers, onChange: options.requestRender });
@@ -617,6 +624,9 @@ export function createHeadsetUi(options: HeadsetUiOptions): HeadsetUi {
       arrange(dtS);
       paint(now);
       return follow(rays);
+    },
+    point(ray) {
+      if (!disposed) follow([ray]);
     },
     press(hand) {
       const on = pointing.get(hand);

@@ -1,22 +1,24 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { createHeadsetPanel, HEADSET_TAB_OFFERED_KEY, offerHeadsetTab } from "./headsetPanel";
-import type { HeadsetSession, HeadsetState } from "./headsetSession";
+import type { HeadsetBranch, HeadsetSession, HeadsetState } from "./headsetSession";
 
-function fakeHeadset(state: HeadsetState, reason: string | null = null) {
+function fakeHeadset(state: HeadsetState, reason: string | null = null, branch: HeadsetBranch | null = null) {
   const listeners = new Set<() => void>();
   const headset = {
-    state, reason, presenting: false,
+    state, reason, branch, presenting: false,
     subscribe: vi.fn((listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; }),
-    enter: vi.fn(async () => {}), exit: vi.fn(async () => {}), viewport: () => null, dispose: () => {},
-    set(next: HeadsetState, nextReason: string | null = null) {
-      headset.state = next; headset.reason = nextReason; headset.presenting = next === "presenting";
+    enter: vi.fn(async () => {}), exit: vi.fn(async () => {}), viewport: () => null, inspect: () => null, dispose: () => {},
+    set(next: HeadsetState, nextReason: string | null = null, nextBranch: HeadsetBranch | null = headset.branch) {
+      headset.state = next; headset.reason = nextReason; headset.branch = nextBranch; headset.presenting = next === "presenting";
       for (const listener of [...listeners]) listener();
     },
     listeners,
   };
   return headset satisfies HeadsetSession & object;
 }
+
+const labels = (panel: { element: HTMLElement }) => [...panel.element.querySelectorAll("dt")].map(term => term.textContent);
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -53,16 +55,37 @@ describe("createHeadsetPanel", () => {
     expect(headset.exit).toHaveBeenCalledOnce();
   });
 
-  it("lists what each control does, and stops listening when destroyed", () => {
-    const headset = fakeHeadset("ready");
+  it("lists the controller controls while that session presents, and stops listening when destroyed", () => {
+    const headset = fakeHeadset("presenting", null, "controller");
     const panel = createHeadsetPanel(document, headset);
-    // "[Enter VR] Open this page in the headset's browser. [?]"
+    // "[Exit VR] Open this page in the headset's browser. [?]"
     expect([...panel.element.children].slice(0, 3).map(child => child.querySelector("button")?.getAttribute("aria-label") ?? child.textContent))
-      .toEqual(["Enter VR", "Open this page in the headset's browser.", "Explain VR"]);
-    expect([...panel.element.querySelectorAll("dt")].map(term => term.textContent)).toEqual(
-      ["Trigger or pinch", "Grip", "Thumbstick up or down", "Thumbstick left or right", "+ on the toolbar"]);
+      .toEqual(["Exit VR", "Open this page in the headset's browser.", "Explain VR"]);
+    expect(labels(panel)).toEqual(["Trigger", "Grip", "Thumbstick up or down", "Thumbstick left or right", "+ on the toolbar"]);
     panel.destroy();
     expect(headset.listeners.size).toBe(0);
+  });
+
+  it("lists a pinch while a controllerless session presents", () => {
+    const headset = fakeHeadset("presenting", null, "controllerless");
+    const panel = createHeadsetPanel(document, headset);
+    expect(labels(panel)).toEqual(["Pinch", "+ on the toolbar"]);
+    headset.set("presenting", null, "controller");
+    expect(labels(panel)).toEqual(["Trigger", "Grip", "Thumbstick up or down", "Thumbstick left or right", "+ on the toolbar"]);
+  });
+
+  it("hides the control list until a session is presenting", () => {
+    const headset = fakeHeadset("ready");
+    const panel = createHeadsetPanel(document, headset);
+    const controls = panel.element.querySelector(".foss-earth-headset__controls") as HTMLElement;
+    expect(controls.hidden).toBe(true);
+    expect(labels(panel)).toEqual([]);
+    headset.set("presenting", null, "controllerless");
+    expect(controls.hidden).toBe(false);
+    expect(labels(panel)).toEqual(["Pinch", "+ on the toolbar"]);
+    headset.set("ready", null, null);
+    expect(controls.hidden).toBe(true);
+    expect(labels(panel)).toEqual([]);
   });
 });
 

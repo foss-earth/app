@@ -17,7 +17,7 @@ import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/brow
 import type { ViewerTabs as SphereTabs, ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/sphere-image/panels";
 
 type SectionTabId = "controls" | "interface" | "settings" | "native";
-type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "vr" | "about" | "bug-report" | "test-feedback" | "browser-data" | "panorama" | "panorama-settings";
+type ElementTabId = "overview" | "map" | "renderer" | "sky" | "time" | "scenes" | "vr" | "about" | "bug-report" | "test-feedback" | "browser-data" | "panorama" | "panorama-settings";
 type BuiltInTabId = "location" | SectionTabId | ElementTabId;
 const HIDDEN_IN_SPHERE: ReadonlySet<string> = new Set(["map", "sky", "time"]);
 const SPHERE_ONLY: ReadonlySet<string> = new Set(["panorama", "panorama-settings"]);
@@ -122,7 +122,9 @@ export interface WindowOverlayProps<TabId extends string = never> {
   interfaceLead?: HTMLElement;
   /** Place-lookup limits, drawn under the Location form. */
   locationSearchSection?: PanelSection;
-  /** Adds the shared Map tab showing this element, from `createMapSourcePanel`. */
+  /** Adds the Map tab: a flat top-down view of the camera, from `createOverviewMap`. */
+  overviewTab?: HTMLElement;
+  /** Adds the Basemap tab showing this element, from `createMapSourcePanel`. */
   mapTab?: HTMLElement;
   /** Adds the shared Renderer tab showing this element, from `createRendererPanel`. */
   rendererTab?: HTMLElement;
@@ -176,7 +178,7 @@ export interface WindowOverlayProps<TabId extends string = never> {
 export function WindowOverlay<TabId extends string = never>({
   getViewState, setViewState, additionalTabs = [], renderAdditionalTab, renderJoinedTabs,
   controlsSections, interfaceSections, interfaceLead, settingsSections, nativeSections, locationSearchSection,
-  mapTab, rendererTab, skyTab, timeTab, scenesTab, headsetTab, aboutTab, bugReportTab, testFeedbackTab, browserDataTab,
+  overviewTab, mapTab, rendererTab, skyTab, timeTab, scenesTab, headsetTab, aboutTab, bugReportTab, testFeedbackTab, browserDataTab,
   onBugReportShow, sphereTabs, locationSearchProvider, onDeviceLocation,
   enableAirportPresets = false, locationContribution, locationHostDataCodec,
   locationDraft, observeLocation, settings: suppliedSettings, storage: suppliedStorage,
@@ -255,6 +257,7 @@ export function WindowOverlay<TabId extends string = never>({
     ...(nativeSections ? { native: nativeSections } : {}),
   };
   const elementTabs: Partial<Record<ElementTabId, HTMLElement>> = {
+    ...(overviewTab ? { overview: overviewTab } : {}),
     ...(mapTab ? { map: mapTab } : {}), ...(rendererTab ? { renderer: rendererTab } : {}),
     ...(skyTab ? { sky: skyTab } : {}), ...(timeTab ? { time: timeTab } : {}),
     ...(scenesTab ? { scenes: scenesTab } : {}), ...(headsetTab ? { vr: headsetTab } : {}), ...(aboutTab ? { about: aboutTab } : {}),
@@ -265,7 +268,7 @@ export function WindowOverlay<TabId extends string = never>({
   };
   const sectionLabels: Record<SectionTabId, string> = { controls: "Controls", interface: "Interface", settings: "Settings", native: "Component execution" };
   const elementLabels: Record<ElementTabId, string> = {
-    map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", vr: "VR", about: "About", "bug-report": "Bug report", "test-feedback": "Test", "browser-data": "Browser data", "panorama": sphere.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
+    overview: "Map", map: "Basemap", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", vr: "VR", about: "About", "bug-report": "Bug report", "test-feedback": "Test", "browser-data": "Browser data", "panorama": sphere.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
   };
   const sectionIds = (Object.keys(sectionLabels) as SectionTabId[]).filter(id => sectionTabs[id]);
   const elementIds = (Object.keys(elementLabels) as ElementTabId[]).filter(id => elementTabs[id]);
@@ -329,7 +332,8 @@ export function WindowOverlay<TabId extends string = never>({
       }
       const definition = tabDefinitions.find(tab => tab.id === tabId);
       // A surface fills its body; it has no settings footer to save.
-      const save = tabId === "settings" || tabId === "browser-data" || tabId === "vr" || definition?.surface ? null : <TabPresetSave settings={settings} tab={tabId} what={definition?.label ?? tabId} />;
+      // The Map tab keeps Save as preset in its own menu, so the map can fill the tab.
+      const save = tabId === "overview" || tabId === "settings" || tabId === "browser-data" || tabId === "vr" || definition?.surface ? null : <TabPresetSave settings={settings} tab={tabId} what={definition?.label ?? tabId} />;
       const sections = sectionTabs[tabId as SectionTabId];
       if (sections) return <SectionsPanel sections={sections} storage={storage} leading={tabId === "interface" ? interfaceLead : undefined} footer={save} />;
       const element = elementTabs[tabId as ElementTabId];

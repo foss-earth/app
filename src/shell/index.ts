@@ -66,6 +66,7 @@ export { SectionsPanel, type PanelSection } from "@foss-earth/ui/react";
 export { MeshInspectorPanel, type MeshInspectorPanelProps } from "@foss-earth/ui/react";
 export { ChoiceTrack, HelpTip, IconButton, ParameterSettings, Resettable, type ChoiceTrackChoice, type ChoiceTrackProps, type IconButtonProps, type ResettableProps } from "@foss-earth/ui/react";
 export { createMapSourcePanel, type MapSourcePanelHandle, type MapSourcePanelOptions, type MapSourceStatus } from "@foss-earth/engine/panels";
+export { createOverviewMap, type OverviewMapHandle, type OverviewMapOptions, type OverviewMapOverlay, type OverviewMapOverlayFrame } from "@foss-earth/engine/panels";
 export { createRendererPanel, getRendererLabel, type RendererPanelHandle, type RendererPanelOptions } from "@foss-earth/renderer/panel";
 export { reportRendererStart } from "../app/rendererAdviceLog";
 export { createSkyPanel, describeSun, type SkyPanelHandle, type SkyPanelOptions } from "@foss-earth/sky/panels";
