@@ -46,6 +46,12 @@ export function deployedIsolation(env: Record<string, string | undefined> = proc
   return mode as IsolationMode;
 }
 
+/** What a built page's worker was made to do, as its first script says (deployedIsolation): `off` where it has none. */
+export function pageIsolation(html: string): IsolationMode {
+  const mode = /<script data-foss-earth-isolation="([a-z-]+)"/.exec(html)?.[1];
+  return MODES.includes(mode as IsolationMode) ? (mode as IsolationMode) : "off";
+}
+
 /** The response headers for a policy: none when off. */
 export function isolationHeaders(policy: Required<CrossOriginIsolationOptions>): Record<string, string> {
   if (policy.mode === "off") return {};

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { crossOriginIsolation, deployedIsolation, isolationHeaders, isolationPolicy } from "./crossOriginIsolation";
+import { crossOriginIsolation, deployedIsolation, isolationHeaders, isolationPolicy, pageIsolation } from "./crossOriginIsolation";
 
 describe("cross-origin isolation", () => {
   it("is off unless asked, so no default page changes", () => {
@@ -25,6 +25,12 @@ describe("cross-origin isolation", () => {
     expect(deployedIsolation({ FOSS_EARTH_ISOLATION: " report-only " })).toBe("report-only");
     expect(deployedIsolation({ FOSS_EARTH_ISOLATION: "off" })).toBe("off");
     expect(() => deployedIsolation({ FOSS_EARTH_ISOLATION: "on" })).toThrow("FOSS_EARTH_ISOLATION");
+  });
+
+  it("reads the isolation a built page's worker was made for, off where it has no isolation script", () => {
+    expect(pageIsolation('<head><script data-foss-earth-isolation="enforce">eval(1)</script>')).toBe("enforce");
+    expect(pageIsolation('<script data-foss-earth-isolation="report-only">')).toBe("report-only");
+    expect(pageIsolation("<head><script type=\"module\" src=\"/app/assets/index.js\"></script>")).toBe("off");
   });
 
   it("adds the headers to every dev and preview response, and no middleware when off", () => {

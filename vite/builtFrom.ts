@@ -8,12 +8,15 @@ import {
   builtFrom as sharedBuiltFrom,
   describeBuild as sharedDescribeBuild,
   nodeBuildReader,
+  rebuildReason as sharedRebuildReason,
   recordBuildInputs as sharedRecordBuildInputs,
   type BuiltFromOptions,
   type BuildPartInput,
   type DescribeBuildInput,
+  type RebuildReasonOptions,
   type RecordBuildInputsOptions,
 } from "@foss-earth/about/vite";
+import { deployedIsolation, pageIsolation } from "./crossOriginIsolation.ts";
 export * from "@foss-earth/about/vite";
 
 const EARTH_APP_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -41,4 +44,16 @@ export function describeBuild(input: DescribeBuildInput) {
 
 export function recordBuildInputs(options: RecordBuildInputsOptions) {
   return sharedRecordBuildInputs(withEarthSourcePolicy(options));
+}
+
+/**
+ * About's rebuildReason, with the Earth app's dirty-source scope, and the
+ * isolation a build's worker is made for, which FOSS_EARTH_ISOLATION sets and
+ * the page says (deployedIsolation).
+ */
+export function rebuildReason(options: RebuildReasonOptions) {
+  const reason = sharedRebuildReason(withEarthSourcePolicy(options));
+  if (reason || !options.page) return reason;
+  const published = pageIsolation(options.page), wanted = deployedIsolation(options.env);
+  return published === wanted ? undefined : `the published build isolates as ${published}, and FOSS_EARTH_ISOLATION asks for ${wanted}`;
 }
