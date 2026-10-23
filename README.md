@@ -51,9 +51,14 @@ npm install
 npm run dev
 ```
 
-and open `http://localhost:5173/app/`. `npm run dev -- --host` also serves it
-on the LAN, over HTTPS with a self-signed certificate (`vite/networkHttps.ts`),
-so a phone on the same Wi-Fi can open `https://<this-machine>:5173/app/`. Its
+and open `https://localhost:3600/app/`. Development and preview default to port
+`3600` and stop if it is occupied; use `-- --port <number>` to choose another
+port explicitly. Dev and preview share that port, so override one to run both
+together. The sibling apps use `7470` (0SFS) and `8660` (UMN Tour). Restart an
+existing server to use the new default; browser settings saved on an old port
+remain on that old origin. `npm run dev` serves it
+on the LAN by default and prints network links and terminal QR codes, over HTTPS with a self-signed certificate (`vite/networkHttps.ts`),
+so a phone on the same Wi-Fi can open `https://<this-machine>:3600/app/`. Its
 browser warns once per address; in Chrome, tap Advanced, then Proceed. After that
 the page is secure, so it can use WebGPU, and with `FOSS_EARTH_ISOLATION=enforce`
 it can share memory. `FOSS_EARTH_DEV_HTTPS=off` keeps plain HTTP. That page has
@@ -62,6 +67,32 @@ neither, and `crypto.randomUUID` is missing there. `randomId` in
 on that. The other commands are `npm run typecheck`,
 `npm run lint`, `npm test`, `npm run build` (output in `dist/`, built for the
 `/app/` route) and `npm run preview`.
+
+For local-only development use `npm run dev -- --host localhost`. HTTPS setup
+requires `openssl`; startup fails clearly if a certificate cannot be created.
+
+Use `npm run llm-dev` for automated checks, or `npm run dev -- --no-qr`,
+to omit QR art while keeping HTTPS and network links.
+The `--` passes the flag through npm. Other Vite options still work, for example
+`npm run llm-dev -- --port 9000`.
+
+Normal `npm run dev` also reads `GOOGLE_3D_TILES_KEY` from the environment or
+`.env.local` (this app first, then the linked FOSS Earth app). It appends
+`?gkey=YOUR_GOOGLE_MAPS_API_KEY` to the printed startup URLs and the QR code.
+Opening the link saves the key on that device and removes it from the address
+bar. Use `npm run dev -- --no-gkey` to omit the key (`--no-key` also works).
+`npm run llm-dev` omits both the key and QR output.
+
+Manual `?gkey=YOUR_GOOGLE_MAPS_API_KEY` links save a key on the device and remove
+it from the address bar. Existing `?key=` / `?googleKey=` links and saved keys
+still work; `gkey` takes precedence. Existing `FOSS_EARTH_GOOGLE_KEY` environment
+setups are accepted as a legacy fallback.
+
+QR codes appear automatically in interactive terminals and are omitted from
+captured output and CI logs. `FOSS_EARTH_DEV_QR=on npm run dev` forces a QR when
+output is redirected; `--no-qr` takes precedence. Agents stop their temporary
+servers after checking; to test a change yourself, run `npm run dev` in this
+repo in your own terminal.
 
 Publishing https://foss-earth.github.io/ is a separate step, from any directory:
 
@@ -78,7 +109,7 @@ with `cd ~/gh/UMN-VR/tour && npm run deploy`. The steps are in
 
 `npm run dev` serves an emulated headset, Meta's Immersive Web Emulation
 Runtime (`iwer`), to a page opened with `?headsetEmulator=quest3` (or `quest2`,
-`questPro`), such as `http://localhost:5173/app/?headsetEmulator=quest3`. The
+`questPro`), such as `https://localhost:3600/app/?headsetEmulator=quest3`. The
 page then runs as it does on a headset: the VR tab opens, and Enter VR draws
 both eyes side by side over the page. From the console,
 `__fossEarthHeadsetEmulator` moves the headset and controllers and presses
@@ -100,7 +131,7 @@ scene:
 
 ```sh
 cd ~/gh/UMN-VR/tour && npm run dev
-cd ~/gh/foss-earth/app && npm run check:headset -- --url=http://localhost:5173/tour/minneapolis/ --scene=page
+cd ~/gh/foss-earth/app && npm run check:headset -- --url=https://localhost:8660/tour/minneapolis/ --scene=page
 ```
 
 The emulator is not a headset: it checks what the page does with WebXR, not how

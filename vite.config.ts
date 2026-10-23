@@ -55,7 +55,8 @@ export default defineConfig({
   },
   ssr: { resolve: { conditions: ['source', ...defaultServerConditions] } },
   // build/ holds local scratch such as test browser profiles; changes there are not the app's.
-  server: { watch: { ignored: ['**/build/**'] } },
+  server: { port: 3600, strictPort: true, watch: { ignored: ['**/build/**'] } },
+  preview: { port: 3600, strictPort: true },
   test: {
     setupFiles: ['./src/test/setup.ts'],
     // The real adapter's Babylon imports omit .js; resolve them as the app's

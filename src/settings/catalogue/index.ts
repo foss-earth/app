@@ -8,6 +8,7 @@ import {
   MAP_SELECTION_PARAMETERS, MAP_TERRAIN_SELECTION_PARAMETERS, MAP_DETAIL_PARAMETERS,
   MAP_SOURCE_PARAMETERS, MAP_TAB, GLOBE_RUNTIME_PARAMETERS, ENGINE_POINT_RESOURCE_PARAMETERS,
   MAP_CACHE_PRESENTATION_PARAMETERS, TERRAIN_IMAGE_DECODE_PARAMETERS, NATIVE_PARAMETERS, createEngineMigrations,
+  getGoogleApiKeyFromSearchParams,
 } from "@foss-earth/engine/settings";
 import { INTERFACE_PARAMETERS, INTERFACE_TAB, PERFORMANCE_HUD_METRICS, SETTINGS_TAB, TOOLBAR_BUTTONS } from "./interface";
 import { RENDERER_EXPERIMENT_IDS, RENDERER_OWNED_EXPERIMENT_PARAMETERS, RENDERER_PARAMETERS, RENDERER_TAB } from "@foss-earth/renderer/settings";
@@ -93,7 +94,7 @@ function mapSourceAlias(value: string): string | null {
 export const FOSS_EARTH_URL_NAMES: Readonly<Record<string, readonly string[]>> = {
   "map.source.basemap": ["mapSource", "tiles"],
   "map.source.elevation": ["elevationSource", "terrainSource"],
-  "map.source.googleKey": ["key", "googleKey"],
+  "map.source.googleKey": ["gkey", "key", "googleKey"],
 };
 
 /** The URL parameters FOSS Earth read before the registry, mapped onto parameters for this session. */
@@ -110,7 +111,7 @@ export function fossEarthUrlAliases(params: URLSearchParams): UrlAliasResult {
   if (renderer === "webgpu" || renderer === "webgl2" || renderer === "webgl") values["renderer.backend"] = renderer;
   const imagery = params.get("rasterImagery")?.trim().toLowerCase();
   if (imagery === "atlas" || imagery === "legacy") values["map.detail.imageryPath"] = imagery;
-  const key = (params.get("key") ?? params.get("googleKey"))?.trim();
+  const key = getGoogleApiKeyFromSearchParams(params);
   if (key) values["map.source.googleKey"] = key;
   const notes: Record<string, string> = {};
   // The retired quality profiles, as the terrain values they stand for, for this visit only.

@@ -27,9 +27,9 @@ describe("the app registry and the address bar", () => {
     expect(settings.get("osfs.aircraft.id")).toBe("f-35b");
   });
 
-  it("saves a key given in the query on this device and takes it off the address bar", () => {
+  it.each(["gkey", "key", "googleKey"])("saves a %s given in the query on this device and takes it off the address bar", name => {
     const state = { fossEarthScene: { id: "campus" } };
-    window.history.replaceState(state, "", "/fly/?key=abc&scene=campus&set.map.source.cartoKey=c#invite");
+    window.history.replaceState(state, "", `/fly/?${name}=abc&scene=campus&set.map.source.cartoKey=c#invite`);
     const settings = getAppSettings();
 
     expect(settings.inspect("map.source.googleKey")).toMatchObject({ value: "abc", provenance: "user" });
@@ -46,6 +46,41 @@ describe("the app registry and the address bar", () => {
 
     expect(getAppSettings().get("map.source.googleKey")).toBe("new");
     expect(window.location.search).toBe("");
+  });
+
+  it("prefers gkey over older URL names and removes every credential alias", () => {
+    window.history.replaceState(null, "", "/?key=old&googleKey=older&gkey=new&scene=campus");
+    expect(getAppSettings().get("map.source.googleKey")).toBe("new");
+    expect(savedValues()["map.source.googleKey"]).toBe("new");
+    expect(window.location.search).toBe("?scene=campus");
+  });
+
+  it.each(["gkey", "key", "googleKey"])("adopts a legacy device %s without requiring another URL", name => {
+    localStorage.setItem(name, " legacy-device-key ");
+    expect(getAppSettings().get("map.source.googleKey")).toBe("legacy-device-key");
+    expect(savedValues()["map.source.googleKey"]).toBe("legacy-device-key");
+    // A later save wins permanently over the old record, including after reload.
+    getAppSettings().set("map.source.googleKey", "replacement");
+    resetAppSettings();
+    expect(getAppSettings().get("map.source.googleKey")).toBe("replacement");
+  });
+
+  it("prefers raw gkey over legacy names without replacing the current saved setting", () => {
+    localStorage.setItem("key", "old-device-key");
+    localStorage.setItem("gkey", "new-device-key");
+    expect(getAppSettings().get("map.source.googleKey")).toBe("new-device-key");
+
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ version: 1, values: { "map.source.googleKey": "current-setting" } }));
+    resetAppSettings();
+    expect(getAppSettings().get("map.source.googleKey")).toBe("current-setting");
+  });
+
+  it("keeps a key previously saved from a legacy URL across the gkey rename", () => {
+    window.history.replaceState(null, "", "/?key=previously-saved");
+    getAppSettings();
+    resetAppSettings();
+    expect(window.location.search).toBe("");
+    expect(getAppSettings().get("map.source.googleKey")).toBe("previously-saved");
   });
 
   it("writes the basemap and elevation provider chosen anywhere to the query, under the names it reads", () => {

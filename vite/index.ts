@@ -9,9 +9,9 @@
  * `headsetEmulator()` gives `npm run dev` an emulated VR headset; `lazyFeatures()` names each lazy feature's
  * chunks in the page, so it can fetch them while idle; `crossOriginIsolation()`
  * isolates the dev and preview pages when FOSS_EARTH_ISOLATION asks, so a
- * threaded WebAssembly core can share memory; `networkHttps()` serves https
- * when `--host` lets a phone reach the server, which a page needs there before
- * it can share memory or use WebGPU.
+ * threaded WebAssembly core can share memory; `networkHttps()` defaults dev to
+ * LAN https and prints QR invitations. A secure page is needed on another device
+ * before it can share memory or use WebGPU.
  */
 export * from "./appFiles.ts";
 export * from "./babylonShaderChunks.ts";
