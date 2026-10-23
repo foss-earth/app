@@ -9,7 +9,7 @@ import { LocationPanel, type LocationPanelContribution } from "@foss-earth/engin
 import { bindEarthLocationServices, createEarthLocationServices } from "../app/locationServices";
 import { getAppSettings } from "../settings/appSettings";
 import { POSITION_ALTITUDE_ID, type AltitudeReference } from "../settings/catalogue";
-import { WINDOWS_PRESENTATION_ID, WORLD_EDGES_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
+import { TAB_PICKER_ID, WINDOWS_PRESENTATION_ID, WORLD_EDGES_ID, WORLD_RESIZE_ID } from "@foss-earth/ui/settings";
 import { poseEditTitle, requestPoseEditStop, subscribePoseEditTitle } from "../app/poseEditor/poseEditTab";
 type WorldPresentationChoice = "auto" | "overlay" | "split";
 type WorldResize = "live" | "release";
@@ -17,7 +17,7 @@ import { GAME_LOG_SIZE_EVENT, type GameLogSizeChange } from "@foss-earth/ui/brow
 import type { ViewerTabs as SphereTabs, ViewerTabsSnapshot as SphereTabsSnapshot } from "@foss-earth/sphere-image/panels";
 
 type SectionTabId = "controls" | "interface" | "settings" | "native";
-type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "vr" | "about" | "bug-report" | "browser-data" | "panorama" | "panorama-settings";
+type ElementTabId = "map" | "renderer" | "sky" | "time" | "scenes" | "vr" | "about" | "bug-report" | "test-feedback" | "browser-data" | "panorama" | "panorama-settings";
 type BuiltInTabId = "location" | SectionTabId | ElementTabId;
 const HIDDEN_IN_SPHERE: ReadonlySet<string> = new Set(["map", "sky", "time"]);
 const SPHERE_ONLY: ReadonlySet<string> = new Set(["panorama", "panorama-settings"]);
@@ -138,6 +138,8 @@ export interface WindowOverlayProps<TabId extends string = never> {
   aboutTab?: HTMLElement;
   /** The one Bug report tab, from `createBugReportPanel`; also available under +. */
   bugReportTab?: HTMLElement;
+  /** Present only for a custom test link; automatically opens once on arrival. */
+  testFeedbackTab?: HTMLElement;
   /** Review and clear the site's stored data, keeping API keys by default. */
   browserDataTab?: HTMLElement;
   /** Prepare a report when its tab becomes visible; hidden or minimized tabs do not call it. */
@@ -174,7 +176,7 @@ export interface WindowOverlayProps<TabId extends string = never> {
 export function WindowOverlay<TabId extends string = never>({
   getViewState, setViewState, additionalTabs = [], renderAdditionalTab, renderJoinedTabs,
   controlsSections, interfaceSections, interfaceLead, settingsSections, nativeSections, locationSearchSection,
-  mapTab, rendererTab, skyTab, timeTab, scenesTab, headsetTab, aboutTab, bugReportTab, browserDataTab,
+  mapTab, rendererTab, skyTab, timeTab, scenesTab, headsetTab, aboutTab, bugReportTab, testFeedbackTab, browserDataTab,
   onBugReportShow, sphereTabs, locationSearchProvider, onDeviceLocation,
   enableAirportPresets = false, locationContribution, locationHostDataCodec,
   locationDraft, observeLocation, settings: suppliedSettings, storage: suppliedStorage,
@@ -214,6 +216,11 @@ export function WindowOverlay<TabId extends string = never>({
     () => settings.has(WORLD_EDGES_ID) ? settings.get<boolean>(WORLD_EDGES_ID) : true,
     () => true,
   );
+  const tabPicker = useSyncExternalStore(
+    (listener) => settings.has(TAB_PICKER_ID) ? settings.watch(TAB_PICKER_ID, () => listener()) : () => {},
+    (): "tab" | "dropdown" => settings.has(TAB_PICKER_ID) ? settings.get(TAB_PICKER_ID) : "tab",
+    (): "tab" | "dropdown" => "tab",
+  );
   const logIsTab = useSyncExternalStore(subscribeLogTab, logTabShown, () => false);
   const altitudeReference = useSyncExternalStore<AltitudeReference>(
     (listener) => settings.has(POSITION_ALTITUDE_ID) ? settings.watch(POSITION_ALTITUDE_ID, () => listener()) : () => {},
@@ -238,6 +245,9 @@ export function WindowOverlay<TabId extends string = never>({
     if (editingOnMap) api.openOrSelectTab("panorama");
     else if (!insideSphere) api.closeTab("panorama");
   }, [editingOnMap, insideSphere, overlayApiRef]);
+  useEffect(() => {
+    if (testFeedbackTab) overlayApiRef?.current?.openOrSelectTab("test-feedback");
+  }, [testFeedbackTab, overlayApiRef]);
   const sectionTabs: Partial<Record<SectionTabId, readonly PanelSection[]>> = {
     ...(controlsSections ? { controls: controlsSections } : {}),
     ...(interfaceSections ? { interface: interfaceSections } : {}),
@@ -249,12 +259,13 @@ export function WindowOverlay<TabId extends string = never>({
     ...(skyTab ? { sky: skyTab } : {}), ...(timeTab ? { time: timeTab } : {}),
     ...(scenesTab ? { scenes: scenesTab } : {}), ...(headsetTab ? { vr: headsetTab } : {}), ...(aboutTab ? { about: aboutTab } : {}),
     ...(bugReportTab ? { "bug-report": bugReportTab } : {}),
+    ...(testFeedbackTab ? { "test-feedback": testFeedbackTab } : {}),
     ...(browserDataTab ? { "browser-data": browserDataTab } : {}),
     ...(sphereTabs ? { "panorama": sphereTabs.sphere, "panorama-settings": sphereTabs.settings } : {}),
   };
   const sectionLabels: Record<SectionTabId, string> = { controls: "Controls", interface: "Interface", settings: "Settings", native: "Component execution" };
   const elementLabels: Record<ElementTabId, string> = {
-    map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", vr: "VR", about: "About", "bug-report": "Bug report", "browser-data": "Browser data", "panorama": sphere.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
+    map: "Map", renderer: "Renderer", sky: "Sky", time: "Date and time", scenes: "Scenes", vr: "VR", about: "About", "bug-report": "Bug report", "test-feedback": "Test", "browser-data": "Browser data", "panorama": sphere.title ?? poseTitle ?? "360", "panorama-settings": "360 image settings",
   };
   const sectionIds = (Object.keys(sectionLabels) as SectionTabId[]).filter(id => sectionTabs[id]);
   const elementIds = (Object.keys(elementLabels) as ElementTabId[]).filter(id => elementTabs[id]);
@@ -282,6 +293,8 @@ export function WindowOverlay<TabId extends string = never>({
     },
   }), []);
   return <><SharedWindowOverlay<OverlayTabId>
+    tabPicker={tabPicker}
+    onTabPickerChange={mode => { if (settings.has(TAB_PICKER_ID)) settings.set(TAB_PICKER_ID, mode); }}
     tabDefinitions={tabDefinitions}
     storage={storage}
     geometry={geometry}

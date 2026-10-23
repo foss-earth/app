@@ -6,14 +6,16 @@ import { ImageSurfaceBody, OpenImageTab } from "../imageTabs/ImageTabs";
 import { useImageDocuments } from "../imageTabs/useImageTabs";
 import type { GlobeAppHandle } from "./createGlobeApp";
 import { offerHeadsetTab } from "./immersive/headsetPanel";
+import { AddImageTab, ADD_IMAGE_TAB } from "./addImage/AddImageTab";
+import type { HostTabId } from "./hostTabs";
 
-export type AppTabId = "dev" | ImageTabId;
+export type AppTabId = "dev" | typeof ADD_IMAGE_TAB | ImageTabId | HostTabId;
 
 /** The window overlay with the app's own tabs: Dev, Open image and one per open image. */
 export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlayApi: { current: WindowOverlayHandle<AppTabId> | null } }) {
   const images = app.imageTabs;
   const documents = useImageDocuments(images);
-  const tabs = useMemo(() => [...(app.devTab ? [{ id: "dev" as const, label: app.devTab.title }] : []), ...imageTabDefinitions(documents)], [app, documents]);
+  const tabs = useMemo(() => [...(app.hostTabs ?? []).map(({ id, label }) => ({ id, label })), { id: ADD_IMAGE_TAB, label: "Add image" } as const, ...(app.devTab ? [{ id: "dev" as const, label: app.devTab.title }] : []), ...imageTabDefinitions(documents)], [app, documents]);
   // The overlay's handle is set in its own layout effect, which runs before this one.
   useLayoutEffect(() => {
     const handle = overlayApi.current;
@@ -29,6 +31,9 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
   return <WindowOverlay<AppTabId>
     additionalTabs={tabs}
     renderAdditionalTab={tabId => {
+      const hostTab = app.hostTabs?.find(tab => tab.id === tabId);
+      if (hostTab) return <AdoptedElement element={hostTab.element} />;
+      if (tabId === ADD_IMAGE_TAB) return <AddImageTab app={app} />;
       if (tabId === OPEN_IMAGE_TAB) return <OpenImageTab host={images} />;
       if (isImageInstanceTab(tabId)) return <ImageSurfaceBody host={images} tabId={tabId} />;
       return app.devTab ? <AdoptedElement element={app.devTab.element} /> : null;
@@ -56,6 +61,7 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     headsetTab={app.headsetTab}
     aboutTab={app.aboutTab}
     bugReportTab={app.bugReportTab}
+    testFeedbackTab={app.testFeedbackTab}
     browserDataTab={app.browserDataTab}
     onBugReportShow={app.onBugReportShow}
     sphereTabs={app.sphereTabs}

@@ -13,6 +13,7 @@ export type { InputModeHudHandle } from "@foss-earth/engine/panels";
 export { DEFAULT_INPUT_SENSITIVITY } from "@foss-earth/engine";
 export { createGlobeApp } from "./app/createGlobeApp";
 export type { GlobeAppHandle, GlobeAppOptions } from "./app/createGlobeApp";
+export type { GlobeAppHostTab, HostTabId } from "./app/hostTabs";
 export { mountGlobeApp } from "./app/mountGlobeApp";
 export { createBabylonLayer, createMeshCullable, asBabylonContext } from "@foss-earth/engine/layers";
 export { DEFAULT_RASTER_BASE_MAP_ID, RASTER_BASE_MAP_SOURCES, resolveRasterBaseMapSource } from "@foss-earth/engine";

@@ -1,0 +1,22 @@
+.foss-earth-add-image { display: grid; align-content: start; gap: 10px; padding: 2px; font-size: 12px; line-height: 1.5; }
+.foss-earth-add-image__choices { display: flex; flex-wrap: wrap; gap: 2px; width: fit-content; border: 1px solid var(--ui-border, #64748b55); border-radius: 8px; padding: 3px; }
+.foss-earth-add-image__choices .foss-earth-choice { border-color: transparent; border-radius: 5px; }
+.foss-earth-add-image__choices [aria-pressed="true"] { background: var(--globe-accent, #0284c7); color: white; }
+.foss-earth-add-image__form { display: grid; gap: 9px; }
+.foss-earth-add-image__form label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.foss-earth-add-image input, .foss-earth-add-image textarea { box-sizing: border-box; min-width: 0; max-width: 100%; font: inherit; color: inherit; border: 1px solid var(--ui-border, #64748b77); background: var(--ui-input-bg, #94a3b812); border-radius: 5px; padding: 5px 7px; }
+.foss-earth-add-image input:not([type="file"]), .foss-earth-add-image textarea { flex: 1 1 160px; width: 20ch; }
+.foss-earth-add-image input.foss-earth-add-image__short { flex: 0 1 18ch; width: 18ch; }
+.foss-earth-add-image input.foss-earth-add-image__number { flex: 0 1 13ch; width: 13ch; }
+.foss-earth-add-image input[type="file"] { width: 100%; padding: 4px; }
+.foss-earth-add-image__row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.foss-earth-add-image__note { margin: 0; color: var(--ui-muted, #94a3b8); font-size: 11px; }
+.foss-earth-add-image__error { margin: 0; color: var(--ui-error, #ef8c94); white-space: pre-wrap; overflow-wrap: anywhere; }
+.foss-earth-add-image__help { position: relative; font-size: 11px; }
+.foss-earth-add-image__help summary { display: inline-flex; cursor: pointer; list-style: none; border: 1px solid var(--ui-border, #64748b77); border-radius: 50%; align-items: center; justify-content: center; width: 22px; height: 22px; }
+.foss-earth-add-image__help[open] { flex-basis: 100%; border: 1px solid var(--ui-border, #64748b55); border-radius: 7px; padding: 7px; }
+.foss-earth-add-image__help p { margin: 7px 0 0; }
+.foss-earth-add-image__help pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
+.foss-earth-add-image__viewer { display: grid; gap: 5px; }
+.foss-earth-add-image__viewer iframe { display: block; width: 100%; min-height: 280px; aspect-ratio: 4/3; border: 0; border-radius: 7px; background: #000; }
+.foss-earth-add-image__viewer a { font-size: 11px; }

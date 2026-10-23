@@ -181,6 +181,26 @@ explicit host ports. The Vite plugins keep app-file caching and build
 descriptions. The compatibility source exports need a TypeScript-aware bundler;
 they are not native Node JavaScript entries.
 
+Hosts add their own controls through `hostTabs` on `mountGlobeApp` or
+`createGlobeApp`. They appear in the existing **+** menu and use the shared
+windows' docking and saved layout:
+
+```ts
+import { mountGlobeApp } from "foss-earth";
+
+const makerspaces = document.createElement("section");
+makerspaces.textContent = "Choose a makerspace";
+await mountGlobeApp(document.querySelector<HTMLElement>("#app")!, {
+  hostTabs: [{ id: "host:makerspaces", label: "Makerspaces", element: makerspaces }],
+});
+```
+
+Use a unique `host:` ID followed by letters, digits, dots, hyphens or underscores.
+Each element must belong to the app's document and be separate from its root and
+every other host tab's content. Create and wire it before mounting; metadata is
+snapshotted at startup. The shared tabs move the original element, preserving
+its state and listeners when closed and reopened.
+
 The app owns URL and saved-setting policy, page identity, browser ports, example
 content and feature composition. The libraries own the rest:
 

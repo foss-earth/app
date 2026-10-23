@@ -35,6 +35,7 @@ import { INPUT_SENSITIVITY_IDS, PERFORMANCE_HUD_METRICS, POSITION_ALTITUDE_ID, T
 import { createParameterControl, type ParameterControlHandle } from "@foss-earth/ui/browser";
 import { createParameterSection, type ParameterSectionHandle } from "@foss-earth/ui/browser";
 import { createThemeControl } from "@foss-earth/ui/browser";
+import { attachResetButton } from "@foss-earth/ui/browser";
 import { createPresetsSection } from "@foss-earth/ui/browser";
 import { createSavedSettingsSection } from "@foss-earth/ui/browser";
 import { createAppFilesSection, describeAppFiles, describeIsolation } from "@foss-earth/ui/browser";
@@ -46,8 +47,12 @@ import { WORLD_EDGES_ID } from "@foss-earth/ui/settings";
 import { reportSecrets, startAppDiagnostics, type AppDiagnostics } from "./appDiagnostics";
 import { issueReporterFromBuild } from "./issueReporting";
 import type { IssueReporterConfig } from "@foss-earth/ui/diagnostics";
+import type { TestProvider, TestFeedbackSession } from "@foss-earth/ui/diagnostics";
+import { createTestFeedbackPanel } from "@foss-earth/ui/browser";
 import { keepAppFiles } from "./appFiles";
 import { getAppIdentity } from "./appIdentity";
+import { createNavigationCurvePreview } from "./navigationCurvePreview";
+import { validateHostTabs, type GlobeAppHostTab, type HostTabId } from "./hostTabs";
 import { createAboutPanel } from "../shell/aboutPanel";
 import { describePublishedVersion, watchPublishedVersion, type PublishedVersionWatch } from "./publishedVersion";
 import type {
@@ -148,7 +153,7 @@ declare global {
       /** The VR headset session: scripts/validation/headset-emulator.mjs reads it. */
       headset: HeadsetSession;
       /** Image tabs, for the browser checks of docs/proposals/shared-image-viewer-implementation.md §11. */
-      images: { host: ImageSurfaceHost; broker: ImageSessionBroker; readonly overlay: WindowOverlayHandle<"dev" | ImageTabId> | null;
+      images: { host: ImageSurfaceHost; broker: ImageSessionBroker; readonly overlay: WindowOverlayHandle<"dev" | "add-image" | ImageTabId | HostTabId> | null;
         /** What the image surface draws this frame: its framebuffer rectangle, camera and wipe. */
         draw(): RectangleSurfaceDraw | null };
       /** Elevation decode workers and tiles decoded on the page: the perf bench reads them. Null without workers. */
@@ -180,6 +185,8 @@ export interface GlobeAppHandle extends GlobeHandle {
   aboutTab: HTMLElement;
   /** The report form's one home, prepared when this tab is first shown. */
   bugReportTab: HTMLElement;
+  testFeedbackTab?: HTMLElement;
+  testFeedback?: TestFeedbackSession;
   /** Review and clear this site's browser data, keeping API keys by default. */
   browserDataTab: HTMLElement;
   onBugReportShow(): void;
@@ -203,12 +210,20 @@ export interface GlobeAppHandle extends GlobeHandle {
   imageTabs: ImageSurfaceHost;
   /** The mounted scene, if any, and loading another. */
   scenes: SceneController;
+  /** Existing configured key, read only when the person opens Google's panorama viewer. */
+  googleMapsApiKey?(): string | null;
+  /** Host content is rendered by the same native window tabs as the application's own UI. */
+  hostTabs?: readonly GlobeAppHostTab[];
   readonly devTab: EarthDevTab | null;
   whenDevSettled(): Promise<void>;
   onTabVisibility(tabId: string, visible: boolean): void;
 }
 
 export interface GlobeAppOptions {
+  /** Additional native window tabs. IDs use host: to keep built-in and image tabs independent. */
+  hostTabs?: readonly GlobeAppHostTab[];
+  /** Explicit extra observations available to custom test links. */
+  testProviders?: Readonly<Record<string, TestProvider>>;
   /** Download full diagnostics and open an issue draft in this GitHub repository. */
   issueReporter?: IssueReporterConfig;
   googleApiKey?: string | null;
@@ -243,7 +258,7 @@ export interface GlobeAppOptions {
    * its tabs: \u2699 Settings, input method Controls, the position Location,
    * and the renderer and map chips their own tabs.
    */
-  overlayApiRef?: { current: WindowOverlayHandle<"dev" | ImageTabId> | null };
+  overlayApiRef?: { current: WindowOverlayHandle<"dev" | "add-image" | ImageTabId | HostTabId> | null };
 }
 
 /** Pixel offset from the projected orb centre to the top-right exit button. */
@@ -273,7 +288,7 @@ function readHudPreference(id: string): { wanted: boolean; pinned: boolean } {
 
 function getFallbackNoticeMessage(status: BabylonRuntime["status"]): string {
   if (!status.googleApiKeyProvided) {
-    return "Fallback mode active because no Google Maps API key was provided. Append ?key=YOUR_GOOGLE_MAPS_API_KEY to the URL to enable Google Photorealistic 3D Tiles.";
+    return "Fallback mode active because no Google Maps API key was provided. Append ?gkey=YOUR_GOOGLE_MAPS_API_KEY to the URL to enable Google Photorealistic 3D Tiles.";
   }
 
   if (status.lastError) {
@@ -335,6 +350,7 @@ export async function createGlobeApp(
   rootElement: HTMLElement,
   options: GlobeAppOptions = {},
 ): Promise<GlobeAppHandle> {
+  const hostTabs = [...validateHostTabs(options.hostTabs, rootElement)];
   // Every module of the startup graph has been fetched and run by now.
   markBoot("boot:modules");
   bootStep("modules", "Starting the app", 0);
@@ -967,6 +983,8 @@ export async function createGlobeApp(
             create: () => createStandardGlobeProfile(selectedGamepadSlot(), stickDeadzone(), sphereProfile),
           },
         ],
+        // The settings' tiny circular reset, on a control away from its default.
+        attachReset: (control, { label, reset }) => { attachResetButton(document, control, { label: () => label, shown: () => true, reset }); },
       });
     }, error => {
       gamepadEditorWanted = false;
@@ -998,6 +1016,9 @@ export async function createGlobeApp(
     line.textContent = text;
     return line;
   };
+  const navigationCurve = createNavigationCurvePreview(document, settings);
+  cleanup.push(() => navigationCurve.destroy());
+  hostTabs.push({ id: "host:navigation", label: "Navigation", element: sectionOf("navigation", "main", { main: navigationCurve.element }) });
   // "Extra panels [POI sprite size tuner …] [Compass scale tuner …]": the title first in the row.
   const group = (heading: string, ids: readonly string[]): HTMLElement => {
     const element = document.createElement("div");
@@ -1087,6 +1108,14 @@ export async function createGlobeApp(
   cleanup.push(() => diagnosticsSection.destroy());
   const bugReportPanel = createBugReportPanel(diagnosticsSource, { document, now: () => new Date(), downloads: browserReportDownloads(URL), issueReporter: options.issueReporter ?? issueReporterFromBuild() });
   cleanup.push(() => bugReportPanel.destroy());
+  const testFeedback = createTestFeedbackPanel({ document, href: window.location.href, now: () => new Date(),
+    downloads: browserReportDownloads(URL), secrets: () => reportSecrets(settings), providers: {
+      diagnostics: diagnosticsSource.report,
+      execution: () => earthNativeCores(browser.runtime) ?? [],
+      scheduling: () => earthComputeScheduling(browser.runtime),
+      ...options.testProviders,
+    } });
+  cleanup.push(() => testFeedback?.destroy());
   const inputMethodElement = inputMethodSectionEl
     ? sectionOf("controls", "input-method", { main: inputMethodSectionEl, covers: ["input.mode", ...INPUT_SENSITIVITY_IDS] })
     : null;
@@ -1419,6 +1448,8 @@ export async function createGlobeApp(
     nativeSections: native.sections,
     aboutTab: about.element,
     bugReportTab: bugReportPanel.element,
+    testFeedbackTab: testFeedback?.element,
+    testFeedback: testFeedback?.session ?? undefined,
     browserDataTab: browserData.element,
     onBugReportShow: () => bugReportPanel.show(),
     mapTab: mapPanel.element,
@@ -1431,6 +1462,11 @@ export async function createGlobeApp(
     sphereTabs,
     imageTabs,
     scenes,
+    hostTabs,
+    googleMapsApiKey() {
+      const saved = settings.get("map.source.googleKey");
+      return options.googleApiKey?.trim() || (typeof saved === "string" ? saved.trim() : "") || null;
+    },
     get devTab() { return dev.tab; },
     onTabVisibility(tabId, visible) {
       if (tabId === "dev") dev.tab?.onOpenChange(visible);

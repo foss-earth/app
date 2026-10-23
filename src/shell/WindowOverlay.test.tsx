@@ -4,7 +4,33 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import type { ViewerTabsSnapshot } from "@foss-earth/sphere-image/panels";
 import { SAVED_WORKSPACE_STORAGE_KEY } from "@foss-earth/ui/browser";
+import { createSettingsRegistry, TAB_PICKER_ID, UI_PARAMETERS } from "@foss-earth/ui/settings";
 import { WindowOverlay } from "./WindowOverlay";
+import type { WindowOverlayHandle } from "./WindowOverlay";
+
+it("opens a custom Test tab once and lets the user switch away while testing", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div"); document.body.append(host);
+  const root = createRoot(host);
+  const overlayApiRef: { current: WindowOverlayHandle | null } = { current: null };
+  const testFeedbackTab = document.createElement("div"); testFeedbackTab.textContent = "CUSTOM_TEST_CHECKLIST";
+  const mapTab = document.createElement("div"); mapTab.textContent = "MAP_CONTENT";
+  const render = () => act(async () => root.render(<WindowOverlay
+    getViewState={() => null} setViewState={() => {}} storage={null}
+    locationSearchProvider={async () => []} overlayApiRef={overlayApiRef}
+    testFeedbackTab={testFeedbackTab} mapTab={mapTab}
+  />));
+  try {
+    await render();
+    expect(host.textContent).toContain("CUSTOM_TEST_CHECKLIST");
+    await act(async () => overlayApiRef.current!.openOrSelectTab("map"));
+    await render();
+    expect(host.textContent).toContain("MAP_CONTENT");
+    expect(testFeedbackTab.isConnected).toBe(false);
+  } finally {
+    await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals();
+  }
+});
 
 it.each([390, 1280])("remembers window sizes through map/photo transitions and reloads at %i px", async screenWidth => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -124,5 +150,30 @@ it("keeps a saved Native tab in place under the Component execution name", async
     expect(host.textContent).toContain("Global defaults");
   } finally {
     await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals();
+  }
+});
+
+it("follows the Tab picker setting: New tab by default, the dropdown once chosen there, and back from its menu", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1280);
+  const settings = createSettingsRegistry();
+  settings.register(UI_PARAMETERS);
+  const host = document.createElement("div"); document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(<WindowOverlay getViewState={() => null} setViewState={() => {}} storage={null}
+      settings={settings} locationSearchProvider={async () => []} />));
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Open right panel"]')!.click());
+    expect(host.querySelector(".foss-earth-new-tab-grid")).not.toBeNull();
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    await act(async () => host.querySelector<HTMLInputElement>('.foss-earth-new-tab input[value="dropdown"]')!.click());
+    expect(settings.get(TAB_PICKER_ID)).toBe("dropdown");
+    expect(host.querySelector(".foss-earth-new-tab")).toBeNull();
+    expect(host.querySelector('[role="menu"]')).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>(".foss-earth-window-menu-picker")!.click());
+    expect(settings.get(TAB_PICKER_ID)).toBe("tab");
+    expect(host.querySelector(".foss-earth-new-tab-grid")).not.toBeNull();
+  } finally {
+    await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals();
   }
 });
