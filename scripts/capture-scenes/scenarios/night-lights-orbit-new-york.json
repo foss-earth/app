@@ -1,0 +1,33 @@
+{
+  "$comment": "A starting point for a New York night-lighting card, to be framed in the tuner (scripts/capture-scenes/tune.mjs): from 400 km over the Atlantic south-east of New York at the hero video's instant, looking back north-west at the lit coast, so the dark sea fills the bottom of the picture where a card's text goes. Its publish paths are the night card's, so publishing it replaces the south-east Brazil picture.",
+  "extends": "night-lights-orbit.json",
+  "name": "night-lights-orbit-new-york",
+  "description": "From 400 km over the Atlantic south-east of New York at 23:10:58 UTC on 25 October 2026 (19:10:58 EDT, the hero video's instant), looking north-west at the lit coast from Washington to Boston, with the dark sea below.",
+  "time": {
+    "utc": "2026-10-25T23:10:58Z",
+    "label": "2026-10-25 19:10:58 America/New_York (EDT)"
+  },
+  "reference": {
+    "label": "New York",
+    "latDeg": 40.7128,
+    "lonDeg": -74.006
+  },
+  "observer": {
+    "fromReference": {
+      "bearingDeg": 150,
+      "distanceKm": 600,
+      "sunAboveLimbDeg": null
+    },
+    "altitudeKm": 400
+  },
+  "camera": {
+    "headingDeg": 330,
+    "headingOffsetDeg": 0,
+    "limbAtY": 0.12,
+    "verticalFovDeg": 50
+  },
+  "publish": {
+    "webp": "~/gh/0sfs/0sfs.github.io/public/media/night-lights-orbit.webp",
+    "jpeg": "~/gh/0sfs/0sfs.github.io/public/media/night-lights-orbit.jpg"
+  }
+}
