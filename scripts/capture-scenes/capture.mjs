@@ -9,6 +9,8 @@
 // A scenario is a JSON file, or the name of one in scripts/capture-scenes/scenarios/.
 // Each run writes original.png, final.webp, its decoded full-size preview,
 // report.json and preview.html to build/capture-scenes/runs/<name>/<UTC time>/.
+// With image.crop, original.png is the whole view, rendered larger, and
+// cropped.png the picture cut out of it.
 // --publish also copies the encoded pictures to the scenario's `publish` paths.
 // --bracket also captures the same loaded view at other exposures, side by side in
 // preview.html, for choosing one: each step is exposure compensation
@@ -21,7 +23,7 @@ import { parseArgs } from "node:util";
 import { openHeadlessPage } from "@foss-earth/browser-testing/page";
 import { readGoogleKey } from "@foss-earth/engine/prepare-heights";
 import { resolveBuild } from "./lib/build.mjs";
-import { analyse, decodePng, decodeWebp, encodeJpeg, encodeWebp, measureSun } from "./lib/image.mjs";
+import { analyse, cropImage, decodePng, decodeWebp, encodeJpeg, encodePng, encodeWebp, measureSun } from "./lib/image.mjs";
 import { hideInterface, hideSceneMeshes, inPage, placeCamera, probe, setSetting, settleFrames } from "./lib/page.mjs";
 import { describeView, planCamera } from "./lib/plan.mjs";
 import { assess, skyLagToleranceDeg, skyObserverArcDeg, skyObserverAt } from "./lib/readiness.mjs";
@@ -236,7 +238,11 @@ function exposureOf(state) {
   };
 }
 
-async function captureScenario(scenario, scenarioFile, { origin, key, build, runRoot }) {
+async function captureScenario(given, scenarioFile, { origin, key, build, runRoot }) {
+  // The page renders, and the camera is planned for, the whole view: larger than the picture when it is cropped.
+  const output = given.image;
+  const scenario = { ...given, image: { width: output.render.width, height: output.render.height } };
+  const crop = output.cropPx;
   const runDirectory = path.join(runRoot, scenario.name, stamp());
   await mkdir(runDirectory, { recursive: true });
   const { width, height } = scenario.image;
@@ -311,7 +317,12 @@ async function captureScenario(scenario, scenarioFile, { origin, key, build, run
   await writeFile(original, accepted.png);
   const image = decodePng(accepted.png);
   if (image.width !== width || image.height !== height) throw new Error(`[${scenario.name}] the screenshot is ${image.width}×${image.height}, not ${width}×${height}`);
-  const measured = analyse(image);
+  // The picture: the crop, when there is one, cut out of the whole view at full resolution.
+  const picture = crop ? cropImage(image, crop) : image;
+  const cropped = crop ? path.join(runDirectory, "cropped.png") : null;
+  if (cropped) await writeFile(cropped, encodePng(picture));
+  const source = cropped ?? original;
+  const measured = analyse(picture);
   if (measured.lumaStdDev < 2) {
     // A blank picture is most often the exposure: say which one was in use.
     const sky = accepted.state.sky;
@@ -319,12 +330,12 @@ async function captureScenario(scenario, scenarioFile, { origin, key, build, run
     throw new Error(`[${scenario.name}] the picture is blank (luma deviation ${measured.lumaStdDev})${exposure}; see ${original}`);
   }
   const webp = path.join(runDirectory, "final.webp");
-  const webpBytes = await encodeWebp(original, webp, scenario.encode.webpQuality);
+  const webpBytes = await encodeWebp(source, webp, scenario.encode.webpQuality);
   const decoded = path.join(runDirectory, "final-decoded.png");
   const hasDecoded = await decodeWebp(webp, decoded);
   let jpegBytes = null;
   const jpeg = path.join(runDirectory, "final.jpg");
-  if (scenario.encode.jpeg !== false) jpegBytes = await encodeJpeg(original, jpeg, scenario.encode.jpegQuality, APP_ROOT);
+  if (scenario.encode.jpeg !== false) jpegBytes = await encodeJpeg(source, jpeg, scenario.encode.jpegQuality, APP_ROOT);
 
   const s = accepted.state;
   const actual = describeView({ eye: s.eye ?? plan.engine.center, center: s.camera.center, verticalFovDeg: s.camera.fov * 180 / Math.PI, width, height, sunDirection: s.sky.sunDirection, reference: scenario.reference });
@@ -351,9 +362,12 @@ async function captureScenario(scenario, scenarioFile, { origin, key, build, run
     await mkdir(path.join(runDirectory, directory), { recursive: true });
     const stepOriginal = path.join(runDirectory, directory, "original.png");
     await writeFile(stepOriginal, shot.png);
+    const stepPicture = crop ? cropImage(decodePng(shot.png), crop) : decodePng(shot.png);
+    const stepSource = crop ? path.join(runDirectory, directory, "cropped.png") : stepOriginal;
+    if (crop) await writeFile(stepSource, encodePng(stepPicture));
     const stepWebp = path.join(runDirectory, directory, "final.webp");
-    const stepWebpBytes = await encodeWebp(stepOriginal, stepWebp, scenario.encode.webpQuality);
-    steps.push({ stops: shot.stops, ...exposureOf(shot.state), measured: analyse(decodePng(shot.png)), directory,
+    const stepWebpBytes = await encodeWebp(stepSource, stepWebp, scenario.encode.webpQuality);
+    steps.push({ stops: shot.stops, ...exposureOf(shot.state), measured: analyse(stepPicture), directory,
       files: { original: { path: stepOriginal, bytes: shot.png.length }, webp: { path: stepWebp, bytes: stepWebpBytes } },
       readiness: { attempts: shot.attempts, cameraPlacedAgain: shot.placedAgain } });
   }
@@ -376,8 +390,9 @@ async function captureScenario(scenario, scenarioFile, { origin, key, build, run
     renderer: s.renderer, viewport: s.viewport, canvas: s.canvas, settings: scenario.settings, url: redactedUrl,
     build: { directory: build.directory, how: build.how, provenance: build.provenance },
     readiness: { attempts: accepted.attempts, stablePolls: readiness.stablePolls, pollMs: readiness.pollMs, aimedAgainForTheSkyAtTheEye: aimedAgain, cameraPlacedAgain: accepted.placedAgain },
-    image: { width, height, measured, sun },
-    files: { original: { path: original, bytes: accepted.png.length }, webp: { path: webp, bytes: webpBytes, quality: scenario.encode.webpQuality },
+    image: { width: output.width, height: output.height, render: { width, height }, crop: output.crop, cropPx: crop, measured,
+      sun: { ...sun, coordinates: crop ? "of the whole rendered view (original.png); subtract cropPx.x and .y for the picture" : "of the picture" } },
+    files: { original: { path: original, bytes: accepted.png.length }, cropped: cropped ? { path: cropped } : null, webp: { path: webp, bytes: webpBytes, quality: scenario.encode.webpQuality },
       decodedPreview: hasDecoded ? decoded : null, jpeg: jpegBytes ? { path: jpeg, bytes: jpegBytes, quality: scenario.encode.jpegQuality } : null, published },
     bracket: steps.length ? {
       setting: COMPENSATION_ID,
@@ -392,6 +407,7 @@ async function captureScenario(scenario, scenarioFile, { origin, key, build, run
   await writeFile(path.join(runDirectory, "preview.html"), previewHtml(JSON.parse(text)));
   await writeFile(path.join(runRoot, scenario.name, "latest.txt"), path.relative(path.join(runRoot, scenario.name), runDirectory) + "\n");
   log(`[${scenario.name}] captured in ${report.durationS} s: ${relative(original)} (${accepted.png.length} B), final.webp ${webpBytes} B${jpegBytes ? `, final.jpg ${jpegBytes} B` : ""}`);
+  if (crop) log(`[${scenario.name}] cropped: the view rendered at ${width}×${height}, the picture its ${crop.width}×${crop.height} from (${crop.x}, ${crop.y}), ${relative(cropped)}`);
   log(`[${scenario.name}] Sun ${actual.sun.aboveLimbDeg}° above the Earth's edge, ${sun.behindEarth ? "behind the Earth" : `predicted ${JSON.stringify(actual.sun.pixel)}, ${sun.found ? `found ${sun.offsetPx} px from there, ${sun.diameterPx} px across` : sun.predicted?.inFrame ? "not found there" : "out of frame"}`}; map ${s.status.mode}; renderer ${s.renderer.mode} (${s.renderer.gpu ?? "GPU unknown"})`);
   const flare = s.sky.lensFlare, flareSun = flare?.sources.find(source => source.id === "sun");
   const shown = exposureOf(s);
@@ -424,7 +440,7 @@ pre{white-space:pre-wrap;background:#121826;padding:12px;border-radius:8px}.scro
 <div class="card"><img src="final.webp" alt=""></div><div class="card tablet"><img src="final.webp" alt=""></div>
 ${bracketHtml(report, escape)}
 <h2>final.webp at full size (${width}×${height}, ${report.files.webp.bytes} bytes)</h2><div class="scroll"><img src="final.webp" width="${width}" height="${height}" alt=""></div>
-<h2>original.png (${report.files.original.bytes} bytes)</h2><div class="scroll"><img src="original.png" width="${width}" height="${height}" alt=""></div>
+<h2>original.png${report.image.cropPx ? `, the whole view the picture is cropped from (${report.image.render.width}×${report.image.render.height}` : ` (${width}×${height}`}, ${report.files.original.bytes} bytes)</h2><div class="scroll"><img src="original.png" width="${report.image.render?.width ?? width}" height="${report.image.render?.height ?? height}" alt=""></div>
 <h2>Summary</h2><pre>${escape(JSON.stringify(summary, null, 2))}</pre>`;
 }
 

@@ -4,7 +4,7 @@
 import { execFile } from "node:child_process";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { inflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 
 export function decodePng(buffer) {
   if (buffer.readUInt32BE(0) !== 0x89504e47) throw new Error("Not a PNG");
@@ -45,6 +45,44 @@ export function decodePng(buffer) {
     [previous, row] = [row, previous];
   }
   return { width, height, rgba };
+}
+
+/** A rectangle of a decoded picture. */
+export function cropImage({ width, rgba }, { x, y, width: w, height: h }) {
+  const out = new Uint8Array(w * h * 4);
+  for (let row = 0; row < h; row++) out.set(rgba.subarray(((y + row) * width + x) * 4, ((y + row) * width + x + w) * 4), row * w * 4);
+  return { width: w, height: h, rgba: out };
+}
+
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+function crc32(buffer) {
+  let c = 0xffffffff;
+  for (const byte of buffer) c = CRC_TABLE[(c ^ byte) & 255] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+/** An 8-bit RGB PNG of a decoded picture (its alpha dropped: screenshots are opaque). */
+export function encodePng({ width, height, rgba }) {
+  const raw = Buffer.alloc(height * (width * 3 + 1));
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const from = (y * width + x) * 4, to = y * (width * 3 + 1) + 1 + x * 3;
+    raw[to] = rgba[from]; raw[to + 1] = rgba[from + 1]; raw[to + 2] = rgba[from + 2];
+  }
+  const chunk = (type, body) => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32BE(body.length, 0);
+    head.write(type, 4, "latin1");
+    const tail = Buffer.alloc(4);
+    tail.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), body])), 0);
+    return Buffer.concat([head, body, tail]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4);
+  header[8] = 8; header[9] = 2;
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", header), chunk("IDAT", deflateSync(raw, { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
 }
 
 /**

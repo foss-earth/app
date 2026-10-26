@@ -86,6 +86,8 @@ export function validateScenario(raw) {
   }
   if (s.reference) { finite(s.reference.latDeg, "reference.latDeg", -90, 90); finite(s.reference.lonDeg, "reference.lonDeg", -180, 180); }
   const camera = s.camera ?? {};
+  // null unsets a field a parent scenario gave, as with settings below: limbAtY=null to use elevationDeg.
+  for (const key of Object.keys(camera)) if (camera[key] === null) delete camera[key];
   if (camera.headingDeg !== "sun") finite(camera.headingDeg, "camera.headingDeg", -360, 360);
   camera.headingOffsetDeg = finite(camera.headingOffsetDeg ?? 0, "camera.headingOffsetDeg", -180, 180);
   finite(camera.verticalFovDeg, "camera.verticalFovDeg", 10, 120);
@@ -94,6 +96,26 @@ export function validateScenario(raw) {
   s.camera = camera;
   const image = s.image ?? {};
   for (const key of ["width", "height"]) if (!Number.isSafeInteger(image[key]) || image[key] < 64 || image[key] > 4096) throw new Error(`Scenario image.${key} must be an integer from 64 to 4096`);
+  // A crop keeps part of the view, at the picture's shape: size is the share of the view's width and
+  // height kept, left and top where it starts, as shares of the view (centred when not given). The capture renders the view
+  // 1/size larger (image.render) and cuts the picture's width × height out of it (image.cropPx), so
+  // the picture keeps its full resolution.
+  image.crop ??= null;
+  if (image.crop !== null) {
+    const size = finite(image.crop.size, "image.crop.size", Math.ceil(Math.max(image.width, image.height) / 4096 * 1000) / 1000, 1);
+    const middle = Math.round((1 - size) / 2 * 1e6) / 1e6;
+    image.crop = { left: middle, top: middle, ...image.crop };
+    finite(image.crop.left, "image.crop.left", 0, 1 - size + 1e-9);
+    finite(image.crop.top, "image.crop.top", 0, 1 - size + 1e-9);
+  }
+  const kept = image.crop?.size ?? 1;
+  image.render = { width: Math.round(image.width / kept), height: Math.round(image.height / kept) };
+  image.cropPx = image.crop ? {
+    x: Math.min(Math.round(image.crop.left * image.render.width), image.render.width - image.width),
+    y: Math.min(Math.round(image.crop.top * image.render.height), image.render.height - image.height),
+    width: image.width, height: image.height,
+  } : null;
+  s.image = image;
   s.scenery = { basemap: "google", requireMode: "google-tiles", renderer: "auto", ...s.scenery };
   // null unsets a setting a parent scenario gave, leaving the app's default.
   s.settings = Object.fromEntries(Object.entries(s.settings ?? {}).filter(([, value]) => value !== null));
@@ -112,6 +134,11 @@ export function validateScenario(raw) {
   s.readiness = { timeoutSec: 240, pollMs: 250, stablePolls: 8, attempts: 3, allowNightLightFailures: false, ...s.readiness };
   finite(s.readiness.timeoutSec, "readiness.timeoutSec", 10, 1800);
   return s;
+}
+
+/** A scenario file merged with the files it extends, before checks and defaults. */
+export function loadScenarioSource(file) {
+  return loadFile(file);
 }
 
 export async function loadScenario(file, overrides = []) {

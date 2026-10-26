@@ -84,6 +84,54 @@ To keep a step, put its setting in the scenario's `settings`, or run the scenari
 `--publish`. Each step was checked against a fresh capture at the same setting. The night card at +1 was
 identical. The sky card at +1 and +6 differed by one level in at most 5 pixels.
 
+## Framing a scenario by hand
+
+`tune.mjs` opens a page with the live view beside controls for the scenario's time, observer, camera
+and exposure:
+
+```sh
+node scripts/capture-scenes/tune.mjs sky-sunset-orbit --app-dist build/capture-scenes/app-dist
+```
+
+`--set path=value` starts it with overrides, as the capture takes them, so the command the page shows
+opens it again where it was left.
+
+It serves the build on 127.0.0.1, port 4180 or a free one, and opens the page. Stop it with Ctrl-C.
+The view is the app in a frame, at the picture's size in pixels, without its interface. It places the
+camera exactly as a capture would, and follows each change within a quarter of a second.
+
+Over the view it draws guides, which are not in the picture:
+
+- the card's text area, with a mock heading and text, at a height you choose
+- the line from the Sun through the picture's centre, where the lens flare's ghost rings fall, with
+  its angle from horizontal
+- the reference place
+- the crop: the view outside it dimmed. Drag the view to move it.
+
+A scenario that places the eye or aims the camera by the Sun, as `sky-sunset-orbit` does, would move
+both when the time changes. By default the page fixes them where they are when you first change the
+time, so a new time moves only the Sun: a Sun height becomes the distance it gave, a direction from the
+Sun a bearing, and a heading towards the Sun a compass heading. The note under the time says which.
+"A new time moves: the eye and the look too" keeps the old behaviour.
+
+Below the view it shows where the Sun is, the flare line's angle, the exposure the meter chose and
+whether the map has loaded.
+
+The buttons:
+
+- **Save** writes the changed fields into the scenario's own file. It first copies the old file to
+  `build/capture-scenes/tune/backups/`, and undoes the write if the result does not load.
+  Its `$comment` and `description` are not updated.
+- **Save as new** writes a new scenario that extends this one, with only the changes. Publish paths
+  are not inherited, so it publishes nothing until you add a `publish` block.
+- **Capture** runs `capture.mjs` on the page's current state, into `build/capture-scenes/tune/runs/`,
+  and shows the picture. With **publish** ticked, it publishes too.
+
+The page also shows the equivalent `capture.mjs` command with `--set` overrides.
+
+The key reaches the frame through its address, as in a capture, so it is in the browser's history for
+`localhost`.
+
 ## What a run does
 
 1. **Build.** By default it reuses the newest of `build/capture-scenes/app-dist` and `dist/`, and builds
@@ -172,13 +220,14 @@ a path relative to itself. Objects merge and everything else replaces. A child k
 | `observer.latDeg`, `lonDeg` | A fixed eye position. Use either this or `fromReference`. |
 | `observer.fromReference` | `bearingDeg` (degrees, `"away-from-sun"` or `"towards-sun"`) plus one of: `distanceKm` along the great circle (0 to 20,000), or `sunAboveLimbDeg` (−10 to 80). The latter is solved for the distance, within 10,000 km, at which the Sun stands that high above the Earth's edge. At a fixed time, moving the eye is what raises or lowers the Sun. Below zero the Sun is behind the Earth and the eye is in the Earth's shadow. A child that switches from one to the other sets the parent's to `null`. |
 | `camera.headingDeg` | Degrees, or `"sun"`. Optional `headingOffsetDeg` adds to it. |
-| `camera.limbAtY` | Where the Earth's edge falls, as a fraction of the picture from the top; this fixes the tilt. Use `elevationDeg` (−89 to −1) instead to set the tilt directly. |
+| `camera.limbAtY` | Where the Earth's edge falls, as a fraction of the picture from the top; this fixes the tilt. Use `elevationDeg` (−89 to −1) instead to set the tilt directly; `null` drops a parent's `limbAtY`. |
 | `camera.verticalFovDeg` | Vertical field of view, 10 to 120 degrees. |
 | `scenery` | `basemap` (the app's `mapSource`), `requireMode` (the runtime mode the capture insists on, e.g. `google-tiles`) and `renderer`. |
 | `settings` | App parameters by id, e.g. `"sky.exposure.mode": "fixed"`. `null` drops a setting a parent gave, leaving the app's default. The Google key cannot be set here. |
 | `attribution` | `true` keeps the map's attribution chip in the picture. `false` hides all interface, and the page showing the picture must credit the map itself; the report's `scenery.attribution` holds the credit and link. |
 | `hideSceneMeshes` | Name prefixes of scene meshes that are interface, not world. The default is `["orbit-compass"]`, the horizon compass's letters and needle. |
 | `image` | `width` and `height` in CSS pixels at device pixel ratio 1. |
+| `image.crop` | Optional `{left, top, size}`: keep part of the view, at the picture's shape. `size` is the share of the view's width and height kept; `left` and `top` are where the kept part starts, as shares of the view, centred when not given. The capture renders the view `1/size` larger and cuts `width` × `height` out of it, so the picture is not enlarged: `original.png` is the whole view, `cropped.png` the picture. The lens flare scales with the render, so it looks as it does uncropped. The smallest `size` keeps the render within 4096 px. |
 | `encode` | `webpQuality` and `jpegQuality`; `"jpeg": false` skips the JPEG. |
 | `publish` | `webp` and `jpeg` destinations, used with `--publish`. `~/` is expanded. |
 | `readiness` | `timeoutSec` (240), `pollMs` (250), `stablePolls` (8), `attempts` (3), `allowNightLightFailures` (false), and optionally `maxLoadedErrorPx`. |
@@ -189,6 +238,7 @@ a path relative to itself. Objects merge and everything else replaces. A child k
 | --- | --- |
 | `sky-sunset-orbit` | The sky card's background, 1200 × 1200, published as `sky-sunset-orbit.webp`/`.jpg`. At 23:10:58 UTC on 25 October 2026, the 0SFS hero video's instant and UMN's sunset: from 400 km above northern Maine, looking west to the Sun 2° above the Earth's edge, with UMN on the edge directly below it. Fixed EV 12, with the full lens flare (`sky.exposure.lensFlare`: `flare`): a starburst and halo around the Sun, and four ghost rings on the line from it through the picture's centre. |
 | `night-lights-orbit` | The night-lighting card's background, 1200 × 1200, published as `night-lights-orbit.webp`/`.jpg`. At 22:16 UTC, from 400 km off Espírito Santo, looking west-north-west over lit Minas Gerais and Goiás to the sunset glow on the Earth's edge. The Sun is 4° behind the edge; metered exposure, EV 1. |
+| `night-lights-orbit-new-york` | A starting point for a New York night card, to frame in the tuner: at the hero video's instant, from 400 km over the Atlantic 600 km south-east of New York, looking north-west at the lit coast, with the dark sea in the bottom half for the text. It has the night card's publish paths. |
 | `night-lights-orbit-europe`, `-us-east`, `-nile`, `-us-midwest` | Other places tried for the night card: the Alps and the Po Valley, the US East Coast at the hero video's instant, the Nile, the Midwest. Not published. |
 | `sky-sunset-orbit-north-atlantic` | From 5000 km over the North Atlantic at 22:16 UTC, the Sun just behind the edge. A thin white arc; lights small, in Iberia and France. Not published. |
 | `sky-sunset-orbit-wide` | The first 1920 × 432 strip, published as `sky-sunset-orbit-wide.*`: at 22:16 UTC, the Sun 2° above the edge from 400 km, the orange band at a fixed EV 12, no lights. |

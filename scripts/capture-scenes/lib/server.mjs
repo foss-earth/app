@@ -15,11 +15,28 @@ const TYPES = {
   ".woff2": "font/woff2", ".woff": "font/woff",
 };
 
-export async function serveBuild(directory, { port = 0, base = "/app/" } = {}) {
+/** Serves a file with its type, or answers 404; for the build and for other routes alike. */
+export async function sendFile(request, response, file) {
+  const info = await stat(file).catch(() => null);
+  if (!info?.isFile()) { response.writeHead(404).end(); return; }
+  response.writeHead(200, {
+    "content-type": TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream",
+    "content-length": info.size, "cache-control": "no-cache",
+  });
+  if (request.method === "HEAD") { response.end(); return; }
+  createReadStream(file).pipe(response);
+}
+
+/**
+ * `handle(url, request, response)`, when given, is asked first and returns true when it answered:
+ * the tuner adds its own page and actions beside the build this way.
+ */
+export async function serveBuild(directory, { port = 0, base = "/app/", handle = null } = {}) {
   const root = path.resolve(directory);
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://localhost");
+      if (handle && await handle(url, request, response)) return;
       if (url.pathname === "/" || url.pathname === base.slice(0, -1)) {
         response.writeHead(302, { location: base }).end();
         return;
