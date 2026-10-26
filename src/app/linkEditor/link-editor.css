@@ -4,4 +4,6 @@
 .foss-earth-link-editor__controls { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-bottom: 8px; }
 .foss-earth-link-editor label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 100%; }
 .foss-earth-link-editor select { width: auto; min-width: 0; max-width: 100%; field-sizing: content; font: inherit; color: inherit; background: var(--ui-surface-raised, #222); }
+/* Earth names no raised surface, and the dark fallback above would hide the select's text in its light appearance. */
+:root[data-theme="light"] .foss-earth-link-editor select { background: var(--ui-surface-raised, #f1f5f9); }
 .foss-earth-link-editor__kept { opacity: .65; }

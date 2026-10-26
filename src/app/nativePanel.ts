@@ -308,12 +308,12 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   pendingText.setAttribute("role", "status");
   const apply = document.createElement("button");
   apply.type = "button";
-  apply.className = "foss-earth-choice";
+  apply.className = "foss-earth-choice foss-earth-parameter__action";
   apply.textContent = "Apply & reload";
   apply.setAttribute("aria-label", "Apply execution settings and reload");
   const discard = document.createElement("button");
   discard.type = "button";
-  discard.className = "foss-earth-choice";
+  discard.className = "foss-earth-choice foss-earth-parameter__action";
   discard.textContent = "Discard";
   discard.setAttribute("aria-label", "Discard pending execution changes");
   const error = document.createElement("p");
