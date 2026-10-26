@@ -891,7 +891,7 @@ export async function createGlobeApp(
   // Register each successful subscription before constructing the next one.
   const retainSettingsRelease = (release: () => void): void => { stopWatchingSettings.push(release); };
     // What automatic adjustment did, and why, goes in the log as it happens.
-  retainSettingsRelease(connectMapDetailLog(runtime, gameLog));
+  retainSettingsRelease(connectMapDetailLog(runtime, gameLog, settings));
   retainSettingsRelease(settings.watch(MAP_SOURCE_HUD_LAYOUT_ID, value => {
     mapSourceHud?.setLayout(value === "expanded" ? "expanded" : "compact");
     hudFit?.update();

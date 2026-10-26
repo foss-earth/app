@@ -1,0 +1,7 @@
+{
+  "$comment": "An alternative to the sky card's sunset, kept to reproduce it: the Sun 3° above the Earth's edge rather than 2°. The Sun stands higher, as in the card's illustration, but the edge below it is past sunset no longer, so the orange band fades to white towards the Sun.",
+  "extends": "sky-sunset-orbit-wide.json",
+  "name": "sky-sunset-orbit-sun-3deg",
+  "description": "The sky card's orbital sunset with the Sun 3° above the Earth's edge.",
+  "observer": { "fromReference": { "sunAboveLimbDeg": 3 } }
+}

@@ -101,6 +101,23 @@ describe("network https", () => {
     expect(() => shouldPrintDevQr({ FOSS_EARTH_DEV_QR: "invalid" })).toThrow("FOSS_EARTH_DEV_QR");
   });
 
+  it("uses background-colored cells in Apple Terminal to avoid half-block seams", async () => {
+    const plugin = networkHttps({}, { FOSS_EARTH_DEV_QR: "on", TERM_PROGRAM: "Apple_Terminal" });
+    const info = vi.fn();
+    const server = {
+      printUrls: vi.fn(),
+      resolvedUrls: { local: [], network: ["https://192.168.1.20:9876/"] },
+      config: { logger: { info, warn: vi.fn() } },
+    };
+    (plugin.configureServer as (server: object) => void)(server);
+    server.printUrls();
+    await vi.waitFor(() => expect(info).toHaveBeenCalledOnce());
+    const art = info.mock.calls[0][0] as string;
+    expect(art).toContain("\u001b[40m  \u001b[0m");
+    expect(art).toContain("\u001b[47m  \u001b[0m");
+    expect(art).not.toMatch(/[▀▄█]/);
+  });
+
   it("preserves the app network link without generating QR art for agents", async () => {
     const plugin = networkHttps({ path: "/fly/" }, { FOSS_EARTH_DEV_QR: "off" });
     const info = vi.fn(), warn = vi.fn(), original = vi.fn();

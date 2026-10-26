@@ -1,0 +1,19 @@
+{
+  "$comment": "The 0SFS landing page's sky card background: square, filling the whole card, rendered by FOSS Earth with no interface (the website credits Google beside it). The instant is the hero video's, 23:10:58 UTC on 25 October 2026, when the Sun sets at the Mississippi beside UMN. The observer is on the great circle from there away from the Sun, where the Sun stands sunAboveLimbDeg above the Earth's edge, so the edge below it is at sunset, near UMN. Exposure is fixed for the glow and the Sun: from orbit the meter reads the night-side ground below and would choose its floor, EV 1, burning out both. The lens flare (sky.exposure.lensFlare) gives the Sun its starburst and halo, and ghost reflections on a line through the picture's centre; 'glare' has no ghosts. Tune with --set, e.g. --set observer.fromReference.sunAboveLimbDeg=3, --set settings.sky.exposure.ev100=11 (lower is brighter) or --set settings.sky.exposure.lensFlare=glare; compare exposures with --bracket=-2,-1,1,2.",
+  "name": "sky-sunset-orbit",
+  "description": "From 400 km above northern Maine, looking west to the Sun 2° above the Earth's edge, setting over the Mississippi beside UMN (on the edge directly below it) at 18:10:58 CDT on 25 October 2026, the moment of the 0SFS hero video.",
+  "time": { "utc": "2026-10-25T23:10:58Z", "label": "2026-10-25 18:10:58 America/Chicago (CDT)" },
+  "reference": { "label": "Mississippi River beside UMN", "latDeg": 44.974516, "lonDeg": -93.2375 },
+  "observer": { "fromReference": { "bearingDeg": "away-from-sun", "sunAboveLimbDeg": 2 }, "altitudeKm": 400 },
+  "camera": { "headingDeg": "sun", "headingOffsetDeg": -10, "limbAtY": 0.3, "verticalFovDeg": 40 },
+  "scenery": { "basemap": "google", "requireMode": "google-tiles", "renderer": "webgl2" },
+  "settings": { "sky.exposure.mode": "fixed", "sky.exposure.ev100": 12, "sky.exposure.lensFlare": "flare" },
+  "attribution": false,
+  "image": { "width": 1200, "height": 1200 },
+  "encode": { "webpQuality": 82, "jpegQuality": 84 },
+  "publish": {
+    "webp": "~/gh/0sfs/0sfs.github.io/public/media/sky-sunset-orbit.webp",
+    "jpeg": "~/gh/0sfs/0sfs.github.io/public/media/sky-sunset-orbit.jpg"
+  },
+  "readiness": { "timeoutSec": 240 }
+}

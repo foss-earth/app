@@ -1,0 +1,14 @@
+{
+  "$comment": "A check, not a picture to publish: Western Europe in full night (the Sun about 50° below the horizon at 23:16 CET), from 400 km south of Paris looking north, where city lights must show. Metered exposure, as an ordinary visit has. If the ground is uniformly dark, night lights are not being drawn.",
+  "name": "night-lights-check-europe",
+  "description": "Western Europe at night from 400 km, looking north over Paris towards London and the Low Countries, 25 October 2026 22:16 UTC.",
+  "time": { "utc": "2026-10-25T22:16:00Z", "label": "2026-10-25 23:16 CET" },
+  "reference": { "label": "Paris", "latDeg": 48.8566, "lonDeg": 2.3522 },
+  "observer": { "latDeg": 46.5, "lonDeg": 2.3522, "altitudeKm": 400 },
+  "camera": { "headingDeg": 0, "elevationDeg": -40, "verticalFovDeg": 50 },
+  "scenery": { "basemap": "google", "requireMode": "google-tiles", "renderer": "webgl2" },
+  "settings": {},
+  "attribution": false,
+  "image": { "width": 1024, "height": 1024 },
+  "readiness": { "timeoutSec": 240 }
+}

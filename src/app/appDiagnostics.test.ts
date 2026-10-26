@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
+import { NullEngine, Scene } from "@babylonjs/core";
 import { fakeBrowser } from "./testFixtures/fakeBrowser";
 import { createSessionTrail } from "@foss-earth/ui/diagnostics";
 import type { GameLog, GameLogEntry } from "@foss-earth/ui/browser";
@@ -74,6 +75,35 @@ const sceneState = (active: string | null, revision = "r1"): SceneControllerStat
 });
 
 describe("the app's diagnostics", () => {
+  it("includes full native GPU errors and frame health, persists their cause, and detaches on runtime replacement", async () => {
+    const engine = new NullEngine(); const scene = new Scene(engine);
+    const device = new EventTarget(); Object.assign(engine, { _device: device });
+    const { diagnostics, environment } = start();
+    try {
+      diagnostics.attachRuntime({ ...fakeRuntime().runtime, renderer: { requested: "auto", mode: "webgpu", engine }, scene, isRendering: () => false });
+      const message = "Validation Error Caused by: ".repeat(20) + "Buffer engine-exhaust-scene-light is destroyed";
+      device.dispatchEvent(Object.assign(new Event("uncapturederror"), { error: { message } }));
+      const report = await diagnostics.report();
+      expect(report).toContain("Render health:");
+      expect(report).toContain(message);
+      expect(report).toContain('"schedulerActive":false');
+      const chunks = diagnostics.trail.steps().filter(step => step.text.startsWith("GPU error "));
+      expect(chunks.length).toBeGreaterThan(1);
+      expect(chunks.map(step => step.text.replace(/^GPU error \d+\/\d+: /, "")).join("")).toContain("Buffer engine-exhaust-scene-light is destroyed");
+      device.dispatchEvent(Object.assign(new Event("uncapturederror"), { error: { message: "x".repeat(230) + " https://tiles.test/tile?token=private-gpu-token#private-fragment" } }));
+      const persisted = diagnostics.trail.steps().map(step => step.text).join("\n");
+      expect(persisted).not.toContain("private-gpu-token");
+      expect(persisted).not.toContain("private-fragment");
+      environment.flush();
+      diagnostics.attachRuntime(fakeRuntime().runtime);
+      device.dispatchEvent(Object.assign(new Event("uncapturederror"), { error: { message: "stale device error" } }));
+      expect(await diagnostics.report()).not.toContain("stale device error");
+      expect(engine.onBeginFrameObservable.hasObservers()).toBe(false);
+      diagnostics.destroy();
+      expect(() => diagnostics.attachRuntime({ ...fakeRuntime().runtime, renderer: { requested: "auto", mode: "webgpu", engine }, scene })).toThrow("disposed");
+      expect(engine.onBeginFrameObservable.hasObservers()).toBe(false);
+    } finally { diagnostics.destroy(); scene.dispose(); engine.dispose(); }
+  });
   it("records effective setting changes once, leaving secrets and location values out of activity", () => {
     const { diagnostics, settings, texts } = start();
     settings.register([{ id: "test.latitude", label: "Latitude", description: "Test position", kind: "number", unit: "deg", default: 0, defaultReason: "Test", home: { tab: "test", section: "test", level: "main" }, appliesLive: true, source: "test", bounds: () => ({ min: -90, max: 90 }) }]);

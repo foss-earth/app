@@ -1,0 +1,22 @@
+{
+  "$comment": "A square tried first for the sky card, kept to reproduce it: the observer 5000 km up on the great circle from the Mississippi beside UMN away from the Sun, where the Sun has just set behind the Earth's edge, so the edge to the west is near UMN at its sunset. From that far the glow is a thin white arc at any exposure, and the only lit cities in view are in Iberia and France, small near the bottom; not used on the card.",
+  "extends": "night-lights-orbit.json",
+  "name": "sky-sunset-orbit-north-atlantic",
+  "description": "From 5000 km over the North Atlantic, looking west to the sunset on the Earth's edge near the Mississippi beside UMN at 17:16 CDT on 25 October 2026.",
+  "reference": {
+    "label": "Mississippi River beside UMN",
+    "latDeg": 44.974516,
+    "lonDeg": -93.2375
+  },
+  "observer": {
+    "fromReference": {
+      "sunAboveLimbDeg": -1
+    },
+    "altitudeKm": 5000
+  },
+  "camera": {
+    "headingOffsetDeg": 0,
+    "limbAtY": 0.45,
+    "verticalFovDeg": 60
+  }
+}

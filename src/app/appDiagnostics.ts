@@ -1,7 +1,8 @@
 /** Earth identity and feature observations supplied to the public UI diagnostics owner. */
-import { createDiagnostics, reportPage, type PreviousVisit, type SessionTrail, type TrailEnvironment } from "@foss-earth/ui/diagnostics";
+import { createDiagnostics, redactIssueReport, reportPage, reportSecrets, type PreviousVisit, type SessionTrail, type TrailEnvironment } from "@foss-earth/ui/diagnostics";
 import { browserTrailEnvironment, readBrowserReportDetails, type GameLog } from "@foss-earth/ui/browser";
 import type { RendererSelection } from "@foss-earth/renderer";
+import { observeRendererHealth, type RendererHealthSource } from "@foss-earth/renderer/browser";
 import type { SceneControllerState } from "@foss-earth/scenes/browser";
 import type { SettingsRegistry } from "@foss-earth/ui/settings";
 import { readBuiltFrom, type BuiltFromPart } from "./builtFrom";
@@ -45,7 +46,7 @@ export interface AppDiagnosticsOptions {
 
 /** What of the renderer the diagnostics read; BabylonRuntime gives it. */
 export interface DiagnosedRuntime {
-  renderer: Pick<RendererSelection, "requested" | "mode" | "fallbackReason"> & { engine: {
+  renderer: Pick<RendererSelection, "requested" | "mode" | "fallbackReason"> & { engine: RendererHealthSource["engine"] & {
     getInfo?(): { vendor: string; renderer: string; version: string };
     getCaps?(): {
       maxTextureSize?: number; maxRenderTextureSize?: number; maxTexturesImageUnits?: number;
@@ -55,6 +56,8 @@ export interface DiagnosedRuntime {
   } };
   onDeviceLost(listener: () => void): () => void;
   onDeviceRestored(listener: () => void): () => void;
+  scene?: RendererHealthSource["scene"];
+  isRendering?(): boolean;
 }
 
 export interface AppDiagnostics {
@@ -77,6 +80,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
   let runtime: DiagnosedRuntime | null = null, lost = 0;
   let scene: SceneControllerState | null = null, sceneKey = "", inside: string | null = null;
   let disposed = false;
+  let health: ReturnType<typeof observeRendererHealth> | undefined;
   const driverOf = (): string | null => {
     try { const info = runtime?.renderer.engine.getInfo?.(); return info ? [info.vendor, info.renderer, info.version].filter(Boolean).join(", ") || null : null; }
     catch { return null; }
@@ -108,6 +112,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
     },
   });
   const { trail, log } = diagnostics;
+  diagnostics.addState(() => health ? `Render health: ${JSON.stringify(health.snapshot())}` : null);
   trail.step(`Opened ${reportPage(typeof location === "undefined" ? "" : location.href)}`);
   log.print({ text: `${describeAppIdentityBriefly(identity)}.` });
   const onVisibility = () => { const hidden = document.hidden;
@@ -119,7 +124,22 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
   return {
     log, trail,
     attachRuntime(next) {
+      if (disposed) throw new Error("Diagnostics is disposed.");
+      health?.dispose();
       runtime = next;
+      health = observeRendererHealth({ engine: next.renderer.engine, scene: next.scene,
+        isRendering: next.isRendering ? () => next.isRendering!() : undefined }, {
+        now: () => performance.now(),
+        onError: message => {
+          // Keep the complete native cause in the persistent trail too. Each
+          // chunk fits its 300-character line limit; bound this to 8,192 characters.
+          const redacted = redactIssueReport(message, reportSecrets(settings));
+          const text = redacted.slice(0, 8192);
+          const chunks = text.match(/[\s\S]{1,240}/g) ?? [];
+          chunks.forEach((chunk, index) => trail.step(`GPU error ${index + 1}/${chunks.length}: ${chunk}`));
+          if (redacted.length > text.length) trail.step("GPU error shortened in activity; full message is in Render health.");
+        },
+      });
       diagnostics.attachRuntime({
         describe: () => `Renderer ${next.renderer.mode} (asked for ${next.renderer.requested})${next.renderer.fallbackReason ? `; fell back: ${next.renderer.fallbackReason}` : ""}; ${driverOf() ?? "GPU not named"}`,
         onDeviceLost: listener => next.onDeviceLost(() => { lost++; listener(); }), onDeviceRestored: listener => next.onDeviceRestored(listener),
@@ -139,6 +159,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
       if (disposed) return; disposed = true;
       const failures: unknown[] = [];
       for (const stop of [() => document.removeEventListener("visibilitychange", onVisibility),
+        () => health?.dispose(),
         () => page.removeEventListener("pagehide", onPageHide), () => page.removeEventListener("pageshow", onPageShow), () => diagnostics.destroy()]) {
         try { stop(); } catch (error) { failures.push(error); }
       }

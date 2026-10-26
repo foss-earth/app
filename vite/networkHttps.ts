@@ -144,7 +144,9 @@ export function networkHttps(options: NetworkHttpsOptions = {}, env: Record<stri
         // Runs after Vite resolves the listening address/port, including --port overrides.
         void (async () => {
           for (const url of targets) {
-            server.config.logger.info(await qr.toString(url, { type: "terminal", small: true }));
+            // Apple Terminal can leave font seams between Unicode half-blocks.
+            // Background-colored spaces fill the cells without relying on glyphs.
+            server.config.logger.info(await qr.toString(url, { type: "terminal", small: env.TERM_PROGRAM !== "Apple_Terminal" }));
           }
         })().catch(error => server.config.logger.warn(`Could not print QR code: ${String(error)}`));
       };

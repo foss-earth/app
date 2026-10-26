@@ -1,0 +1,19 @@
+{
+  "$comment": "The 0SFS landing page's sky card: an orbital sunset rendered by FOSS Earth, with no interface in the picture (the website credits Google beside it). The time is fixed; the observer is moved along the great circle from the reference place away from the Sun until the Sun stands sunAboveLimbDeg over the Earth's edge, so the edge below it is at sunset. Exposure is fixed for the glow: the meter would expose for the sunlit observer (about EV 15.7) and leave it dim. Tune with --set, e.g. --set observer.fromReference.sunAboveLimbDeg=3 or --set settings.sky.exposure.ev100=11.",
+  "name": "sky-sunset-orbit-wide",
+  "description": "An orbital sunset from 400 km: the Sun 2° above the Earth's edge to the west-south-west, the edge at sunset, the ground below in dusk, 25 October 2026 at 17:16 CDT, the observer on the great circle from the Mississippi beside UMN away from the Sun.",
+  "time": { "utc": "2026-10-25T22:16:00Z", "label": "2026-10-25 17:16 America/Chicago (CDT)" },
+  "reference": { "label": "Mississippi River beside UMN", "latDeg": 44.974516, "lonDeg": -93.2375 },
+  "observer": { "fromReference": { "bearingDeg": "away-from-sun", "sunAboveLimbDeg": 2 }, "altitudeKm": 400 },
+  "camera": { "headingDeg": "sun", "headingOffsetDeg": -18, "limbAtY": 0.8, "verticalFovDeg": 18 },
+  "scenery": { "basemap": "google", "requireMode": "google-tiles", "renderer": "webgl2" },
+  "settings": { "sky.exposure.mode": "fixed", "sky.exposure.ev100": 12 },
+  "attribution": false,
+  "image": { "width": 1920, "height": 432 },
+  "encode": { "webpQuality": 82, "jpegQuality": 84 },
+  "publish": {
+    "webp": "~/gh/0sfs/0sfs.github.io/public/media/sky-sunset-orbit-wide.webp",
+    "jpeg": "~/gh/0sfs/0sfs.github.io/public/media/sky-sunset-orbit-wide.jpg"
+  },
+  "readiness": { "timeoutSec": 240 }
+}

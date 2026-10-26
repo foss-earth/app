@@ -1,0 +1,23 @@
+{
+  "$comment": "The night-lights square over the Nile: Cairo, the delta and the valley lit through the dark desert, the sunset glow on the Earth's edge over the Sahara beyond. The observer is on the great circle from Cairo away from the Sun, in the Earth's shadow, so the meter exposes for the night. A candidate for the night-lighting card, not published: the moonlit ground (the Moon is nearly full) or the distance leaves its lights less striking than south-east Brazil's.",
+  "extends": "night-lights-orbit.json",
+  "name": "night-lights-orbit-nile",
+  "description": "From 400 km over northern Arabia at 16:30 UTC on 25 October 2026, looking west across Sinai and the Gulf of Suez to the lit Nile valley and delta, with the moonlit desert and the sunset glow on the Earth's edge beyond.",
+  "time": {
+    "utc": "2026-10-25T16:30:00Z",
+    "label": "2026-10-25 19:30 Africa/Cairo"
+  },
+  "reference": {
+    "label": "Cairo",
+    "latDeg": 30.0444,
+    "lonDeg": 31.2357
+  },
+  "observer": {
+    "fromReference": {
+      "sunAboveLimbDeg": -4
+    }
+  },
+  "camera": {
+    "headingOffsetDeg": -15
+  }
+}

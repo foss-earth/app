@@ -1,0 +1,9 @@
+{
+  "$comment": "The first composition tried for the sky card, kept to reproduce it: the observer 2200 km from the reference place, which puts the Mississippi beside UMN on the Earth's edge. At this time the Sun is then 8.4° above the edge and the edge is still in daylight, so the air is a pale blue band, not a sunset. Metered exposure, as an ordinary visit has, with the map's credit in the picture.",
+  "extends": "sky-sunset-orbit-wide.json",
+  "name": "sky-sunset-orbit-umn-on-limb",
+  "description": "From 400 km, the Mississippi beside UMN on the Earth's edge at 17:16 CDT on 25 October 2026, the Sun 8.4° above it; metered exposure.",
+  "observer": { "fromReference": { "distanceKm": 2200, "sunAboveLimbDeg": null } },
+  "settings": { "sky.exposure.mode": "metered", "sky.exposure.ev100": null },
+  "attribution": true
+}
