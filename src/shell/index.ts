@@ -81,6 +81,8 @@ export { SAVED_WORKSPACE_STORAGE_KEY } from "@foss-earth/ui/windowing";
 export { trackViewportInsets, VIEWPORT_INSET_BOTTOM_PROPERTY, type ViewportInsetsHandle } from "../app/shellCompatibility";
 export { createInputModeHud, type InputModeHudOptions, type InputModeHudHandle } from "@foss-earth/engine/panels";
 export { createPositionReadout, type PositionReading, type PositionReadoutHandle, type PositionReadoutOptions } from "@foss-earth/toolbar/browser";
+export type { PositionSeaLevelPort } from "@foss-earth/toolbar";
+export { createBrowserPositionSeaLevelPort } from "../app/positionSeaLevel";
 export { surfaceHeightDatum, type HeightDatum } from "@foss-earth/engine";
 
 export { attachRendererActivity, attachTileStreamingActivity, type RenderActivitySource, type TileStreamingSource } from "@foss-earth/toolbar/browser";
