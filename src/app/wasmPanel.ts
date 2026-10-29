@@ -1,23 +1,23 @@
 /** Component execution: editable choices, explicit application, and running services. */
-import "./nativePanel.css";
+import "./wasmPanel.css";
 import type { PanelSection } from "@foss-earth/ui/react";
 import type { ParameterValue, SettingsRegistry } from "@foss-earth/ui/settings";
 import { attachResetButton, checkChoice, closeHelpTooltipWithin, createChoiceGroup, createHelpTooltip, createParameterControl, createTwoPositionSlider, isolationStatus } from "@foss-earth/ui/browser";
-import { componentExecutionChoices, componentExecutionEdits, componentExecutionSettingId, nativeCorePlan,
-  NATIVE_CORES, NATIVE_CORE_SETTING_IDS, NATIVE_MANUAL_FIELDS, NATIVE_PARAMETERS, NATIVE_SHARED_SKY_ID, NATIVE_THREADS_ID, NATIVE_TIER_ID,
+import { componentExecutionChoices, componentExecutionEdits, componentExecutionSettingId, wasmCorePlan,
+  WASM_CORES, WASM_CORE_SETTING_IDS, WASM_MANUAL_FIELDS, WASM_PARAMETERS, WASM_SHARED_SKY_ID, WASM_THREADS_ID, WASM_TIER_ID,
   COMPUTE_PARAMETERS,
-  type ComponentExecutionField, type NativeCoreId } from "@foss-earth/engine/settings";
-import type { NativeCoreReport, NativeSharedReport } from "./nativeReport";
-import { TERRAIN_SHARED_HEIGHTS_PARAMETER } from "./terrainNativeWorkerConfig";
+  type ComponentExecutionField, type WasmCoreId } from "@foss-earth/engine/settings";
+import type { WasmCoreReport, WasmSharedReport } from "./wasmReport";
+import { TERRAIN_SHARED_HEIGHTS_PARAMETER } from "./terrainWasmWorkerConfig";
 import type { ComputeSchedulingReport } from "./computeReport";
 
-export interface NativeStatusView {
+export interface WasmStatusView {
   element: HTMLElement;
   refresh(): void;
   /** Component-owned DOM can be composed with its settings without duplicating status. */
-  component(core: NativeCoreId): HTMLElement;
-  summary(core: NativeCoreId): HTMLElement;
-  help(core: NativeCoreId): HTMLElement;
+  component(core: WasmCoreId): HTMLElement;
+  summary(core: WasmCoreId): HTMLElement;
+  help(core: WasmCoreId): HTMLElement;
   destroy(): void;
 }
 
@@ -48,7 +48,7 @@ export function fallbackText(reason: string): string {
 }
 
 /** Cooperating threads over one memory, as the shared core ran them, for help. */
-function sharedDetailText(shared: NativeSharedReport): string {
+function sharedDetailText(shared: WasmSharedReport): string {
   const { threads, batches } = shared;
   return [`Shared memory: ${round(shared.memoryBytes / 1048576, 1)} MiB, fixed`,
     `${threads.ready} of ${threads.requested} threads ready (${threads.connected} connected, limit ${threads.limit})`,
@@ -59,7 +59,7 @@ function sharedDetailText(shared: NativeSharedReport): string {
 }
 
 /** One line of a core's jobs and timings, from its own measurements. */
-export function nativeDetailText(report: NativeCoreReport): string {
+export function wasmDetailText(report: WasmCoreReport): string {
   const detail = report.detail as Record<string, unknown> | null;
   if (!detail) return report.actual === "not started" ? "No work yet: nothing of this core has been loaded." : "";
   if (report.core === "sky") {
@@ -78,11 +78,11 @@ export function nativeDetailText(report: NativeCoreReport): string {
   if (report.core === "imagery") {
     const jobs = detail.jobs as number;
     return [`${jobs} batches`, `${String(detail.cacheHits)} cached / ${String(detail.pageSamples)} page samples`,
-      `${String(detail.referenceCacheHits ?? 0)} page-memo / ${String(detail.workerCacheHits ?? 0)} worker / ${String(detail.nativeCacheHits ?? 0)} WASM cache hits`,
+      `${String(detail.referenceCacheHits ?? 0)} page-memo / ${String(detail.workerCacheHits ?? 0)} worker / ${String(detail.wasmCacheHits ?? 0)} WASM cache hits`,
       `mean round trip ${round(jobs ? (detail.roundTripMs as number) / jobs : null)} ms`,
       `mean work ${round(jobs ? (detail.workMs as number) / jobs : null)} ms`,
       `copied ${round(((detail.inputBytes as number) + (detail.outputBytes as number)) / 1048576)} MiB`,
-      `retained ${round(((detail.snapshotBytes as number) + (detail.nativeBytes as number)) / 1048576)} MiB`].join(" · ");
+      `retained ${round(((detail.snapshotBytes as number) + (detail.wasmBytes as number)) / 1048576)} MiB`].join(" · ");
   }
   if (report.core === "google") {
     const jobs = detail.jobs as number;
@@ -107,7 +107,7 @@ export function nativeDetailText(report: NativeCoreReport): string {
 }
 
 /** Friendly labels are for presentation; machine-readable reports retain their original IDs. */
-function runningText(core: NativeCoreReport): string {
+function runningText(core: WasmCoreReport): string {
   if (core.actual === "not started") return "No work yet";
   if (core.actual === "starting") return "Starting…";
   // Threads that are ready of those asked for: fewer start when the worker budget or the browser refuses.
@@ -137,38 +137,38 @@ function runningImplementation(actual: string): string {
   return typescript && wasm ? "mixed" : wasm ? "wasm" : typescript ? "typescript" : "unknown";
 }
 /** What a reload would start. A shared-memory request on a page that is not isolated runs single-threaded WASM. */
-function plannedText(settings: SettingsRegistry, core: NativeCoreId, isolated: boolean): string {
-  const plan = nativeCorePlan(settings, core);
-  const location = plan.placement === "worker" || NATIVE_CORES[core].original === "worker" ? "background workers" : "main thread";
+function plannedText(settings: SettingsRegistry, core: WasmCoreId, isolated: boolean): string {
+  const plan = wasmCorePlan(settings, core);
+  const location = plan.placement === "worker" || WASM_CORES[core].original === "worker" ? "background workers" : "main thread";
   const implementation = plan.kernel === "typescript" ? "TypeScript"
     : plan.sharedMemory ? isolated ? `Shared-memory WASM, ${plan.threads} thread${plan.threads === 1 ? "" : "s"}` : "WebAssembly, 1 thread (page not cross-origin isolated)"
       : plan.threadedFallback ? "TypeScript (no shared-memory build)" : "WebAssembly";
   return `${implementation} · ${location} · ${plan.parallelism === "serial" ? "one worker per component" : "worker pools where supported"}`;
 }
 
-export function createNativeStatusView(document: Document, report: () => readonly NativeCoreReport[],
+export function createWasmStatusView(document: Document, report: () => readonly WasmCoreReport[],
   timers: { set(callback: () => void, delayMs: number): unknown; clear(handle: unknown): void },
-  next?: (core: NativeCoreId) => string | null): NativeStatusView {
+  next?: (core: WasmCoreId) => string | null): WasmStatusView {
   const element = document.createElement("div");
   element.className = "foss-earth-execution-status";
-  const cards = new Map<NativeCoreId, { element: HTMLElement; actual: HTMLElement; summary: HTMLElement; fallback: HTMLElement; detail: HTMLElement; next: HTMLElement; help: HTMLElement; destroyHelp(): void }>();
+  const cards = new Map<WasmCoreId, { element: HTMLElement; actual: HTMLElement; summary: HTMLElement; fallback: HTMLElement; detail: HTMLElement; next: HTMLElement; help: HTMLElement; destroyHelp(): void }>();
   const message = document.createElement("p");
   element.append(message);
-  const cardFor = (core: NativeCoreId) => {
+  const cardFor = (core: WasmCoreId) => {
     const existing = cards.get(core);
     if (existing) return existing;
     const item = document.createElement("article");
     item.className = "foss-earth-execution-component";
     item.dataset.component = core;
     const heading = document.createElement("h4");
-    heading.textContent = NATIVE_CORES[core].label;
+    heading.textContent = WASM_CORES[core].label;
     const actual = document.createElement("span");
     actual.className = "foss-earth-execution-component__actual";
     const after = document.createElement("p");
     after.className = "foss-earth-execution-component__next";
     const fallback = document.createElement("p");
     const detail = document.createElement("span");
-    const tooltip = createHelpTooltip({ label: `${NATIVE_CORES[core].label} execution information`, content: detail });
+    const tooltip = createHelpTooltip({ label: `${WASM_CORES[core].label} execution information`, content: detail });
     // Help must not trigger the enclosing component's disclosure.
     const onHelpClick = (event: Event): void => { event.preventDefault(); event.stopPropagation(); };
     tooltip.button.addEventListener("click", onHelpClick);
@@ -182,7 +182,7 @@ export function createNativeStatusView(document: Document, report: () => readonl
   let handle: unknown = null;
   const refresh = (): void => {
     if (destroyed) return;
-    let rows: readonly NativeCoreReport[];
+    let rows: readonly WasmCoreReport[];
     try { rows = report(); } catch (error) {
       message.hidden = false;
       message.textContent = `Status unavailable: ${error instanceof Error ? error.message : String(error)}`;
@@ -195,7 +195,7 @@ export function createNativeStatusView(document: Document, report: () => readonl
     }
     message.textContent = rows.length ? "" : "Component status is not available yet.";
     message.hidden = rows.length > 0;
-    for (const coreId of Object.keys(NATIVE_CORES) as NativeCoreId[]) {
+    for (const coreId of Object.keys(WASM_CORES) as WasmCoreId[]) {
       const card = cardFor(coreId);
       const core = rows.find(row => row.core === coreId);
       if (!core) {
@@ -213,7 +213,7 @@ export function createNativeStatusView(document: Document, report: () => readonl
       card.fallback.hidden = !core.fallbackReason;
       card.fallback.textContent = core.fallbackReason ? `Fallback: ${fallbackText(core.fallbackReason)}` : "";
       if (core.fallbackReason) card.summary.textContent += " · fallback";
-      card.detail.textContent = `Actual: ${core.actual} · State: ${core.state}${core.fallbackReason ? ` · Fallback: ${core.fallbackReason}` : ""}${core.shared ? ` · ${sharedDetailText(core.shared)}` : ""} · ${nativeDetailText(core)}${core.scope ? ` · ${core.scope}` : ""} · Parity: ${parityText(core.parity)}`;
+      card.detail.textContent = `Actual: ${core.actual} · State: ${core.state}${core.fallbackReason ? ` · Fallback: ${core.fallbackReason}` : ""}${core.shared ? ` · ${sharedDetailText(core.shared)}` : ""} · ${wasmDetailText(core)}${core.scope ? ` · ${core.scope}` : ""} · Parity: ${parityText(core.parity)}`;
     }
   };
   const tick = (): void => {
@@ -233,7 +233,7 @@ export function createNativeStatusView(document: Document, report: () => readonl
   } };
 }
 
-export interface NativeSectionsOptions {
+export interface WasmSectionsOptions {
   document: Document;
   settings: SettingsRegistry;
   /**
@@ -241,7 +241,7 @@ export interface NativeSectionsOptions {
    * section with its own Changes pending should use it, and the panel's stylesheet hides that repeat of its own.
    */
   section(section: "selection" | "cores", content: { main: HTMLElement; covers: readonly string[]; footer?: HTMLElement; reload?: () => void }): HTMLElement;
-  report(): readonly NativeCoreReport[];
+  report(): readonly WasmCoreReport[];
   computeReport?(): ComputeSchedulingReport | null;
   /** The host owns navigation, so browser tests and embedding apps can provide it explicitly. */
   reload(url: string): void;
@@ -251,7 +251,7 @@ export interface NativeSectionsOptions {
 /** Carry the edited values across reload even when the opening URL or unavailable storage would override them. */
 export function componentExecutionReloadUrl(settings: SettingsRegistry, href: string): string {
   const url = new URL(href);
-  for (const spec of settings.list({ tab: "native" })) {
+  for (const spec of settings.list({ tab: "wasm" })) {
     url.searchParams.set(`set.${spec.id}`, String(settings.get(spec.id)));
   }
   return url.href;
@@ -259,12 +259,12 @@ export function componentExecutionReloadUrl(settings: SettingsRegistry, href: st
 
 let panelCount = 0;
 /** Shared by Earth, the UMN tour and fly. Stable internal IDs preserve URLs and workspace placement. */
-export function createNativeSections(options: NativeSectionsOptions): { sections: PanelSection[]; status: NativeStatusView; destroy(): void } {
+export function createWasmSections(options: WasmSectionsOptions): { sections: PanelSection[]; status: WasmStatusView; destroy(): void } {
   const { document, settings } = options;
   const panelId = ++panelCount;
-  const initial = Object.fromEntries(settings.list({ tab: "native" }).map(spec => [spec.id, settings.get(spec.id)]));
-  const planKey = (core: NativeCoreId): string => JSON.stringify(nativeCorePlan(settings, core));
-  const initialPlans = new Map((Object.keys(NATIVE_CORES) as NativeCoreId[]).map(core => [core, planKey(core)]));
+  const initial = Object.fromEntries(settings.list({ tab: "wasm" }).map(spec => [spec.id, settings.get(spec.id)]));
+  const planKey = (core: WasmCoreId): string => JSON.stringify(wasmCorePlan(settings, core));
+  const initialPlans = new Map((Object.keys(WASM_CORES) as WasmCoreId[]).map(core => [core, planKey(core)]));
   // Shared memory needs a cross-origin isolated page, which stays so for the page's life; the runtime decides the same way.
   const view = document.defaultView;
   const isolated = view?.crossOriginIsolated === true;
@@ -283,7 +283,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   const sharedHeightsId = TERRAIN_SHARED_HEIGHTS_PARAMETER.id;
   const heightsShareable = settings.has(sharedHeightsId);
   const heightsChanged = (): boolean => heightsShareable && settings.get(sharedHeightsId) !== initial[sharedHeightsId];
-  const status = createNativeStatusView(document, options.report, options.timers,
+  const status = createWasmStatusView(document, options.report, options.timers,
     core => planKey(core) === initialPlans.get(core) ? null : plannedText(settings, core, isolated));
   const cleanups: (() => void)[] = [];
   const updates: (() => void)[] = [];
@@ -332,11 +332,11 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   const reset = (widget: HTMLElement, name: string, shown: () => boolean, value: () => string, apply: () => void): { update(): void } =>
     attachResetButton(document, widget, { label: () => `Reset ${name} to the default: ${value()}`, shown, reset: apply });
   // Only the sky has a shared-memory build; its switch and the global Shared memory set it the same way:
-  // native.sharedSky shares a WASM sky, and a sky that would not run WASM is asked for its threaded build.
-  const skyId = NATIVE_CORE_SETTING_IDS.sky;
-  const sharedSkyId = NATIVE_SHARED_SKY_ID;
+  // wasm.sharedSky shares a WASM sky, and a sky that would not run WASM is asked for its threaded build.
+  const skyId = WASM_CORE_SETTING_IDS.sky;
+  const sharedSkyId = WASM_SHARED_SKY_ID;
   const skyBefore = settings.get(skyId) === "threaded" ? "inherit" : settings.get(skyId);
-  const skyShared = (): boolean => nativeCorePlan(settings, "sky").sharedMemory;
+  const skyShared = (): boolean => wasmCorePlan(settings, "sky").sharedMemory;
   const setSkyShared = (shared: boolean): void => {
     if (settings.has(sharedSkyId)) notify({ [sharedSkyId]: shared });
     if (skyShared() === shared) return;
@@ -349,16 +349,16 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   // Where the page cannot share memory, the switches show only a request someone made, so it can be
   // turned off; the default's request shows Off, grayed, with ? saying why.
   const asked = (id: string): boolean => !["default", "host-default"].includes(settings.inspect(id).provenance);
-  const skyShown = (): boolean => skyShared() && (isolated || nativeCorePlan(settings, "sky").requested === "threaded"
+  const skyShown = (): boolean => skyShared() && (isolated || wasmCorePlan(settings, "sky").requested === "threaded"
     || (settings.has(sharedSkyId) && asked(sharedSkyId)));
   const heightsShown = (): boolean => heightsShared() && (isolated || asked(sharedHeightsId));
   // Where the switches stand with every setting at its default; no one has asked for anything there.
-  const skyDefault = (): boolean => { const plan = nativeCorePlan(defaults, "sky"); return plan.sharedMemory && (isolated || plan.requested === "threaded"); };
+  const skyDefault = (): boolean => { const plan = wasmCorePlan(defaults, "sky"); return plan.sharedMemory && (isolated || plan.requested === "threaded"); };
   const heightsDefault = (): boolean => heightsShareable && isolated && defaults.get(sharedHeightsId) === true;
   const onOff = (on: boolean): string => on ? "On" : "Off";
-  const group = (parent: HTMLElement, core: NativeCoreId | undefined, field: ComponentExecutionField | "mode",
+  const group = (parent: HTMLElement, core: WasmCoreId | undefined, field: ComponentExecutionField | "mode",
     label: string, choices: readonly { id: string; label: string }[], read: (from?: Pick<SettingsRegistry, "get">) => string, helpText: string): HTMLElement => {
-    const id = field === "mode" ? core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID : componentExecutionSettingId(field, core);
+    const id = field === "mode" ? core ? WASM_CORE_SETTING_IDS[core] : WASM_TIER_ID : componentExecutionSettingId(field, core);
     const name = `execution-${panelId}-${core ?? "global"}-${field}`;
     const shortLabels: Record<string, string> = { inherit: "Global", typescript: "TS", wasm: "WASM", original: "Default", worker: "Workers", serial: "1 worker", auto: field === "parallelism" ? "Pool" : "Auto" };
     const element = createChoiceGroup(name, label, choices.map(choice => ({ ...choice, shortLabel: shortLabels[choice.id] })), document);
@@ -366,17 +366,17 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     const explanation = document.createElement("div");
     const explanationText = document.createElement("p");
     explanation.append(explanationText);
-    const tooltip = createHelpTooltip({ label: `Explain ${core ? `${NATIVE_CORES[core].label}: ` : ""}${label}`, content: explanation,
+    const tooltip = createHelpTooltip({ label: `Explain ${core ? `${WASM_CORES[core].label}: ` : ""}${label}`, content: explanation,
       onOpen: () => {
         const state = settings.inspect(id);
-        const component = core ? ` Selected: ${plannedText(settings, core, isolated)}. ${NATIVE_CORES[core].scope} ${nativeCorePlan(settings, core).autoReason ?? ""}` : "";
+        const component = core ? ` Selected: ${plannedText(settings, core, isolated)}. ${WASM_CORES[core].scope} ${wasmCorePlan(settings, core).autoReason ?? ""}` : "";
         explanationText.textContent = `${helpText}${component} Takes effect after Apply and reload. Setting: ${id}. Current value: ${read()}. Source: ${state.provenance}. Default: ${String(state.defaultValue)}. ${state.spec.defaultReason}`;
         explanationText.append(" ", source);
       } });
     const source = document.createElement("a");
     source.className = "foss-earth-parameter__source";
     source.textContent = "↗";
-    source.href = "https://github.com/foss-earth/engine/blob/main/src/settings/catalogue/native.ts";
+    source.href = "https://github.com/foss-earth/engine/blob/main/src/settings/catalogue/wasm.ts";
     source.target = "_blank";
     source.rel = "noopener noreferrer";
     source.setAttribute("aria-label", `${label} source code`);
@@ -395,21 +395,21 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     };
     element.addEventListener("change", onChange);
     // Mode returns to its setting's default; a field to the choice the default shows, as its pill would.
-    const tierId = core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID;
+    const tierId = core ? WASM_CORE_SETTING_IDS[core] : WASM_TIER_ID;
     const pills = element.querySelector<HTMLElement>(".foss-earth-parameter__pills")!;
     const preset = (): HTMLInputElement | null => pills.querySelector<HTMLInputElement>(`input[value="${read(defaults)}"]`);
-    const badge = reset(pills, core ? `${NATIVE_CORES[core].label} ${label.toLowerCase()}` : label,
+    const badge = reset(pills, core ? `${WASM_CORES[core].label} ${label.toLowerCase()}` : label,
       () => read() !== read(defaults) && preset()?.disabled !== true,
       () => choices.find(choice => choice.id === read(defaults))?.label ?? read(defaults),
       () => notify(field === "mode" ? { [tierId]: defaults.get(tierId) } : componentExecutionEdits(settings, core, field, read(defaults))));
     updates.push(() => {
       checkChoice(element, name, read());
       changed.hidden = read() === original;
-      const own = settings.get(core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID);
+      const own = settings.get(core ? WASM_CORE_SETTING_IDS[core] : WASM_TIER_ID);
       const manual = own !== "auto" && own !== "inherit";
       element.hidden = field !== "mode" && !manual;
-      const implementation = core ? nativeCorePlan(settings, core).kernel : componentExecutionChoices(settings).implementation;
-      const forced = settings.inspect(id).provenance === "host" || settings.inspect(core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID).provenance === "host";
+      const implementation = core ? wasmCorePlan(settings, core).kernel : componentExecutionChoices(settings).implementation;
+      const forced = settings.inspect(id).provenance === "host" || settings.inspect(core ? WASM_CORE_SETTING_IDS[core] : WASM_TIER_ID).provenance === "host";
       for (const input of element.querySelectorAll<HTMLInputElement>("input")) {
         const requiresWorker = field === "placement" && input.value === "original" && (implementation === "single" || implementation === "wasm");
         const fixedWorker = field === "parallelism" && input.value === "auto" && core !== undefined && core !== "raster" && core !== "terrain";
@@ -422,20 +422,20 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     parent.append(element);
     return element;
   };
-  const mode = (core?: NativeCoreId, from: Pick<SettingsRegistry, "get"> = settings): string => {
-    const tier = from.get(core ? NATIVE_CORE_SETTING_IDS[core] : NATIVE_TIER_ID);
+  const mode = (core?: WasmCoreId, from: Pick<SettingsRegistry, "get"> = settings): string => {
+    const tier = from.get(core ? WASM_CORE_SETTING_IDS[core] : WASM_TIER_ID);
     return tier === "inherit" || tier === "auto" ? tier : "custom";
   };
   /** Mode and the manual fields; returns the Implementation control, which shared memory follows. */
-  const manual = (parent: HTMLElement, core?: NativeCoreId): HTMLElement => {
+  const manual = (parent: HTMLElement, core?: WasmCoreId): HTMLElement => {
     group(parent, core, "mode", "Mode", [...(core ? [{ id: "inherit", label: "Use global settings" }] : []),
       { id: "auto", label: "Auto" }, { id: "custom", label: "Manual" }], from => mode(core, from),
       core ? "Use global settings inherits each global decision. Auto uses this component's measured choice. Manual can override individual decisions." : "Auto uses each component's measured configuration. Manual sets the global defaults below.");
-    const fields = NATIVE_MANUAL_FIELDS.map(field => {
+    const fields = WASM_MANUAL_FIELDS.map(field => {
       const spec = settings.spec(componentExecutionSettingId(field, core))!;
       return group(parent, core, field, field === "parallelism" ? "Parallelism" : field === "placement" ? "Location" : spec.label, spec.choices!, (from = settings) => componentExecutionChoices(from, core)[field], spec.description);
     });
-    return fields[NATIVE_MANUAL_FIELDS.indexOf("implementation")];
+    return fields[WASM_MANUAL_FIELDS.indexOf("implementation")];
   };
   // Only the sky has a shared-memory build, so its choice and thread count sit after the sky's Implementation.
   const sharedMemory = (implementation: HTMLElement): void => {
@@ -474,7 +474,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
     const badge = reset(slider.element, "Sky shared memory", () => !slider.input.disabled && skyShown() !== skyDefault(),
       () => onOff(skyDefault()), () => setSkyShared(skyDefault()));
     // The standard count control, shown while shared memory is asked for.
-    const threads = createParameterControl(settings, NATIVE_THREADS_ID, document);
+    const threads = createParameterControl(settings, WASM_THREADS_ID, document);
     threads.element.dataset.executionControl = "sky.threads";
     implementation.after(element, threads.element);
     updates.push(() => {
@@ -494,7 +494,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   // geometry a transfer already costs nothing, so the runtime asks only then.
   const sharedHeights = (parent: HTMLElement): void => {
     const on = heightsShared;
-    const geometryInWorkers = (): boolean => nativeCorePlan(settings, "terrain").placement === "worker";
+    const geometryInWorkers = (): boolean => wasmCorePlan(settings, "terrain").placement === "worker";
     const original = on();
     const element = document.createElement("div");
     element.className = "foss-earth-choices foss-earth-choice-group foss-earth-parameter--compact-choice foss-earth-execution-shared";
@@ -600,13 +600,13 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   sharedMemoryEverywhere(global);
   const components = status.element;
   components.classList.add("foss-earth-execution-settings");
-  for (const core of Object.keys(NATIVE_CORES) as NativeCoreId[]) {
+  for (const core of Object.keys(WASM_CORES) as WasmCoreId[]) {
     const details = document.createElement("details");
     details.className = "foss-earth-execution-override";
     details.dataset.executionComponent = core;
     const summary = document.createElement("summary");
     const componentLabel = document.createElement("span");
-    componentLabel.textContent = NATIVE_CORES[core].label;
+    componentLabel.textContent = WASM_CORES[core].label;
     const pendingLabel = document.createElement("span");
     const running = document.createElement("span");
     running.className = "foss-earth-execution-override__running";
@@ -630,16 +630,16 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
         if (details.contains(document.activeElement)) global.querySelector<HTMLInputElement>('[data-execution-control="global.mode"] input:checked:not(:disabled)')?.focus();
       }
       details.hidden = !visible;
-      const plan = nativeCorePlan(settings, core);
+      const plan = wasmCorePlan(settings, core);
       const changed = planKey(core) !== initialPlans.get(core) || (core === "raster" && heightsChanged());
       pendingLabel.textContent = changed ? " · Pending" : "";
       note.hidden = plan.requested !== "auto";
-      note.textContent = `Auto: ${plan.kernel === "typescript" ? "TS" : "WASM"} · ${plan.placement === "worker" || NATIVE_CORES[core].original === "worker" ? "Workers" : "Main thread"}`;
+      note.textContent = `Auto: ${plan.kernel === "typescript" ? "TS" : "WASM"} · ${plan.placement === "worker" || WASM_CORES[core].original === "worker" ? "Workers" : "Main thread"}`;
     });
   }
   const refresh = (): void => {
     for (const update of updates) update();
-    const dirty = settings.get("native.workers") !== initial["native.workers"] || settings.get(NATIVE_THREADS_ID) !== initial[NATIVE_THREADS_ID]
+    const dirty = settings.get("wasm.workers") !== initial["wasm.workers"] || settings.get(WASM_THREADS_ID) !== initial[WASM_THREADS_ID]
       || computeIds.some(id => settings.get(id) !== initial[id])
       || [...initialPlans].some(([core, value]) => planKey(core) !== value) || heightsChanged();
     pending.dataset.pending = String(dirty);
@@ -652,7 +652,7 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   const discardChanges = (): void => notify(initial);
   apply.addEventListener("click", applyChanges);
   discard.addEventListener("click", discardChanges);
-  const unsubscribe = settings.subscribe(changed => { if ([...changed].some(id => id.startsWith("native.") || id === "map.source.basemap")) refresh(); });
+  const unsubscribe = settings.subscribe(changed => { if ([...changed].some(id => id.startsWith("wasm.") || id === "map.source.basemap")) refresh(); });
   refresh();
   // One Changes pending for the tab: the panel's, which compares what would run.
   const section = (id: "selection" | "cores", main: HTMLElement, covers: readonly string[]): HTMLElement => {
@@ -662,8 +662,8 @@ export function createNativeSections(options: NativeSectionsOptions): { sections
   };
   return {
     sections: [
-      { id: "selection", title: "Global defaults", element: section("selection", global, NATIVE_PARAMETERS.filter(spec => spec.home.section === "selection" && spec.id !== "native.workers").map(spec => spec.id)), defaultOpen: true },
-      { id: "cores", title: "Components", element: section("cores", components, [...NATIVE_PARAMETERS.filter(spec => spec.home.section === "cores").map(spec => spec.id),
+      { id: "selection", title: "Global defaults", element: section("selection", global, WASM_PARAMETERS.filter(spec => spec.home.section === "selection" && spec.id !== "wasm.workers").map(spec => spec.id)), defaultOpen: true },
+      { id: "cores", title: "Components", element: section("cores", components, [...WASM_PARAMETERS.filter(spec => spec.home.section === "cores").map(spec => spec.id),
         ...(heightsShareable ? [sharedHeightsId] : [])]), defaultOpen: true },
     ], status,
     destroy() {

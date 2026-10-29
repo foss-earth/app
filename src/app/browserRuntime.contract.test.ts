@@ -87,7 +87,7 @@ async function host(beforeRuntime?: (scene: Scene) => void, google: { googleApiK
   settings.register(frameProfilingParameters({ tab: "renderer", section: "performance" }));
   // Each core where it always ran: these contracts are startup and readiness, Node has no
   // workers, and the Google worker's adapter loads by a dynamic import fake timers do not await.
-  settings.set("native.tier", "typescript");
+  settings.set("wasm.tier", "typescript");
   const canvas = document.createElement("canvas"); document.body.append(canvas);
   const policy = createEarthBrowserPolicy(settings), onFrameError = vi.fn();
   beforeRuntime?.(scene);

@@ -1,34 +1,34 @@
 /** What each converted core was asked to run and what it actually ran, for Component execution and Copy report. */
-import { NATIVE_CORES, type NativeCoreId, type NativeCorePlan } from "@foss-earth/engine/settings";
-import type { TerrainMeshWorkerPoolStats, TerrainNativeDecoderStatus, WorkerPoolStats, TerrainHeightBatchStats } from "@foss-earth/engine/browser";
+import { WASM_CORES, type WasmCoreId, type WasmCorePlan } from "@foss-earth/engine/settings";
+import type { TerrainMeshWorkerPoolStats, TerrainWasmDecoderStatus, WorkerPoolStats, TerrainHeightBatchStats } from "@foss-earth/engine/browser";
 import type { GooglePreparationStatus } from "@foss-earth/renderer/google-preparation";
 import type { GroundAccelerationStatus } from "@foss-earth/engine/babylon";
 import type { SkyEvaluation } from "@foss-earth/sky/babylon";
 import type { SkySharedThreadsStatus } from "@foss-earth/sky";
 
-export interface NativeCoreReport {
-  core: NativeCoreId;
+export interface WasmCoreReport {
+  core: WasmCoreId;
   label: string;
   scope: string;
   /** The startup selection: the tier asked for, by which setting, and `auto`'s choice. */
-  requested: NativeCorePlan["requested"];
+  requested: WasmCorePlan["requested"];
   requestedBy: string;
-  resolved: NativeCorePlan["resolved"];
+  resolved: WasmCorePlan["resolved"];
   autoReason: string | null;
-  placement: NativeCorePlan["placement"];
-  kernel: NativeCorePlan["kernel"];
-  parallelism: NativeCorePlan["parallelism"];
+  placement: WasmCorePlan["placement"];
+  kernel: WasmCorePlan["kernel"];
+  parallelism: WasmCorePlan["parallelism"];
   /** Cooperating shared-memory threads asked for, the coordinator included; 1 without a shared request. */
-  threads: NativeCorePlan["threads"];
+  threads: WasmCorePlan["threads"];
   /** Whether shared WebAssembly memory was asked for, and why a threaded request cannot have it before startup. */
-  sharedMemory: NativeCorePlan["sharedMemory"];
-  threadedFallback: NativeCorePlan["threadedFallback"];
+  sharedMemory: WasmCorePlan["sharedMemory"];
+  threadedFallback: WasmCorePlan["threadedFallback"];
   /**
    * The shared-memory core as it ran, from its own status: cooperating
    * threads over one memory, never the independent-job worker pools. Null
    * where none was asked for or none started.
    */
-  shared: NativeSharedReport | null;
+  shared: WasmSharedReport | null;
   /**
    * What ran, from the core's own status, never from the request: "single"
    * only once WASM output passed its first comparison. "not started" while the
@@ -42,7 +42,7 @@ export interface NativeCoreReport {
   detail: unknown;
 }
 
-export interface NativeSharedReport {
+export interface WasmSharedReport {
   actual: "threaded" | "retired";
   retiredReason: string | null;
   crossOriginIsolated: boolean | null;
@@ -56,9 +56,9 @@ export interface NativeSharedReport {
   lastBatch: unknown;
 }
 
-export interface NativeReportSources {
-  plans: Readonly<Record<NativeCoreId, NativeCorePlan>> | null;
-  terrainDecode(): (WorkerPoolStats & { pageDecodes: number; sharedHeights?: number; parity: string; nativeWorkers: TerrainNativeDecoderStatus[] }) | null;
+export interface WasmReportSources {
+  plans: Readonly<Record<WasmCoreId, WasmCorePlan>> | null;
+  terrainDecode(): (WorkerPoolStats & { pageDecodes: number; sharedHeights?: number; parity: string; wasmWorkers: TerrainWasmDecoderStatus[] }) | null;
   skyEvaluation(): SkyEvaluation | null;
   terrainMesh?(): TerrainMeshWorkerPoolStats | null;
   terrainHeights?(): TerrainHeightBatchStats | null;
@@ -72,8 +72,8 @@ const summary = (values: readonly string[], none: string): string => {
   return seen.length === 0 ? none : seen.length === 1 ? seen[0] : `mixed: ${seen.join(", ")}`;
 };
 
-function rasterReport(plan: NativeCorePlan, stats: ReturnType<NativeReportSources["terrainDecode"]>): Omit<NativeCoreReport, keyof NativeCorePlan | "label" | "scope" | "shared"> & { shared?: NativeSharedReport | null } {
-  const workers = stats?.nativeWorkers ?? [];
+function rasterReport(plan: WasmCorePlan, stats: ReturnType<WasmReportSources["terrainDecode"]>): Omit<WasmCoreReport, keyof WasmCorePlan | "label" | "scope" | "shared"> & { shared?: WasmSharedReport | null } {
+  const workers = stats?.wasmWorkers ?? [];
   const reasons = distinct(workers.map(worker => worker.fallbackReason).filter((reason): reason is NonNullable<typeof reason> => reason !== null));
   return {
     actual: summary(workers.map(worker => worker.actualTier), stats && stats.pageDecodes > 0 && workers.length === 0 ? "typescript (page)" : "not started"),
@@ -84,12 +84,12 @@ function rasterReport(plan: NativeCorePlan, stats: ReturnType<NativeReportSource
       workers: stats.workers, completed: stats.completed, losses: stats.losses, pageDecodes: stats.pageDecodes, sharedHeights: stats.sharedHeights ?? 0,
       pageWorkerParity: stats.parity, perWorker: stats.perWorker.map(worker => ({ tasks: worker.tasks, meanMs: Math.round(worker.meanMs * 100) / 100 })),
       backends: workers.map(worker => ({ id: worker.workerId, requested: worker.requestedTier, actual: worker.actualTier, state: worker.state, parity: worker.parity,
-        fallbackReason: worker.fallbackReason, nativeAttempts: worker.nativeAttempts, nativeDecodes: worker.nativeDecodes, typescriptDecodes: worker.typescriptDecodes })),
+        fallbackReason: worker.fallbackReason, wasmAttempts: worker.wasmAttempts, wasmDecodes: worker.wasmDecodes, typescriptDecodes: worker.typescriptDecodes })),
     },
   };
 }
 
-function sharedReport(backend: { requestedThreads?: number; threads?: SkySharedThreadsStatus | null } | null): NativeSharedReport | null {
+function sharedReport(backend: { requestedThreads?: number; threads?: SkySharedThreadsStatus | null } | null): WasmSharedReport | null {
   const threads = backend?.threads;
   if (!threads) return null;
   return {
@@ -103,7 +103,7 @@ function sharedReport(backend: { requestedThreads?: number; threads?: SkySharedT
   };
 }
 
-function skyReport(plan: NativeCorePlan, evaluation: SkyEvaluation | null): Omit<NativeCoreReport, keyof NativeCorePlan | "label" | "scope" | "shared"> & { shared?: NativeSharedReport | null } {
+function skyReport(plan: WasmCorePlan, evaluation: SkyEvaluation | null): Omit<WasmCoreReport, keyof WasmCorePlan | "label" | "scope" | "shared"> & { shared?: WasmSharedReport | null } {
   const evaluator = evaluation?.evaluator ?? null;
   const backend = evaluator?.backend ?? null;
   const numeric = backend?.numeric ?? null;
@@ -122,7 +122,7 @@ function skyReport(plan: NativeCorePlan, evaluation: SkyEvaluation | null): Omit
     fallbackReason: evaluation.retired ?? backend?.fallbackReason ?? null,
     shared: sharedReport(backend),
     detail: evaluator && {
-      worker: evaluator.state, jobs: evaluator.jobs, startupMs: backend?.startupMs ?? null, nativeCalls: numeric?.nativeCalls ?? null,
+      worker: evaluator.state, jobs: evaluator.jobs, startupMs: backend?.startupMs ?? null, wasmCalls: numeric?.wasmCalls ?? null,
       fanRows: numeric?.batches ?? null,
       lastJob: evaluator.lastJob, totals: evaluator.totals,
       meanRoundTripMs: evaluator.jobs ? Math.round((evaluator.totals.roundTripMs / evaluator.jobs) * 100) / 100 : null,
@@ -131,7 +131,7 @@ function skyReport(plan: NativeCorePlan, evaluation: SkyEvaluation | null): Omit
   };
 }
 
-function terrainReport(plan: NativeCorePlan, stats: TerrainMeshWorkerPoolStats | null): Omit<NativeCoreReport, keyof NativeCorePlan | "label" | "scope" | "shared"> & { shared?: NativeSharedReport | null } {
+function terrainReport(plan: WasmCorePlan, stats: TerrainMeshWorkerPoolStats | null): Omit<WasmCoreReport, keyof WasmCorePlan | "label" | "scope" | "shared"> & { shared?: WasmSharedReport | null } {
   if (plan.placement === "original") {
     return {
       actual: "typescript (page)",
@@ -175,20 +175,20 @@ function terrainReport(plan: NativeCorePlan, stats: TerrainMeshWorkerPoolStats |
   };
 }
 
-function heightReport(plan: NativeCorePlan, stats: TerrainHeightBatchStats | null): Omit<NativeCoreReport, keyof NativeCorePlan | "label" | "scope" | "shared"> & { shared?: NativeSharedReport | null } {
+function heightReport(plan: WasmCorePlan, stats: TerrainHeightBatchStats | null): Omit<WasmCoreReport, keyof WasmCorePlan | "label" | "scope" | "shared"> & { shared?: WasmSharedReport | null } {
   if (plan.placement === "original") return { actual: "typescript (page)", state: "original", parity: "not compared", fallbackReason: null, detail: null };
   return { actual: !stats || stats.actual === "not started" ? "not started" : `${stats.actual} (${stats.state === "retired" ? "page fallback" : "worker cache + page misses"})`,
     state: stats?.state ?? "idle", parity: stats?.parity ?? (plan.kernel === "single" ? "unchecked" : "not compared"),
     fallbackReason: stats?.fallbackReason ?? null, detail: stats };
 }
-function googleReport(plan: NativeCorePlan, stats: GooglePreparationStatus | null): Omit<NativeCoreReport, keyof NativeCorePlan | "label" | "scope" | "shared"> & { shared?: NativeSharedReport | null } {
+function googleReport(plan: WasmCorePlan, stats: GooglePreparationStatus | null): Omit<WasmCoreReport, keyof WasmCorePlan | "label" | "scope" | "shared"> & { shared?: WasmSharedReport | null } {
   if (plan.placement === "original") return { actual: "typescript (page)", state: "original", parity: "not compared", fallbackReason: null, detail: null };
   return { actual: !stats || stats.actual === "idle" ? "not started" : stats.actual,
     state: stats?.fallbackReason ? "fallback" : stats?.pending ? "busy" : "idle", parity: stats?.parity ?? "not-run",
     fallbackReason: stats?.fallbackReason ?? null, detail: stats };
 }
 
-function groundReport(plan: NativeCorePlan, stats: GroundAccelerationStatus | null): Omit<NativeCoreReport, keyof NativeCorePlan | "label" | "scope" | "shared"> & { shared?: NativeSharedReport | null } {
+function groundReport(plan: WasmCorePlan, stats: GroundAccelerationStatus | null): Omit<WasmCoreReport, keyof WasmCorePlan | "label" | "scope" | "shared"> & { shared?: WasmSharedReport | null } {
   if (plan.placement === "original") return { actual: "typescript (page)", state: "original", parity: "not compared", fallbackReason: null, detail: null };
   const build = stats?.preparer;
   return { actual: !build?.actual ? "not started" : `${build.actual} worker build; TypeScript synchronous queries`,
@@ -196,11 +196,11 @@ function groundReport(plan: NativeCorePlan, stats: GroundAccelerationStatus | nu
     fallbackReason: stats?.fallbackReason ?? build?.failure ?? null, detail: stats };
 }
 
-export function describeNativeCores(sources: NativeReportSources): NativeCoreReport[] {
+export function describeWasmCores(sources: WasmReportSources): WasmCoreReport[] {
   if (!sources.plans) return [];
-  return (Object.keys(sources.plans) as NativeCoreId[]).map(core => {
+  return (Object.keys(sources.plans) as WasmCoreId[]).map(core => {
     const plan = sources.plans![core];
-    const facts = NATIVE_CORES[core];
+    const facts = WASM_CORES[core];
     const measured = core === "raster" ? rasterReport(plan, sources.terrainDecode())
       : core === "sky" ? skyReport(plan, sources.skyEvaluation())
       : core === "imagery" ? heightReport(plan, sources.terrainHeights?.() ?? null)
@@ -213,12 +213,12 @@ export function describeNativeCores(sources: NativeReportSources): NativeCoreRep
   });
 }
 
-const registered = new WeakMap<object, () => NativeCoreReport[]>();
-/** Called by the browser runtime: each host reads its runtime's cores through `earthNativeCores`. */
-export function registerNativeCores(runtime: object, report: () => NativeCoreReport[]): void {
+const registered = new WeakMap<object, () => WasmCoreReport[]>();
+/** Called by the browser runtime: each host reads its runtime's cores through `earthWasmCores`. */
+export function registerWasmCores(runtime: object, report: () => WasmCoreReport[]): void {
   registered.set(runtime, report);
 }
 /** The cores of a runtime made by `createEarthBrowserRuntime` or `createBabylonRuntime`; null for any other. */
-export function earthNativeCores(runtime: object): NativeCoreReport[] | null {
+export function earthWasmCores(runtime: object): WasmCoreReport[] | null {
   return registered.get(runtime)?.() ?? null;
 }

@@ -19,7 +19,7 @@
     "./lights": "./src/compat/lights.ts",
     "./cameraMath": "./src/compat/cameraMath.ts",
     "./diagnostics": "./src/diagnostics/index.ts",
-    "./native": "./src/native/index.ts",
+    "./wasm": "./src/app/wasm.ts",
     "./heights": "./src/compat/heights.ts",
     "./diagnosticDrawing": "./src/compat/diagnosticDrawing.ts",
     "./mapDetailPolicy": "./src/compat/mapDetailPolicy.ts",
@@ -27,6 +27,7 @@
     "./scenes": "./src/scenes/index.ts",
     "./scenes/schema.json": "./schema/scene-1.json",
     "./settings": "./src/settings/index.ts",
+    "./account": "./src/app/accountSession.ts",
     "./sky": "./src/compat/sky.ts",
     "./weather": "./src/compat/weather.ts",
     "./smoothElevation": "./src/compat/smoothElevation.ts",
@@ -53,6 +54,7 @@
     "check:headset": "node scripts/validation/headset-emulator.mjs"
   },
   "dependencies": {
+    "@foss-earth/auth": "file:../auth",
     "@foss-earth/ui": "file:../ui",
     "@foss-earth/renderer": "file:../renderer",
     "@foss-earth/engine": "file:../engine",

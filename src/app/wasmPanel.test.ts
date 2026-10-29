@@ -1,30 +1,30 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSettingsRegistry } from "@foss-earth/ui/settings";
-import { nativeCorePlan, MAP_SOURCE_PARAMETERS, NATIVE_PARAMETERS, type NativeCoreId } from "@foss-earth/engine/settings";
-import { componentExecutionReloadUrl, createNativeSections, createNativeStatusView, nativeDetailText } from "./nativePanel";
+import { wasmCorePlan, MAP_SOURCE_PARAMETERS, WASM_PARAMETERS, type WasmCoreId } from "@foss-earth/engine/settings";
+import { componentExecutionReloadUrl, createWasmSections, createWasmStatusView, wasmDetailText } from "./wasmPanel";
 import type { ParameterSpec } from "@foss-earth/ui/settings";
-import type { NativeCoreReport } from "./nativeReport";
-import { describeNativeCores } from "./nativeReport";
-import { TERRAIN_SHARED_HEIGHTS_PARAMETER } from "./terrainNativeWorkerConfig";
+import type { WasmCoreReport } from "./wasmReport";
+import { describeWasmCores } from "./wasmReport";
+import { TERRAIN_SHARED_HEIGHTS_PARAMETER } from "./terrainWasmWorkerConfig";
 
-const ids: NativeCoreId[] = ["raster", "sky", "terrain", "imagery", "google", "ground"];
+const ids: WasmCoreId[] = ["raster", "sky", "terrain", "imagery", "google", "ground"];
 const settingsFor = (search = "") => {
   const settings = createSettingsRegistry({ storage: null, searchParams: new URLSearchParams(search) });
-  settings.register([...MAP_SOURCE_PARAMETERS, ...NATIVE_PARAMETERS]);
+  settings.register([...MAP_SOURCE_PARAMETERS, ...WASM_PARAMETERS]);
   return settings;
 };
-const panels: ReturnType<typeof createNativeSections>[] = [];
+const panels: ReturnType<typeof createWasmSections>[] = [];
 function mount(settings = settingsFor()) {
   // These reports deliberately retain the startup configuration, as real services do.
-  const plans = Object.fromEntries(ids.map(id => [id, nativeCorePlan(settings, id)])) as Record<NativeCoreId, ReturnType<typeof nativeCorePlan>>;
+  const plans = Object.fromEntries(ids.map(id => [id, wasmCorePlan(settings, id)])) as Record<WasmCoreId, ReturnType<typeof wasmCorePlan>>;
   const reload = vi.fn();
   const clear = vi.fn();
   const covers: Record<string, readonly string[]> = {};
   const sectionReloads: Record<string, (() => void) | undefined> = {};
-  const panel = createNativeSections({ document, settings, reload,
+  const panel = createWasmSections({ document, settings, reload,
     section: (section, content) => { covers[section] = content.covers; sectionReloads[section] = content.reload; return content.main; },
-    report: () => describeNativeCores({ plans, terrainDecode: () => null, skyEvaluation: () => null }),
+    report: () => describeWasmCores({ plans, terrainDecode: () => null, skyEvaluation: () => null }),
     timers: { set: () => 123, clear },
   });
   for (const section of panel.sections) document.body.append(section.element);
@@ -108,7 +108,7 @@ describe("Component execution", () => {
 
   it("shows only applicable components and preserves hidden overrides, expansion and status", () => {
     const { settings, choose, panel } = mount();
-    const card = (id: NativeCoreId) => document.querySelector<HTMLDetailsElement>(`[data-execution-component="${id}"]`)!;
+    const card = (id: WasmCoreId) => document.querySelector<HTMLDetailsElement>(`[data-execution-component="${id}"]`)!;
     const visible = () => ids.filter(id => !card(id).hidden);
     expect(visible()).toEqual(["raster", "sky", "terrain", "imagery", "ground"]);
     card("terrain").open = true;
@@ -124,7 +124,7 @@ describe("Component execution", () => {
     expect(info.hidden).toBe(true);
     expect(document.activeElement?.closest('[data-execution-control="global.mode"]')).not.toBeNull();
     expect(card("terrain").open).toBe(true);
-    expect(settings.get("native.core.terrain.implementation")).toBe("wasm");
+    expect(settings.get("wasm.core.terrain.implementation")).toBe("wasm");
     expect(panel.status.component("terrain")).toBe(card("terrain").querySelector('[data-component="terrain"]'));
     settings.set("map.source.basemap", "osm-standard");
     expect(visible()).toEqual(["raster", "sky", "terrain", "imagery", "ground"]);
@@ -134,11 +134,11 @@ describe("Component execution", () => {
   });
 
   it("immediately shows pending and current settings separately, then reloads with the exact draft", () => {
-    const { settings, choose, reload, panel } = mount(settingsFor("set.native.tier=typescript-worker"));
+    const { settings, choose, reload, panel } = mount(settingsFor("set.wasm.tier=typescript-worker"));
     const before = panel.status.summary("terrain").textContent;
     choose("global.implementation", "wasm");
     // Sky → Shared memory is on by default, so a WASM sky runs its shared build.
-    expect(nativeCorePlan(settings, "sky")).toMatchObject({ kernel: "threaded", placement: "worker" });
+    expect(wasmCorePlan(settings, "sky")).toMatchObject({ kernel: "threaded", placement: "worker" });
     expect(document.querySelector('.foss-earth-execution-pending [role="status"]')!.textContent).toContain("Changes pending");
     expect(panel.status.summary("terrain").textContent).toBe(before);
     expect(document.querySelector('.foss-earth-execution-component[data-component="terrain"] .foss-earth-execution-component__next')!.textContent).toContain("After reload: WebAssembly");
@@ -147,45 +147,45 @@ describe("Component execution", () => {
     expect(reload).toHaveBeenCalledOnce();
     const url = new URL(reload.mock.calls[0][0]);
     const reloaded = settingsFor(url.search);
-    expect(nativeCorePlan(reloaded, "sky")).toMatchObject({ kernel: "threaded", placement: "worker" });
-    expect(url.searchParams.get("set.native.tier")).toBe("custom");
+    expect(wasmCorePlan(reloaded, "sky")).toMatchObject({ kernel: "threaded", placement: "worker" });
+    expect(url.searchParams.get("set.wasm.tier")).toBe("custom");
   });
 
   it("inherits individual decisions and updates only the selected component", () => {
-    const { settings, choose } = mount(settingsFor("set.native.tier=single"));
+    const { settings, choose } = mount(settingsFor("set.wasm.tier=single"));
     choose("sky.mode", "custom");
     choose("sky.implementation", "typescript");
-    expect(nativeCorePlan(settings, "sky")).toMatchObject({ kernel: "typescript", placement: "worker" });
-    expect(nativeCorePlan(settings, "terrain").kernel).toBe("single");
+    expect(wasmCorePlan(settings, "sky")).toMatchObject({ kernel: "typescript", placement: "worker" });
+    expect(wasmCorePlan(settings, "terrain").kernel).toBe("single");
     choose("global.parallelism", "serial");
-    expect(nativeCorePlan(settings, "sky").parallelism).toBe("serial");
-    expect(settings.get("native.core.sky.parallelism")).toBe("inherit");
+    expect(wasmCorePlan(settings, "sky").parallelism).toBe("serial");
+    expect(settings.get("wasm.core.sky.parallelism")).toBe("inherit");
     expect(document.querySelector<HTMLInputElement>('[data-execution-control="sky.parallelism"] input[value="auto"]')!.disabled).toBe(true);
   });
 
   it("retains manual choices across Auto and clears pending when the original selection is restored", () => {
-    const { settings, choose } = mount(settingsFor("set.native.tier=single"));
+    const { settings, choose } = mount(settingsFor("set.wasm.tier=single"));
     choose("global.mode", "auto");
     expect(document.querySelector<HTMLElement>('[data-execution-control="global.implementation"]')!.hidden).toBe(true);
     choose("global.mode", "custom");
-    expect(nativeCorePlan(settings, "sky").kernel).toBe("threaded");
+    expect(wasmCorePlan(settings, "sky").kernel).toBe("threaded");
     document.querySelectorAll<HTMLButtonElement>(".foss-earth-execution-pending button")[1]!.click();
-    expect(settings.get("native.tier")).toBe("single");
+    expect(settings.get("wasm.tier")).toBe("single");
     expect(document.querySelector<HTMLButtonElement>(".foss-earth-execution-pending button")!.hidden).toBe(true);
     choose("sky.mode", "custom");
     choose("sky.implementation", "typescript");
     choose("sky.mode", "inherit");
     expect(document.querySelector<HTMLButtonElement>(".foss-earth-execution-pending button")!.hidden).toBe(true);
     choose("sky.mode", "custom");
-    expect(nativeCorePlan(settings, "sky").kernel).toBe("typescript");
+    expect(wasmCorePlan(settings, "sky").kernel).toBe("typescript");
   });
 
   it("compacts measured execution while preserving mixed placement and fallbacks", () => {
-    const plans = Object.fromEntries(ids.map(id => [id, nativeCorePlan(settingsFor(), id)])) as Record<NativeCoreId, ReturnType<typeof nativeCorePlan>>;
-    const rows = describeNativeCores({ plans, terrainDecode: () => null, skyEvaluation: () => null });
-    const view = createNativeStatusView(document, () => rows, { set: () => 1, clear: () => {} });
-    const update = (id: NativeCoreId, actual: string, expected: string, detail: unknown = null, fallbackReason: string | null = null) => {
-      Object.assign(rows.find(row => row.core === id)!, { actual, detail, fallbackReason } satisfies Partial<NativeCoreReport>);
+    const plans = Object.fromEntries(ids.map(id => [id, wasmCorePlan(settingsFor(), id)])) as Record<WasmCoreId, ReturnType<typeof wasmCorePlan>>;
+    const rows = describeWasmCores({ plans, terrainDecode: () => null, skyEvaluation: () => null });
+    const view = createWasmStatusView(document, () => rows, { set: () => 1, clear: () => {} });
+    const update = (id: WasmCoreId, actual: string, expected: string, detail: unknown = null, fallbackReason: string | null = null) => {
+      Object.assign(rows.find(row => row.core === id)!, { actual, detail, fallbackReason } satisfies Partial<WasmCoreReport>);
       view.refresh();
       expect(view.summary(id).textContent).toBe(expected);
     };
@@ -228,10 +228,10 @@ describe("Component execution", () => {
 
   it("makes a status failure visible after a successful report, then recovers", () => {
     let fail = false;
-    const plans = Object.fromEntries(ids.map(id => [id, nativeCorePlan(settingsFor(), id)])) as Record<NativeCoreId, ReturnType<typeof nativeCorePlan>>;
-    const view = createNativeStatusView(document, () => {
+    const plans = Object.fromEntries(ids.map(id => [id, wasmCorePlan(settingsFor(), id)])) as Record<WasmCoreId, ReturnType<typeof wasmCorePlan>>;
+    const view = createWasmStatusView(document, () => {
       if (fail) throw Error("report failed");
-      return describeNativeCores({ plans, terrainDecode: () => null, skyEvaluation: () => null });
+      return describeWasmCores({ plans, terrainDecode: () => null, skyEvaluation: () => null });
     }, { set: () => 1, clear: () => {} });
     document.body.append(view.element);
     try {
@@ -247,14 +247,14 @@ describe("Component execution", () => {
   });
 
   it("says how many elevation tiles arrived in shared memory, and nothing when none did", () => {
-    const raster = (sharedHeights: number) => nativeDetailText({ core: "raster", actual: "typescript",
-      detail: { workers: 2, pageDecodes: 1, sharedHeights, perWorker: [{ tasks: 3, meanMs: 2 }, { tasks: 1, meanMs: 4 }] } } as unknown as NativeCoreReport);
+    const raster = (sharedHeights: number) => wasmDetailText({ core: "raster", actual: "typescript",
+      detail: { workers: 2, pageDecodes: 1, sharedHeights, perWorker: [{ tasks: 3, meanMs: 2 }, { tasks: 1, meanMs: 4 }] } } as unknown as WasmCoreReport);
     expect(raster(4)).toBe("2 workers · 4 decodes · mean 2.5 ms each, dispatch to reply · 1 on the page · 4 in shared memory");
     expect(raster(0)).toBe("2 workers · 4 decodes · mean 2.5 ms each, dispatch to reply · 1 on the page");
   });
   it("turns the sky's shared memory on and off with a slider, and reloads with it", () => {
     isolate();
-    const { settings, reload, covers } = mount(settingsFor("set.native.threads=3"));
+    const { settings, reload, covers } = mount(settingsFor("set.wasm.threads=3"));
     const slider = document.querySelector<HTMLInputElement>('[data-execution-control="sky.shared"] input[type="range"]')!;
     const slide = (value: "0" | "1") => { slider.value = value; slider.dispatchEvent(new Event("input")); };
     const pending = document.querySelector<HTMLElement>(".foss-earth-execution-pending")!;
@@ -264,42 +264,42 @@ describe("Component execution", () => {
     expect(slider.value).toBe("1");
     expect(slider.disabled).toBe(false);
     expect(document.querySelector<HTMLElement>('[data-execution-control="sky.shared"] .foss-earth-choice-group__status')!.hidden).toBe(true);
-    expect(nativeCorePlan(settings, "sky")).toMatchObject({ kernel: "threaded", sharedMemory: true, threads: 3 });
-    expect(nativeCorePlan(settings, "raster").kernel).toBe("single");
+    expect(wasmCorePlan(settings, "sky")).toMatchObject({ kernel: "threaded", sharedMemory: true, threads: 3 });
+    expect(wasmCorePlan(settings, "raster").kernel).toBe("single");
     // The thread count is drawn once, in the sky, and only while shared memory is asked for.
-    expect(covers.selection).toContain("native.threads");
-    expect(covers.selection).not.toContain("native.workers");
-    expect(covers.cores).toContain("native.sharedSky");
+    expect(covers.selection).toContain("wasm.threads");
+    expect(covers.selection).not.toContain("wasm.workers");
+    expect(covers.cores).toContain("wasm.sharedSky");
     expect(threads.hidden).toBe(false);
     expect(threads.textContent).toContain("Shared-memory threads");
     slide("0");
     expect(threads.hidden).toBe(true);
-    expect([settings.get("native.sharedSky"), settings.get("native.core.sky")]).toEqual([false, "inherit"]);
-    expect(nativeCorePlan(settings, "sky")).toMatchObject({ kernel: "single", sharedMemory: false });
+    expect([settings.get("wasm.sharedSky"), settings.get("wasm.core.sky")]).toEqual([false, "inherit"]);
+    expect(wasmCorePlan(settings, "sky")).toMatchObject({ kernel: "single", sharedMemory: false });
     expect(pending.dataset.pending).toBe("true");
     expect(next()).toBe("After reload: WebAssembly · background workers · worker pools where supported");
     slide("1");
-    expect(settings.get("native.sharedSky")).toBe(true);
+    expect(settings.get("wasm.sharedSky")).toBe(true);
     expect(pending.dataset.pending).toBe("false");
     // A thread count is pending on its own, and Discard restores it.
-    settings.set("native.threads", 5);
+    settings.set("wasm.threads", 5);
     expect(pending.dataset.pending).toBe("true");
     pending.querySelectorAll<HTMLButtonElement>("button")[1]!.click();
-    expect(settings.get("native.threads")).toBe(3);
+    expect(settings.get("wasm.threads")).toBe(3);
     expect(pending.dataset.pending).toBe("false");
     // A sky that would not run WASM is asked for its shared build, and Off asks no more.
-    settings.set("native.tier", "typescript");
+    settings.set("wasm.tier", "typescript");
     expect([slider.value, threads.hidden]).toEqual(["0", true]);
     slide("1");
-    expect(settings.get("native.core.sky")).toBe("threaded");
-    expect(nativeCorePlan(settings, "raster").kernel).toBe("typescript");
+    expect(settings.get("wasm.core.sky")).toBe("threaded");
+    expect(wasmCorePlan(settings, "raster").kernel).toBe("typescript");
     expect(next()).toBe("After reload: Shared-memory WASM, 3 threads · background workers · worker pools where supported");
     slide("0");
-    expect([settings.get("native.core.sky"), nativeCorePlan(settings, "sky").kernel]).toEqual(["inherit", "typescript"]);
+    expect([settings.get("wasm.core.sky"), wasmCorePlan(settings, "sky").kernel]).toEqual(["inherit", "typescript"]);
     slide("1");
     pending.querySelector<HTMLButtonElement>("button")!.click();
     const url = new URL(reload.mock.calls[0][0]);
-    expect(nativeCorePlan(settingsFor(url.search), "sky")).toMatchObject({ kernel: "threaded", sharedMemory: true, threads: 3 });
+    expect(wasmCorePlan(settingsFor(url.search), "sky")).toMatchObject({ kernel: "threaded", sharedMemory: true, threads: 3 });
   });
 
   describe("Terrain heights in shared memory", () => {
@@ -321,7 +321,7 @@ describe("Component execution", () => {
       expect(shared.closest("[data-execution-component]")?.getAttribute("data-execution-component")).toBe("raster");
       expect(shared.querySelector(".foss-earth-choices__heading")!.textContent).toBe("Shared memory");
       expect(shared.lastElementChild?.lastElementChild?.querySelector("button")?.textContent).toBe("?");
-      expect(covers.cores).toContain("native.sharedHeights");
+      expect(covers.cores).toContain("wasm.sharedHeights");
       const slider = shared.querySelector<HTMLInputElement>('input[type="range"]')!;
       const status = shared.querySelector<HTMLElement>(".foss-earth-choice-group__status")!;
       const pending = document.querySelector<HTMLElement>(".foss-earth-execution-pending")!;
@@ -329,27 +329,27 @@ describe("Component execution", () => {
       expect([slider.value, slider.disabled, status.hidden]).toEqual(["1", false, true]);
       slider.value = "0";
       slider.dispatchEvent(new Event("input"));
-      expect(settings.get("native.sharedHeights")).toBe(false);
+      expect(settings.get("wasm.sharedHeights")).toBe(false);
       expect(pending.dataset.pending).toBe("true");
       expect(shared.closest("details")!.querySelector("summary")!.textContent).toContain("· Pending");
       // Geometry on the page, where a transfer already costs nothing, reads no shared tile.
-      settings.set("native.tier", "typescript");
+      settings.set("wasm.tier", "typescript");
       expect([status.hidden, status.textContent]).toEqual([false, "Needs geometry workers"]);
       pending.querySelector<HTMLButtonElement>("button")!.click();
-      expect(new URL(reload.mock.calls[0][0]).searchParams.get("set.native.sharedHeights")).toBe("false");
+      expect(new URL(reload.mock.calls[0][0]).searchParams.get("set.wasm.sharedHeights")).toBe("false");
       pending.querySelectorAll<HTMLButtonElement>("button")[1]!.click();
-      expect(settings.get("native.sharedHeights")).toBe(true);
+      expect(settings.get("wasm.sharedHeights")).toBe(true);
       expect([slider.value, pending.dataset.pending, status.hidden]).toEqual(["1", "false", true]);
     });
     it("is not offered on a page that is not isolated, but a URL's request can be turned off", () => {
-      const settings = withHeights("set.native.sharedHeights=true");
+      const settings = withHeights("set.wasm.sharedHeights=true");
       mount(settings);
       const slider = control()!.querySelector<HTMLInputElement>('input[type="range"]')!;
       expect(control()!.querySelector(".foss-earth-choice-group__status")!.textContent).toBe("Not isolated");
       expect([slider.value, slider.disabled]).toEqual(["1", false]);
       slider.value = "0";
       slider.dispatchEvent(new Event("input"));
-      expect(settings.get("native.sharedHeights")).toBe(false);
+      expect(settings.get("wasm.sharedHeights")).toBe(false);
       expect(slider.disabled).toBe(true);
       expect(slider.title).toBe("Shared memory needs a cross-origin isolated page.");
     });
@@ -382,26 +382,26 @@ describe("Component execution", () => {
       expect([slider.value, slider.disabled, status.hidden]).toEqual(["1", false, true]);
       expect(explain()).toContain("This page is cross-origin isolated, so shared memory can run.");
       slide(slider, "0");
-      expect([settings.get("native.sharedSky"), settings.get("native.sharedHeights"), nativeCorePlan(settings, "sky").sharedMemory]).toEqual([false, false, false]);
+      expect([settings.get("wasm.sharedSky"), settings.get("wasm.sharedHeights"), wasmCorePlan(settings, "sky").sharedMemory]).toEqual([false, false, false]);
       expect(pending.dataset.pending).toBe("true");
       // A component's own switch changes one use; the global one says so.
       slide(document.querySelector<HTMLInputElement>('[data-execution-control="raster.sharedHeights"] input[type="range"]')!, "1");
       expect([slider.value, status.hidden, status.textContent]).toEqual(["0", false, "Partly on"]);
       pending.querySelector<HTMLButtonElement>("button")!.click();
       const url = new URL(reload.mock.calls[0][0]);
-      expect(url.searchParams.get("set.native.sharedHeights")).toBe("true");
-      expect(nativeCorePlan(settingsFor(url.search), "sky").sharedMemory).toBe(false);
+      expect(url.searchParams.get("set.wasm.sharedHeights")).toBe("true");
+      expect(wasmCorePlan(settingsFor(url.search), "sky").sharedMemory).toBe(false);
       slide(slider, "1");
-      expect([settings.get("native.sharedSky"), settings.get("native.sharedHeights"), pending.dataset.pending]).toEqual([true, true, "false"]);
+      expect([settings.get("wasm.sharedSky"), settings.get("wasm.sharedHeights"), pending.dataset.pending]).toEqual([true, true, "false"]);
     });
 
     it("stays, grayed, on a page that is not isolated, and turns off a URL's request", () => {
-      const settings = withHeights("set.native.core.sky=threaded");
+      const settings = withHeights("set.wasm.core.sky=threaded");
       mount(settings);
       const { slider, status } = parts();
       expect([slider.value, slider.disabled, status.textContent]).toEqual(["1", false, "Not isolated"]);
       slide(slider, "0");
-      expect([settings.get("native.core.sky"), settings.get("native.sharedHeights")]).toEqual(["inherit", false]);
+      expect([settings.get("wasm.core.sky"), settings.get("wasm.sharedHeights")]).toEqual(["inherit", false]);
       expect([slider.disabled, slider.title]).toEqual([true, "Shared memory needs a cross-origin isolated page."]);
       expect(explain()).toContain("This page can't share memory. In development the server's headers decide: start it with FOSS_EARTH_ISOLATION=enforce.");
     });
@@ -424,13 +424,13 @@ describe("Component execution", () => {
 
   it("gives a host section's Apply & reload the edited values, over the opening URL", () => {
     isolate();
-    const { settings, reload, sectionReloads } = mount(settingsFor("set.native.threads=4&set.native.core.sky=threaded"));
-    settings.set("native.threads", 2);
+    const { settings, reload, sectionReloads } = mount(settingsFor("set.wasm.threads=4&set.wasm.core.sky=threaded"));
+    settings.set("wasm.threads", 2);
     expect(document.querySelectorAll(".foss-earth-execution-section")).toHaveLength(2);
     sectionReloads.cores!();
     const url = new URL(reload.mock.calls[0][0]);
-    expect(url.searchParams.get("set.native.threads")).toBe("2");
-    expect(nativeCorePlan(settingsFor(url.search), "sky")).toMatchObject({ sharedMemory: true, threads: 2 });
+    expect(url.searchParams.get("set.wasm.threads")).toBe("2");
+    expect(wasmCorePlan(settingsFor(url.search), "sky")).toMatchObject({ sharedMemory: true, threads: 2 });
   });
 
   it("does not offer shared memory on a page that is not isolated, but lets a URL's request be turned off", () => {
@@ -445,44 +445,44 @@ describe("Component execution", () => {
     const help = document.getElementById(shared.querySelector("button[aria-controls]")!.getAttribute("aria-controls")!)!;
     expect(help.textContent).toContain("This page isn't cross-origin isolated, so a shared-memory sky runs single-threaded WASM. In development the server's headers decide");
     // The runtime falls back the same way; After reload says so rather than promising threads.
-    settings.set("native.core.sky", "threaded");
+    settings.set("wasm.core.sky", "threaded");
     expect(slider.disabled).toBe(false);
     expect(document.querySelector('.foss-earth-execution-component[data-component="sky"] .foss-earth-execution-component__next')!.textContent)
       .toBe("After reload: WebAssembly, 1 thread (page not cross-origin isolated) · background workers · worker pools where supported");
-    expect(settings.get("native.core.sky")).toBe("threaded");
+    expect(settings.get("wasm.core.sky")).toBe("threaded");
     slider.value = "0";
     slider.dispatchEvent(new Event("input"));
-    expect(settings.get("native.core.sky")).toBe("inherit");
+    expect(settings.get("wasm.core.sky")).toBe("inherit");
     expect(slider.disabled).toBe(true);
   });
 
   it("says a threaded request of a component without a shared build runs TypeScript", () => {
     const { settings } = mount(settingsFor());
-    settings.set("native.tier", "threaded");
+    settings.set("wasm.tier", "threaded");
     expect(document.querySelector('.foss-earth-execution-component[data-component="raster"] .foss-earth-execution-component__next')!.textContent)
       .toBe("After reload: TypeScript (no shared-memory build) · background workers · worker pools where supported");
   });
 
   it("turns shared memory off for the sky even when the global selection is threaded", () => {
     isolate();
-    const { settings } = mount(settingsFor("set.native.tier=threaded"));
+    const { settings } = mount(settingsFor("set.wasm.tier=threaded"));
     const slider = document.querySelector<HTMLInputElement>('[data-execution-control="sky.shared"] input[type="range"]')!;
     expect(slider.value).toBe("1");
     slider.value = "0";
     slider.dispatchEvent(new Event("input"));
-    expect(settings.get("native.core.sky")).toBe("single");
-    expect(nativeCorePlan(settings, "sky")).toMatchObject({ kernel: "single", sharedMemory: false });
+    expect(settings.get("wasm.core.sky")).toBe("single");
+    expect(wasmCorePlan(settings, "sky")).toMatchObject({ kernel: "single", sharedMemory: false });
     expect(slider.value).toBe("0");
   });
 
   it("overrides a stale opening URL while preserving the app route, other settings and camera fragment", () => {
-    const settings = settingsFor("set.native.tier=single");
-    settings.setMany({ "native.tier": "custom", "native.implementation": "typescript", "native.placement": "worker" });
-    const url = new URL(componentExecutionReloadUrl(settings, "https://example.test/tour/minneapolis/?panoramaTest=1&set.native.tier=single#camera"));
+    const settings = settingsFor("set.wasm.tier=single");
+    settings.setMany({ "wasm.tier": "custom", "wasm.implementation": "typescript", "wasm.placement": "worker" });
+    const url = new URL(componentExecutionReloadUrl(settings, "https://example.test/tour/minneapolis/?panoramaTest=1&set.wasm.tier=single#camera"));
     expect(url.pathname).toBe("/tour/minneapolis/");
     expect(url.hash).toBe("#camera");
     expect(url.searchParams.get("panoramaTest")).toBe("1");
-    expect(nativeCorePlan(settingsFor(url.search), "sky")).toMatchObject({ kernel: "typescript", placement: "worker" });
+    expect(wasmCorePlan(settingsFor(url.search), "sky")).toMatchObject({ kernel: "typescript", placement: "worker" });
   });
 
   describe("resets", () => {
@@ -503,13 +503,13 @@ describe("Component execution", () => {
       expect(badge("global.implementation").hidden).toBe(false);
       expect(badge("global.implementation").getAttribute("aria-label")).toBe("Reset Implementation to the default: WebAssembly");
       badge("global.implementation").click();
-      expect(settings.get("native.implementation")).toBe("wasm");
+      expect(settings.get("wasm.implementation")).toBe("wasm");
       expect(badge("global.implementation").hidden).toBe(true);
       // Mode returns to its own default, which runs as it did before.
       choose("global.mode", "auto");
       expect(badge("global.mode").getAttribute("aria-label")).toBe("Reset Mode to the default: Manual");
       badge("global.mode").click();
-      expect([settings.get("native.tier"), pending(), badge("global.mode").hidden]).toEqual(["single", "false", true]);
+      expect([settings.get("wasm.tier"), pending(), badge("global.mode").hidden]).toEqual(["single", "false", true]);
       // A component's choices name it, and Global is their default.
       choose("sky.mode", "custom");
       expect(badge("sky.mode").getAttribute("aria-label")).toBe("Reset Sky mode to the default: Use global settings");
@@ -517,10 +517,10 @@ describe("Component execution", () => {
       choose("sky.implementation", "typescript");
       expect(badge("sky.implementation").getAttribute("aria-label")).toBe("Reset Sky implementation to the default: Global");
       badge("sky.implementation").click();
-      expect(settings.get("native.core.sky.implementation")).toBe("inherit");
+      expect(settings.get("wasm.core.sky.implementation")).toBe("inherit");
       expect(badge("sky.implementation").hidden).toBe(true);
       badge("sky.mode").click();
-      expect([settings.get("native.core.sky"), pending()]).toEqual(["inherit", "false"]);
+      expect([settings.get("wasm.core.sky"), pending()]).toEqual(["inherit", "false"]);
     });
 
     it("sits on each shared-memory switch while it stands away from the default, and turns it back", () => {
@@ -535,19 +535,19 @@ describe("Component execution", () => {
         expect(badge(control).getAttribute("aria-label")).toBe(`Reset ${name} to the default: On`);
         expect(pending()).toBe("true");
         badge(control).click();
-        expect([settings.get("native.sharedSky"), settings.get("native.sharedHeights"), pending(), badge(control).hidden], control).toEqual([true, true, "false", true]);
+        expect([settings.get("wasm.sharedSky"), settings.get("wasm.sharedHeights"), pending(), badge(control).hidden], control).toEqual([true, true, "false", true]);
       }
     });
 
     it("turns off a URL's request where the page cannot share memory, and hides for what the host forces", () => {
-      const settings = settingsFor("set.native.sharedSky=true");
+      const settings = settingsFor("set.wasm.sharedSky=true");
       mount(settings);
       // Off is the default here: a page that is not isolated shares nothing.
       expect(badge("sky.shared").getAttribute("aria-label")).toBe("Reset Sky shared memory to the default: Off");
       badge("sky.shared").click();
-      expect([settings.get("native.sharedSky"), badge("sky.shared").hidden]).toEqual([false, true]);
+      expect([settings.get("wasm.sharedSky"), badge("sky.shared").hidden]).toEqual([false, true]);
       const forced = settingsFor();
-      forced.force("native.tier", "typescript", "Host requires the reference implementation");
+      forced.force("wasm.tier", "typescript", "Host requires the reference implementation");
       document.body.replaceChildren();
       mount(forced);
       expect(badge("global.implementation").hidden).toBe(true);
@@ -556,13 +556,13 @@ describe("Component execution", () => {
 
   it("does not offer the unavailable threaded tier and respects forced host settings", () => {
     const settings = settingsFor();
-    settings.force("native.tier", "typescript", "Host requires the reference implementation");
+    settings.force("wasm.tier", "typescript", "Host requires the reference implementation");
     const { panel, clear } = mount(settings);
     expect(document.querySelector('input[value="threaded"]')).toBeNull();
     expect(document.querySelector<HTMLInputElement>('[data-execution-control="global.implementation"] input[value="wasm"]')!.disabled).toBe(true);
     panel.destroy();
     panel.destroy();
     expect(clear).toHaveBeenCalledOnce();
-    settings.set("native.workers", 1); // no detached view subscriptions
+    settings.set("wasm.workers", 1); // no detached view subscriptions
   });
 });

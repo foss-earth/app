@@ -17,7 +17,7 @@ retained under the primary checker's chosen owner `build/` directory.
 
 The application publishes TypeScript/TSX source. This fixture makes no Node import
 compatibility claim. It does not mount the application or run a server, browser,
-GPU, benchmark, native build or network provider. Real browser rendering, owner
+GPU, benchmark, WASM build or network provider. Real browser rendering, owner
 implementation behavior, application lifecycle tests, shared attribution
 conformance, bootstrap acceptance and remote admission remain separate gates.
 

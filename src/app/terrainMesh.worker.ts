@@ -6,13 +6,13 @@ import { boundedComputeModule, installComputePreparation } from "./computeWorker
 const { kernel } = terrainMeshWorkerConfig(self.name);
 let loading: ReturnType<typeof load> | undefined;
 const load = async () => { const { loadTerrainCore } = await import("@foss-earth/engine/terrain-WASM"); return loadTerrainCore(); };
-const native = () => loading ??= load();
-installComputePreparation(() => kernel === "single" ? loading = boundedComputeModule(native()) : Promise.resolve());
+const wasm = () => loading ??= load();
+installComputePreparation(() => kernel === "single" ? loading = boundedComputeModule(wasm()) : Promise.resolve());
 
 installTerrainMeshWorkerKernel({
   scope: self as unknown as TerrainMeshWorkerScope,
-  loadNative: kernel === "single" ? async () => {
-    const core = await native();
+  loadWasm: kernel === "single" ? async () => {
+    const core = await wasm();
     return {
       actualTier: "single",
       buildSurface: req => core.buildSurface(req),

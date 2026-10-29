@@ -133,10 +133,10 @@ it.each([390, 1280])("remembers window sizes through map/photo transitions and r
 });
 
 
-it("keeps a saved Native tab in place under the Component execution name", async () => {
+it("keeps a saved WASM tab in place under the Component execution name", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const values = new Map([[SAVED_WORKSPACE_STORAGE_KEY, JSON.stringify({
-    primary: { tabs: ["native"], activeTab: "native", collapsed: false, width: 340, height: 280 },
+    primary: { tabs: ["wasm"], activeTab: "wasm", collapsed: false, width: 340, height: 280 },
     secondary: { tabs: [], activeTab: null, collapsed: false, width: 300, height: 320 },
   })]]);
   const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
@@ -144,9 +144,9 @@ it("keeps a saved Native tab in place under the Component execution name", async
   const root = createRoot(host);
   try {
     await act(async () => root.render(<WindowOverlay getViewState={() => null} setViewState={() => {}} storage={storage}
-      nativeSections={[{ id: "selection", title: "Global defaults", element: document.createElement("div") }]}
+      wasmSections={[{ id: "selection", title: "Global defaults", element: document.createElement("div") }]}
       locationSearchProvider={async () => []} />));
-    expect(host.querySelector('[data-tab-id="native"]')?.textContent).toBe("Component execution");
+    expect(host.querySelector('[data-tab-id="wasm"]')?.textContent).toBe("Component execution");
     expect(host.textContent).toContain("Global defaults");
   } finally {
     await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals();

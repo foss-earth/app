@@ -5,6 +5,7 @@ import { wantsDev } from "@foss-earth/dev";
 import { createBrowserSettingsRegistry, readDeviceContext } from "@foss-earth/ui/browser";
 import { linkParameterGroup, SETTINGS_STORAGE_KEY, URL_PARAMETER_PREFIX, type SettingsRegistry } from "@foss-earth/ui/settings";
 import { bindEarthSettingsUrl } from "../app/settingsUrlBinding";
+import { noteVisitGoogleKey } from "../app/visitGoogleKey";
 
 /** Where FOSS Earth's sources are browsable; hosts add their own prefix with `setSourceBase`. */
 export const FOSS_EARTH_SOURCE_BASE = "https://github.com/foss-earth/app/blob/main/";
@@ -23,6 +24,7 @@ let stops: (() => void)[] = [];
  */
 export function getAppSettings(): SettingsRegistry {
   if (app) return app;
+  if (typeof window !== "undefined") noteVisitGoogleKey(window.location.search);
   const registry = createBrowserSettingsRegistry({
     searchParams: typeof window === "undefined" ? null : new URLSearchParams(window.location.search),
     urlAliases: fossEarthUrlAliases,

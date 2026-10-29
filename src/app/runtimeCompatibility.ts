@@ -8,7 +8,7 @@ import { createEarthBrowserRuntime } from "./browserRuntime";
 import type { ImmersiveFrames } from "./immersive/frames";
 
 export interface BabylonRuntimeOptions extends Pick<GlobeRuntimeOptions,
-  "googleApiKey" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
+  "googleApiKey" | "googleCredential" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
   "terrainSource" | "rasterImagery" | "rasterQuality" | "terrainPerformanceCapture" | "onStatusChange"> {
   settings?: SettingsRegistry;
   rendererForce?: RendererMode | null;

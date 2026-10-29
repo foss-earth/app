@@ -52,7 +52,7 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     interfaceLead={app.interfaceLead}
     locationSearchSection={app.locationSearchSection}
     settingsSections={app.settingsSections}
-    nativeSections={app.nativeSections}
+    wasmSections={app.wasmSections}
     overviewTab={app.overviewTab}
     mapTab={app.mapTab}
     rendererTab={app.rendererTab}
@@ -63,6 +63,7 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     aboutTab={app.aboutTab}
     bugReportTab={app.bugReportTab}
     testFeedbackTab={app.testFeedbackTab}
+    accountTab={app.accountTab}
     browserDataTab={app.browserDataTab}
     onBugReportShow={app.onBugReportShow}
     sphereTabs={app.sphereTabs}

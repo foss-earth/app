@@ -15,7 +15,7 @@ import { ecefToGeodetic, retryDelayMs, type TerrainLoaderLimits } from "@foss-ea
 import { createMapCache, mapCacheLimits, createGroundBvhPreparer, type GroundBvhWorkerPort, type AtlasImageryWorkerPort, type BoundedAtlasImageryLoaderOptions, type TerrainDecodeWorkerPort, type TerrainMeshWorkerPort, type TerrainMeshWorkerPoolStats, type HeightBatchWorkerPort } from "@foss-earth/engine/browser";
 import { createBrowserGlobeBindings, loadBrowserGlobeGoogleProviders, type BrowserGlobeGoogleProviders } from "@foss-earth/engine/browser-globe";
 import { createTerrainLightingAdapter, createGroundAcceleration, type GroundAcceleration, type GlobeRuntimeOptions } from "@foss-earth/engine/babylon";
-import { createGlobeRuntimeBudgets, type NativeCoreId, type NativeCorePlan } from "@foss-earth/engine/settings";
+import { createGlobeRuntimeBudgets, type WasmCoreId, type WasmCorePlan } from "@foss-earth/engine/settings";
 import {
   GROUND_LIGHT_TABLE, GROUND_LIGHT_SAMPLES, GROUND_LIGHT_LEAST_SINE,
   MERCATOR_MAX_LAT_DEG, NIGHT_RADIANCE_UNITS, groundLightAt,
@@ -28,11 +28,11 @@ import { createEarthNativeResources, attemptEarthCleanup } from "./nativeResourc
 import { gpuMemoryOwner, meterMapFetch, METERED_REQUEST_OWNERS, requestOwner } from "./resourceOwners";
 import { markBoot, markBootOnFrame } from "./bootMarks";
 import { bootStep, finishBoot } from "@foss-earth/ui/browser";
-import { describeNativeCores, registerNativeCores } from "./nativeReport";
+import { describeWasmCores, registerWasmCores } from "./wasmReport";
 import { registerComputeScheduling, type ComputeSchedulingService } from "./computeReport";
 
 type EarthSelections = Pick<GlobeRuntimeOptions,
-  "googleApiKey" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
+  "googleApiKey" | "googleCredential" | "preferGoogleTiles" | "rasterBaseMap" | "getSurfaceHeightMeters" |
   "terrainSource" | "rasterImagery" | "onStatusChange" | "terrainPerformanceCapture" | "observations">;
 export interface EarthBrowserRuntimeOptions extends EarthSelections {
   settings: SettingsRegistry;
@@ -65,8 +65,8 @@ export interface EarthBrowserRuntimeOptions extends EarthSelections {
   framePreparation?: GlobeRuntimeOptions["framePreparation"];
   /** Evaluates the sky away from the page; absent or null, the page evaluates it as it always has. The sky owns and disposes it. */
   createSkyEvaluator?(): SkyEvaluator | null;
-  /** The startup native selection of each core, for the Native tab and reports. */
-  nativePlans?: Readonly<Record<NativeCoreId, NativeCorePlan>>;
+  /** The startup WASM selection of each core, for the Component execution tab and reports. */
+  wasmPlans?: Readonly<Record<WasmCoreId, WasmCorePlan>>;
   /** Shared host compute policy, independently of live Worker/memory limits. */
   computeScheduling?: ComputeSchedulingService;
   onFrameError(error: unknown): void;
@@ -198,11 +198,11 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     // first chosen: on a cold visit it put the first frame about 1.2 s later (Fast 4G, 4× CPU).
     const savedGoogleKey = settings.get("map.source.googleKey");
     const startsOnGoogle = options.preferGoogleTiles !== false
-      && Boolean(options.googleApiKey?.trim() || (typeof savedGoogleKey === "string" && savedGoogleKey.trim()));
+      && Boolean(options.googleCredential?.kind === "hosted" || options.googleApiKey?.trim() || (typeof savedGoogleKey === "string" && savedGoogleKey.trim()));
     let googleCode: { providers: BrowserGlobeGoogleProviders; adapter: typeof import("@foss-earth/renderer/google-preparation") | null } | null = null;
     let googleCodeLoad: Promise<void> | null = null;
     const loadGoogleCode = (): Promise<void> => googleCodeLoad ??= Promise.all([loadBrowserGlobeGoogleProviders(),
-      options.nativePlans?.google.placement === "worker" && options.createGoogleWorker ? import("@foss-earth/renderer/google-preparation") : null,
+      options.wasmPlans?.google.placement === "worker" && options.createGoogleWorker ? import("@foss-earth/renderer/google-preparation") : null,
     ]).then(([providers, adapter]) => { googleCode = { providers, adapter }; }, (error: unknown) => { googleCodeLoad = null; throw error; });
     const loadedGoogleCode = () => {
       if (!googleCode) throw new Error("The Google 3D Tiles code has not loaded.");
@@ -248,9 +248,9 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
     cancellation.signal.throwIfAborted();
     const ports = bindings;
     stage = "world and sky composition";
-    if (options.nativePlans?.ground.placement === "worker" && options.createGroundWorker) {
+    if (options.wasmPlans?.ground.placement === "worker" && options.createGroundWorker) {
       groundAcceleration = createGroundAcceleration({ preparer: createGroundBvhPreparer({
-        kernel: options.nativePlans.ground.kernel, createWorker: options.createGroundWorker, now: clock.nowMs,
+        kernel: options.wasmPlans.ground.kernel, createWorker: options.createGroundWorker, now: clock.nowMs,
         timers: { set: (callback, ms) => window.setTimeout(callback, ms), clear: handle => window.clearTimeout(handle as number) },
       }), now: clock.nowMs, onReady: () => composition?.scheduler.requestWork() });
     }
@@ -266,7 +266,7 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
         readinessPolicy: options.readinessPolicy, onDeviceLost: resources.observedDeviceLoss,
       },
       world: {
-        googleApiKey: options.googleApiKey, preferGoogleTiles: options.preferGoogleTiles,
+        googleApiKey: options.googleApiKey, googleCredential: options.googleCredential, preferGoogleTiles: options.preferGoogleTiles,
         rasterBaseMap: options.rasterBaseMap, getSurfaceHeightMeters: options.getSurfaceHeightMeters,
         terrainSource: options.terrainSource, rasterImagery: options.rasterImagery ?? "atlas",
         onStatusChange: options.onStatusChange, terrainPerformanceCapture: options.terrainPerformanceCapture,
@@ -337,14 +337,14 @@ export async function createEarthBrowserRuntime(canvas: HTMLCanvasElement, optio
           skyJobs: skyStatus?.jobs ?? null, skyBusy: skyStatus ? skyStatus.state === "busy" : null } };
       });
     }
-    registerNativeCores(runtime, () => describeNativeCores({ plans: options.nativePlans ?? null,
+    registerWasmCores(runtime, () => describeWasmCores({ plans: options.wasmPlans ?? null,
       terrainDecode: () => ports.terrainDecodeStats(), skyEvaluation: () => skyRuntime.getEvaluation(),
       terrainMesh: () => (runtime as { getTerrainMeshStats?: () => TerrainMeshWorkerPoolStats | null }).getTerrainMeshStats?.() ?? null,
       terrainHeights: () => runtime.getTerrainHeightStats?.() ?? null,
       googlePreparation: () => googlePreparation?.getStatus() ?? null,
       groundAcceleration: () => groundAcceleration?.status() ?? null }));
     return { runtime, composition, immersive, broker: imageBroker, native: resources, files: ports.files, cache, clock, timers,
-      bindings: ports, nativePlans: options.nativePlans ?? null, signal: cancellation.signal, async whenSettled() { await composition!.whenSettled(); await hostRetirement; } };
+      bindings: ports, wasmPlans: options.wasmPlans ?? null, signal: cancellation.signal, async whenSettled() { await composition!.whenSettled(); await hostRetirement; } };
   } catch (error) {
     try {
       // A post-composition subscription can fail too: release owner callbacks

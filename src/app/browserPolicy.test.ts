@@ -26,8 +26,8 @@ describe("terrain decode workers", () => {
     const ids = FOSS_EARTH_PARAMETERS.map(spec => spec.id);
     expect(ids.indexOf("map.loader.decodeWorkers")).toBe(ids.indexOf("map.loader.timeout") + 1);
     // Shared heights are drawn by Component execution, with the other choices of what runs where.
-    expect(FOSS_EARTH_PARAMETERS.find(spec => spec.id === "native.sharedHeights")?.home).toMatchObject({ tab: "native", section: "cores" });
-    expect(ids.filter(id => id.endsWith("sharedHeights"))).toEqual(["native.sharedHeights"]);
+    expect(FOSS_EARTH_PARAMETERS.find(spec => spec.id === "wasm.sharedHeights")?.home).toMatchObject({ tab: "wasm", section: "cores" });
+    expect(ids.filter(id => id.endsWith("sharedHeights"))).toEqual(["wasm.sharedHeights"]);
     const settings = createSettingsRegistry({ storage: null, deviceContext: { hardwareConcurrency: 6, deviceMemoryGiB: 8 } });
     settings.register(FOSS_EARTH_PARAMETERS);
     const policy = createEarthBrowserPolicy(settings);
@@ -51,7 +51,7 @@ describe("destination terrain", () => {
   });
 });
 
-describe("native execution", () => {
+describe("WASM execution", () => {
   const policyFor = (values: Record<string, string | number | boolean>) => {
     const settings = createSettingsRegistry({ storage: null, deviceContext: { hardwareConcurrency: 6, deviceMemoryGiB: 8 } });
     settings.register(FOSS_EARTH_PARAMETERS);
@@ -67,64 +67,64 @@ describe("native execution", () => {
   }
 
   it("keeps shared compute opt-in and separate from worker lifetime and unknown CPU topology", () => {
-    const legacy = policyFor({ "native.workers": 12 });
+    const legacy = policyFor({ "wasm.workers": 12 });
     expect(legacy.computeScheduling?.snapshot()).toMatchObject({ requested: "legacy", admission: null });
-    const fixed = policyFor({ "native.workers": 12, "native.compute": "fixed", "native.computeLanes": 2, "native.computeObserve": true });
+    const fixed = policyFor({ "wasm.workers": 12, "wasm.compute": "fixed", "wasm.computeLanes": 2, "wasm.computeObserve": true });
     expect(fixed.terrainDecodeWorkers?.()).toBe(legacy.terrainDecodeWorkers?.());
     expect(fixed.computeScheduling?.snapshot()).toMatchObject({ requested: "fixed", requestedLanes: 2, liveWorkers: 0,
       admission: { limit: 2, active: 0, queued: 0, observing: true }, topology: { efficiencyCores: null, source: "browser-logical-only" } });
-    const full = policyFor({ "native.workers": 24, "native.compute": "fixed", "native.computeLanes": 32 });
+    const full = policyFor({ "wasm.workers": 24, "wasm.compute": "fixed", "wasm.computeLanes": 32 });
     expect(full.computeScheduling?.snapshot()).toMatchObject({ requestedLanes: 32, admission: { limit: 24 } });
     legacy.computeScheduling?.dispose(); fixed.computeScheduling?.dispose(); full.computeScheduling?.dispose();
   });
 
   it("keeps the sky on the page for TypeScript, and gives the A/B pair the same worker", () => {
-    expect(policyFor({ "native.tier": "typescript" }).createSkyEvaluator?.()).toBeNull();
-    const autoEvaluator = policyFor({ "native.tier": "auto" }).createSkyEvaluator?.();
+    expect(policyFor({ "wasm.tier": "typescript" }).createSkyEvaluator?.()).toBeNull();
+    const autoEvaluator = policyFor({ "wasm.tier": "auto" }).createSkyEvaluator?.();
     expect(autoEvaluator?.status()).toMatchObject({ placement: "worker", kernel: "typescript", started: false });
     autoEvaluator?.dispose();
     // Sky → Shared memory, on by default, runs a WASM sky's shared build.
-    for (const [values, kernel] of [[{ "native.tier": "typescript-worker" }, "typescript"], [{ "native.tier": "single", "native.sharedSky": false }, "single"],
-      [{ "native.tier": "single" }, "threaded"], [{ "native.tier": "threaded" }, "threaded"]] as const) {
+    for (const [values, kernel] of [[{ "wasm.tier": "typescript-worker" }, "typescript"], [{ "wasm.tier": "single", "wasm.sharedSky": false }, "single"],
+      [{ "wasm.tier": "single" }, "threaded"], [{ "wasm.tier": "threaded" }, "threaded"]] as const) {
       const evaluator = policyFor(values).createSkyEvaluator?.();
       // Nothing is loaded until the first evaluation.
       expect(evaluator?.status()).toMatchObject({ placement: "worker", kernel, started: false });
       evaluator?.dispose();
     }
-    expect(policyFor({ "native.tier": "single", "native.core.sky": "typescript" }).createSkyEvaluator?.()).toBeNull();
+    expect(policyFor({ "wasm.tier": "single", "wasm.core.sky": "typescript" }).createSkyEvaluator?.()).toBeNull();
   });
 
   it("names each terrain worker's kernel from the raster plan, and reports all plans", () => {
     vi.stubGlobal("Worker", FakeWorker);
     try {
       // Shared heights are on by default and asked for only where Terrain geometry runs in workers.
-      for (const [values, nativeTier, sharedHeights] of [[{ "native.tier": "typescript-worker" }, "typescript", true], [{ "native.tier": "auto" }, "typescript", false],
-        [{ "native.tier": "typescript", "native.core.raster": "single" }, "single", false], [{}, "single", true]] as const) {
-        const policy = policyFor({ ...values, "native.workers": 12 });
+      for (const [values, wasmTier, sharedHeights] of [[{ "wasm.tier": "typescript-worker" }, "typescript", true], [{ "wasm.tier": "auto" }, "typescript", false],
+        [{ "wasm.tier": "typescript", "wasm.core.raster": "single" }, "single", false], [{}, "single", true]] as const) {
+        const policy = policyFor({ ...values, "wasm.workers": 12 });
         created.length = 0;
         policy.createTerrainWorker?.();
         expect(created).toHaveLength(1);
-        expect(JSON.parse(created[0].name)).toMatchObject({ kind: "earth-terrain", nativeTier, sharedHeights });
+        expect(JSON.parse(created[0].name)).toMatchObject({ kind: "earth-terrain", wasmTier, sharedHeights });
       }
-      // Asked for only where mesh workers read the grids, and read once, like the native plans.
+      // Asked for only where mesh workers read the grids, and read once, like the WASM plans.
       const named = (values: Record<string, string | number | boolean>) => {
         const settings = createSettingsRegistry({ storage: null });
         settings.register(FOSS_EARTH_PARAMETERS);
         for (const [id, value] of Object.entries(values)) settings.set(id, value);
         const policy = createEarthBrowserPolicy(settings);
-        settings.set("native.sharedHeights", !settings.get("native.sharedHeights"));
+        settings.set("wasm.sharedHeights", !settings.get("wasm.sharedHeights"));
         created.length = 0;
         policy.createTerrainWorker?.();
         return JSON.parse(created[0].name) as { sharedHeights: boolean };
       };
-      expect(named({ "native.tier": "typescript-worker", "native.workers": 12, "native.sharedHeights": true }).sharedHeights).toBe(true);
-      expect(named({ "native.tier": "typescript-worker", "native.workers": 12, "native.sharedHeights": false }).sharedHeights).toBe(false);
-      expect(named({ "native.tier": "typescript", "native.workers": 12, "native.sharedHeights": true }).sharedHeights).toBe(false);
-      const policy = policyFor({ "native.tier": "single", "native.core.sky": "typescript-worker" });
-      expect(policy.nativePlans).toMatchObject({
+      expect(named({ "wasm.tier": "typescript-worker", "wasm.workers": 12, "wasm.sharedHeights": true }).sharedHeights).toBe(true);
+      expect(named({ "wasm.tier": "typescript-worker", "wasm.workers": 12, "wasm.sharedHeights": false }).sharedHeights).toBe(false);
+      expect(named({ "wasm.tier": "typescript", "wasm.workers": 12, "wasm.sharedHeights": true }).sharedHeights).toBe(false);
+      const policy = policyFor({ "wasm.tier": "single", "wasm.core.sky": "typescript-worker" });
+      expect(policy.wasmPlans).toMatchObject({
         raster: { kernel: "single" },
-        sky: { kernel: "typescript", requestedBy: "native.core.sky", placement: "worker" },
-        terrain: { kernel: "single", requestedBy: "native.tier", placement: "worker" },
+        sky: { kernel: "typescript", requestedBy: "wasm.core.sky", placement: "worker" },
+        terrain: { kernel: "single", requestedBy: "wasm.tier", placement: "worker" },
       });
     } finally {
       vi.unstubAllGlobals();
@@ -134,8 +134,8 @@ describe("native execution", () => {
   it("creates terrain mesh workers for worker placement and names them with their kernel", () => {
     vi.stubGlobal("Worker", FakeWorker);
     try {
-      expect(policyFor({ "native.tier": "typescript" }).createTerrainMeshWorker?.()).toBeNull();
-      const policy = policyFor({ "native.tier": "single" });
+      expect(policyFor({ "wasm.tier": "typescript" }).createTerrainMeshWorker?.()).toBeNull();
+      const policy = policyFor({ "wasm.tier": "single" });
       created.length = 0;
       const worker = policy.createTerrainMeshWorker?.();
       expect(worker).not.toBeNull();
@@ -149,17 +149,17 @@ describe("native execution", () => {
   it("applies worker parallelism to real pool limits and captures it until the next reload", () => {
     const settings = createSettingsRegistry({ storage: null });
     settings.register(FOSS_EARTH_PARAMETERS);
-    settings.setMany({ "native.tier": "custom", "native.implementation": "wasm", "native.placement": "worker", "native.parallelism": "serial", "native.sharedSky": false, "map.loader.decodeWorkers": 6, "native.workers": 16 });
+    settings.setMany({ "wasm.tier": "custom", "wasm.implementation": "wasm", "wasm.placement": "worker", "wasm.parallelism": "serial", "wasm.sharedSky": false, "map.loader.decodeWorkers": 6, "wasm.workers": 16 });
     const serial = createEarthBrowserPolicy(settings);
     expect(serial.terrainDecodeWorkers?.()).toBe(1);
     expect(serial.terrainMeshWorkers?.()).toBe(1);
-    expect(serial.nativePlans?.sky).toMatchObject({ kernel: "single", parallelism: "serial" });
-    settings.set("native.parallelism", "auto");
+    expect(serial.wasmPlans?.sky).toMatchObject({ kernel: "single", parallelism: "serial" });
+    settings.set("wasm.parallelism", "auto");
     expect(serial.terrainDecodeWorkers?.()).toBe(1);
     const parallel = createEarthBrowserPolicy(settings);
     expect(parallel.terrainDecodeWorkers?.()).toBe(6);
     expect(parallel.terrainMeshWorkers?.()).toBe(2);
-    settings.setMany({ "native.core.terrain": "custom", "native.core.terrain.parallelism": "serial" });
+    settings.setMany({ "wasm.core.terrain": "custom", "wasm.core.terrain.parallelism": "serial" });
     const mixed = createEarthBrowserPolicy(settings);
     expect(mixed.terrainDecodeWorkers?.()).toBe(6);
     expect(mixed.terrainMeshWorkers?.()).toBe(1);
@@ -172,13 +172,13 @@ describe("native execution", () => {
     vi.stubGlobal("Worker", FakeWorker);
     try {
       // Single places the sky, imagery heights, Google, ground and two mesh workers beside the imagery decoder: 7 of 9.
-      const policy = policyFor({ "native.tier": "single", "native.workers": 9, "map.loader.decodeWorkers": 6 });
+      const policy = policyFor({ "wasm.tier": "single", "wasm.workers": 9, "map.loader.decodeWorkers": 6 });
       expect(policy.terrainDecodeWorkers?.()).toBe(2);
       const decoders = [policy.createTerrainWorker?.(), policy.createTerrainWorker?.()];
       expect(decoders.every(Boolean)).toBe(true);
       expect(policy.createTerrainWorker?.()).toBeNull();
-      expect(policyFor({ "native.tier": "typescript", "native.workers": 9, "map.loader.decodeWorkers": 6 }).terrainDecodeWorkers?.()).toBe(6);
-      expect(policyFor({ "native.tier": "single", "native.workers": 4 }).terrainDecodeWorkers?.()).toBe(0);
+      expect(policyFor({ "wasm.tier": "typescript", "wasm.workers": 9, "map.loader.decodeWorkers": 6 }).terrainDecodeWorkers?.()).toBe(6);
+      expect(policyFor({ "wasm.tier": "single", "wasm.workers": 4 }).terrainDecodeWorkers?.()).toBe(0);
       // The default budget leaves the default selection's pool its recommended size, isolated or not.
       for (const isolated of [false, true]) {
         vi.stubGlobal("crossOriginIsolated", isolated);
@@ -192,7 +192,7 @@ describe("native execution", () => {
   it("bounds all host worker factories together and returns slots when workers retire", () => {
     vi.stubGlobal("Worker", FakeWorker);
     try {
-      const policy = policyFor({ "native.tier": "single", "native.workers": 2 });
+      const policy = policyFor({ "wasm.tier": "single", "wasm.workers": 2 });
       const first = policy.createTerrainHeightWorker?.();
       const second = policy.createGoogleWorker?.();
       expect(first).not.toBeNull(); expect(second).not.toBeNull();

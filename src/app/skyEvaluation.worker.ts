@@ -18,7 +18,7 @@ installSkyEvaluationWorker({
   scope: self as unknown as SkyEvaluationWorkerScope,
   kernel,
   threads,
-  // Only the native kernels fetch and compile a core, on the first evaluation;
+  // Only the WASM kernels fetch and compile a core, on the first evaluation;
   // the single core is also the threaded kernel's fallback.
   loadNumericCore: kernel === "single" || kernel === "threaded" ? numeric : undefined,
   // The shared core runs its coordinator here; helpers join as the page starts them.

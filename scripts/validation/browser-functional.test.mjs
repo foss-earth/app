@@ -85,7 +85,7 @@ test('basemap typography rejects missing styles and browser-default button text'
 });
 
 test('tab composition, explicit Dev opt-in and short-window clipping are acceptance failures', () => {
-  const labels = ['Location', 'Controls', 'Interface', 'Settings', 'Map', 'Renderer', 'Sky', 'Date and time', 'Scenes', 'About', 'Bug report', 'Browser data'];
+  const labels = ['Location', 'Controls', 'Interface', 'Settings', 'Map', 'Renderer', 'Sky', 'Date and time', 'Scenes', 'About', 'Bug report', 'Account', 'Browser data'];
   const menu = { labels, items: [{ label: 'About', left: 10, right: 120, top: 20, bottom: 60 }], width: 1100, limit: 520 };
   assert.doesNotThrow(() => assertMenu(menu, false));
   assert.throws(() => assertMenu({ ...menu, labels: labels.filter(label => label !== 'Scenes') }, false));

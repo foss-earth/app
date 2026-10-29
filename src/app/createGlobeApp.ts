@@ -15,8 +15,8 @@ import { createSceneDeviceLocationMarker, type DeviceLocationMarker } from "@fos
 import type { DeviceLocationFix } from "@foss-earth/engine";
 import { createEarthBrowserRuntime } from "./browserRuntime";
 import { createEarthBrowserPolicy } from "./browserPolicy";
-import { createNativeSections } from "./nativePanel";
-import { earthNativeCores, type NativeCoreReport } from "./nativeReport";
+import { createWasmSections } from "./wasmPanel";
+import { earthWasmCores, type WasmCoreReport } from "./wasmReport";
 import { earthComputeScheduling } from "./computeReport";
 import { createEarthFeatureFramePreparation } from "./framePreparation";
 import type { GlobeFramePreparation } from "@foss-earth/engine/babylon";
@@ -31,6 +31,7 @@ import {
 } from "@foss-earth/engine/settings";
 import { TERRAIN_SOURCES, type TerrainSource } from "@foss-earth/engine";
 import { getAppSettings } from "../settings/appSettings";
+import { openAccountSession } from "./accountSession";
 import { INPUT_SENSITIVITY_IDS, PERFORMANCE_HUD_METRICS, POSITION_ALTITUDE_ID, TOOLBAR_EDIT_PRIORITIES_ID, TOOLBAR_PRIORITIES, toolbarPriorityParameterId } from "../settings/catalogue";
 import { createParameterControl, type ParameterControlHandle } from "@foss-earth/ui/browser";
 import { createParameterSection, type ParameterSectionHandle } from "@foss-earth/ui/browser";
@@ -149,7 +150,7 @@ declare global {
       /** Whether this page is the published one: scripts/validation/published-version.mjs reads it. */
       publishedVersion: PublishedVersionWatch;
       /** The Component execution tab's report: what each converted core was asked to run and ran. */
-      nativeCores?: () => NativeCoreReport[];
+      wasmCores?: () => WasmCoreReport[];
       /** The VR headset session: scripts/validation/headset-emulator.mjs reads it. */
       headset: HeadsetSession;
       /** Image tabs, for the browser checks of docs/proposals/shared-image-viewer-implementation.md §11. */
@@ -179,14 +180,16 @@ export interface GlobeAppHandle extends GlobeHandle {
   locationSearchSection: PanelSection;
   /** Presets, saved settings, the app's files and diagnostics, for the host's Settings tab. */
   settingsSections: readonly PanelSection[];
-  /** The startup native selection and what each converted core actually ran, for the host's Component execution tab. */
-  nativeSections: readonly PanelSection[];
+  /** The startup WASM selection and what each converted core actually ran, for the host's Component execution tab. */
+  wasmSections: readonly PanelSection[];
   /** Which version runs and what it is built from, for the host's About tab. */
   aboutTab: HTMLElement;
   /** The report form's one home, prepared when this tab is first shown. */
   bugReportTab: HTMLElement;
   testFeedbackTab?: HTMLElement;
   testFeedback?: TestFeedbackSession;
+  /** Sign in, and the signed-in account's Google 3D Tiles budget. */
+  accountTab: HTMLElement;
   /** Review and clear this site's browser data, keeping API keys by default. */
   browserDataTab: HTMLElement;
   onBugReportShow(): void;
@@ -289,8 +292,11 @@ function readHudPreference(id: string): { wanted: boolean; pinned: boolean } {
 }
 
 function getFallbackNoticeMessage(status: BabylonRuntime["status"]): string {
+  if (status.lastError?.includes("paused until the budget") || status.lastError?.includes("Sign in again")) {
+    return status.lastError;
+  }
   if (!status.googleApiKeyProvided) {
-    return "Fallback mode active because no Google Maps API key was provided. Append ?gkey=YOUR_GOOGLE_MAPS_API_KEY to the URL to enable Google Photorealistic 3D Tiles.";
+    return "Flat maps are showing. Sign in from Account to use Google Photorealistic 3D Tiles, or append ?gkey=YOUR_GOOGLE_MAPS_API_KEY.";
   }
 
   if (status.lastError) {
@@ -546,8 +552,15 @@ export async function createGlobeApp(
     else logStatus(null);
   };
 
+  const account = await openAccountSession(rootElement.ownerDocument);
+  cleanup.push(() => account.destroy());
+  const explicitGoogleKey = Boolean(options.googleApiKey?.trim()) || account.visitLocked;
+  if (!explicitGoogleKey && account.hosted) {
+    settings.setHostDefault("map.source.basemap", "google", "the signed-in account includes Google 3D Tiles");
+  }
   const mapConfig = resolveMapRuntimeConfig({
-    googleApiKey: options.googleApiKey,
+    googleApiKey: explicitGoogleKey ? options.googleApiKey : null,
+    ignoreSavedGoogleKey: !explicitGoogleKey && Boolean(account.hosted),
     baseMap: options.baseMap,
     preferGoogleTiles: options.preferGoogleTiles,
     terrainSource: options.terrainSource,
@@ -560,6 +573,7 @@ export async function createGlobeApp(
     ...browserPolicy,
     framePreparation: { prepare: frame => prepareSceneFrame?.(frame) },
     googleApiKey: mapConfig.googleApiKey,
+    googleCredential: explicitGoogleKey ? null : account.hosted,
     preferGoogleTiles: mapConfig.preferGoogleTiles,
     rasterBaseMap: mapConfig.rasterBaseMap,
     terrainSource: mapConfig.terrainSource,
@@ -1101,16 +1115,16 @@ export async function createGlobeApp(
   // Whether the page is cross-origin isolated, which a threaded core needs, and why not (ui/src/browser/isolation.ts).
   diagnostics.addState(() => `Isolation: ${describeIsolation(window)}`);
   // Requested and actual backend per core, from each core's own status.
-  diagnostics.addState(() => `Component execution: ${JSON.stringify(earthNativeCores(browser.runtime) ?? [])}`);
+  diagnostics.addState(() => `Component execution: ${JSON.stringify(earthWasmCores(browser.runtime) ?? [])}`);
   diagnostics.addState(() => `Compute scheduling: ${JSON.stringify(earthComputeScheduling(browser.runtime))}`);
-  const native = createNativeSections({
-    document, settings, section: (section, content) => sectionOf("native", section, content),
+  const wasm = createWasmSections({
+    document, settings, section: (section, content) => sectionOf("wasm", section, content),
     reload: url => window.location.assign(url),
-    report: () => earthNativeCores(browser.runtime) ?? [],
+    report: () => earthWasmCores(browser.runtime) ?? [],
     computeReport: () => earthComputeScheduling(browser.runtime),
     timers: { set: (callback, delayMs) => window.setTimeout(callback, delayMs), clear: handle => window.clearTimeout(handle as number) },
   });
-  cleanup.push(() => native.destroy());
+  cleanup.push(() => wasm.destroy());
   const diagnosticsSource = {
     report: () => diagnostics.report({ allSettings: true }),
     previous: () => diagnostics.previous(),
@@ -1124,7 +1138,7 @@ export async function createGlobeApp(
   const testFeedback = createTestFeedbackPanel({ document, href: window.location.href, now: () => new Date(),
     downloads: browserReportDownloads(URL), secrets: () => reportSecrets(settings), providers: {
       diagnostics: diagnosticsSource.report,
-      execution: () => earthNativeCores(browser.runtime) ?? [],
+      execution: () => earthWasmCores(browser.runtime) ?? [],
       scheduling: () => earthComputeScheduling(browser.runtime),
       ...options.testProviders,
     } });
@@ -1292,7 +1306,7 @@ export async function createGlobeApp(
       images: { host: imageTabs, broker: browser.broker, get overlay() { return options.overlayApiRef?.current ?? null; },
         draw: () => readSurface?.() ?? null },
       terrainDecode: () => browser.bindings.terrainDecodeStats(),
-      nativeCores: () => earthNativeCores(browser.runtime) ?? [],
+      wasmCores: () => earthWasmCores(browser.runtime) ?? [],
     };
   }
   cleanup.push(() => { if (window.__fossEarthPanoramaTest?.scenes === scenes) delete window.__fossEarthPanoramaTest; });
@@ -1458,11 +1472,12 @@ export async function createGlobeApp(
     interfaceLead,
     locationSearchSection,
     settingsSections,
-    nativeSections: native.sections,
+    wasmSections: wasm.sections,
     aboutTab: about.element,
     bugReportTab: bugReportPanel.element,
     testFeedbackTab: testFeedback?.element,
     testFeedback: testFeedback?.session ?? undefined,
+    accountTab: account.panel,
     browserDataTab: browserData.element,
     onBugReportShow: () => bugReportPanel.show(),
     overviewTab: overviewMap.element,

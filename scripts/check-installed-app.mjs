@@ -77,7 +77,7 @@ const receipt = {
   environment, cachePolicy: args.cache ? "Explicit root-controlled cache; offline only. Cache is not dependency identity." : "Fresh private cache; offline only.",
   source: [], commands: [], checks: [], limitations: [
     "Strict Bundler TypeScript and Vite build proof, not Node import compatibility; the app publishes TS/TSX source.",
-    "Static application assembly only; no application mount, renderer initialization, server, browser, GPU, network provider, benchmark, native/WASM or media build.",
+    "Static application assembly only; no application mount, renderer initialization, server, browser, GPU, network provider, benchmark, WASM or media build.",
     "Owner implementation behavior, app lifecycle tests, common conformance, bootstrap acceptance, full publication-ref audit and actual remote admission are separate required gates.",
   ],
 };

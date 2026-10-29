@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { nativeCorePlan, NATIVE_THREADS_ID, NATIVE_TIER_ID, type NativeCoreId, type NativeCorePlan } from "@foss-earth/engine/settings";
+import { wasmCorePlan, WASM_THREADS_ID, WASM_TIER_ID, type WasmCoreId, type WasmCorePlan } from "@foss-earth/engine/settings";
 import type { SkyEvaluation } from "@foss-earth/sky/babylon";
 import type { SkySharedThreadsStatus } from "@foss-earth/sky";
-import { describeNativeCores } from "./nativeReport";
+import { describeWasmCores } from "./wasmReport";
 import { startSkySharedHelpers } from "./skySharedHelpers";
 
 const fakeWorker = () => ({ postMessage: vi.fn(), terminate: vi.fn() }) as unknown as Worker & { postMessage: ReturnType<typeof vi.fn>; terminate: ReturnType<typeof vi.fn> };
@@ -38,9 +38,9 @@ describe("shared sky helpers", () => {
 });
 
 describe("shared sky report", () => {
-  const plans = (values: Record<string, unknown>): Record<NativeCoreId, NativeCorePlan> => {
+  const plans = (values: Record<string, unknown>): Record<WasmCoreId, WasmCorePlan> => {
     const settings = { get: <T>(id: string) => (id in values ? values[id] : "inherit") as T };
-    return Object.fromEntries((["raster", "sky", "terrain", "imagery", "google", "ground"] as const).map(core => [core, nativeCorePlan(settings, core)])) as Record<NativeCoreId, NativeCorePlan>;
+    return Object.fromEntries((["raster", "sky", "terrain", "imagery", "google", "ground"] as const).map(core => [core, wasmCorePlan(settings, core)])) as Record<WasmCoreId, WasmCorePlan>;
   };
   const threads: SkySharedThreadsStatus = {
     actual: "threaded", retiredReason: null, sharedMemory: true, crossOriginIsolated: true, memoryBytes: 4194304, memoryGrows: false, stackBytesPerThread: 65536,
@@ -54,7 +54,7 @@ describe("shared sky report", () => {
       placement: "worker", kernel: "threaded", state: "idle", failure: null, started: true, jobs: 10, lastJob: null, totals: { roundTripMs: 0, workMs: 0 },
       backend: { kernel: "threaded", actual: "threaded", state: "ready", fallbackReason: null, startupMs: 12, numeric: null, jobs: 10, threads, requestedThreads: 4 },
     } } as unknown as SkyEvaluation;
-    const reports = describeNativeCores({ plans: plans({ [NATIVE_TIER_ID]: "threaded", [NATIVE_THREADS_ID]: 4 }), terrainDecode: () => null, skyEvaluation: () => evaluation });
+    const reports = describeWasmCores({ plans: plans({ [WASM_TIER_ID]: "threaded", [WASM_THREADS_ID]: 4 }), terrainDecode: () => null, skyEvaluation: () => evaluation });
     const sky = reports.find(report => report.core === "sky")!;
     expect(sky).toMatchObject({ kernel: "threaded", actual: "threaded (worker)", threads: 4, sharedMemory: true, threadedFallback: null, parallelism: "auto",
       shared: { actual: "threaded", crossOriginIsolated: true, memoryBytes: 4194304, threads: { requested: 4, connected: 4, ready: 3 },
@@ -69,7 +69,7 @@ describe("shared sky report", () => {
       placement: "worker", kernel: "threaded", state: "idle", failure: null, started: true, jobs: 1, lastJob: null, totals: { roundTripMs: 0, workMs: 0 },
       backend: { kernel: "threaded", actual: "single", state: "ready", fallbackReason: "not-cross-origin-isolated", startupMs: 12, numeric: null, jobs: 1, threads: null, requestedThreads: 4 },
     } } as unknown as SkyEvaluation;
-    const sky = describeNativeCores({ plans: plans({ [NATIVE_TIER_ID]: "threaded", [NATIVE_THREADS_ID]: 4 }), terrainDecode: () => null, skyEvaluation: () => evaluation })
+    const sky = describeWasmCores({ plans: plans({ [WASM_TIER_ID]: "threaded", [WASM_THREADS_ID]: 4 }), terrainDecode: () => null, skyEvaluation: () => evaluation })
       .find(report => report.core === "sky")!;
     expect(sky).toMatchObject({ actual: "single (worker)", fallbackReason: "not-cross-origin-isolated", sharedMemory: true, shared: null });
   });
