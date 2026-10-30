@@ -1,6 +1,6 @@
 /** Earth identity and feature observations supplied to the public UI diagnostics owner. */
-import { createDiagnostics, redactIssueReport, reportPage, reportSecrets, type PreviousVisit, type SessionTrail, type TrailEnvironment } from "@foss-earth/ui/diagnostics";
-import { browserTrailEnvironment, readBrowserReportDetails, type GameLog } from "@foss-earth/ui/browser";
+import { effectiveReportSettings, createDiagnostics, redactIssueReport, reportPage, reportSecrets, type PreviousVisit, type SessionTrail, type TrailEnvironment } from "@foss-earth/ui/diagnostics";
+import { startBrowserStartupCheckpoint, browserTrailEnvironment, readBrowserReportDetails, type GameLog } from "@foss-earth/ui/browser";
 import type { RendererSelection } from "@foss-earth/renderer";
 import { observeRendererHealth, type RendererHealthSource } from "@foss-earth/renderer/browser";
 import type { SceneControllerState } from "@foss-earth/scenes/browser";
@@ -69,6 +69,7 @@ export interface AppDiagnostics {
   sceneChanged(state: SceneControllerState): void;
   /** More lines for the report, such as what of the app is kept on the device. */
   addState(read: () => Promise<string | null> | string | null): void;
+  checkpoint(name: string, text: string, urgent?: boolean, outcome?: "loading" | "ready" | "failed"): void;
   report(options?: { allSettings?: boolean }): Promise<string>;
   previous(): Promise<PreviousVisit | null>;
   destroy(): void;
@@ -85,7 +86,12 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
     try { const info = runtime?.renderer.engine.getInfo?.(); return info ? [info.vendor, info.renderer, info.version].filter(Boolean).join(", ") || null : null; }
     catch { return null; }
   };
-  const diagnostics = createDiagnostics({ settings, log: options.log,
+  const capture = startBrowserStartupCheckpoint(settings);
+  capture.section("environment.txt", JSON.stringify({ identity, browser: navigator.userAgent,
+    viewport: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
+    environment: readBrowserReportDetails(), components: buildParts() }, null, 2), true);
+  capture.section("settings.txt", JSON.stringify(effectiveReportSettings(settings), null, 2), true);
+  const diagnostics = createDiagnostics({ settings, log: options.log, checkpoint: capture.section,
     trailIdentity: () => `${describeAppIdentity(identity)}, renderer ${runtime?.renderer.mode ?? "not started"}.`,
     trailEnvironment: options.trailEnvironment ?? browserTrailEnvironment(), page, console: options.console ?? console,
     parts() {
@@ -112,6 +118,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
     },
   });
   const { trail, log } = diagnostics;
+  diagnostics.addState(() => `Startup checkpoint storage: ${capture.status()}`);
   diagnostics.addState(() => health ? `Render health: ${JSON.stringify(health.snapshot())}` : null);
   trail.step(`Opened ${reportPage(typeof location === "undefined" ? "" : location.href)}`);
   log.print({ text: `${describeAppIdentityBriefly(identity)}.` });
@@ -123,6 +130,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
   page.addEventListener("pagehide", onPageHide); page.addEventListener("pageshow", onPageShow);
   return {
     log, trail,
+    checkpoint(name, text, urgent, outcome) { capture.section(name, text, urgent); if (outcome) capture.flush(outcome); },
     attachRuntime(next) {
       if (disposed) throw new Error("Diagnostics is disposed.");
       health?.dispose();
@@ -133,6 +141,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
         onError: message => {
           // Keep the complete native cause in the persistent trail too. Each
           // chunk fits its 300-character line limit; bound this to 8,192 characters.
+          capture.section("gpu-error.txt", message, true);
           const redacted = redactIssueReport(message, reportSecrets(settings));
           const text = redacted.slice(0, 8192);
           const chunks = text.match(/[\s\S]{1,240}/g) ?? [];
@@ -140,6 +149,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
           if (redacted.length > text.length) trail.step("GPU error shortened in activity; full message is in Render health.");
         },
       });
+      capture.section("renderer.txt", JSON.stringify({ requested: next.renderer.requested, active: next.renderer.mode, driver: driverOf() }), true);
       diagnostics.attachRuntime({
         describe: () => `Renderer ${next.renderer.mode} (asked for ${next.renderer.requested})${next.renderer.fallbackReason ? `; fell back: ${next.renderer.fallbackReason}` : ""}; ${driverOf() ?? "GPU not named"}`,
         onDeviceLost: listener => next.onDeviceLost(() => { lost++; listener(); }), onDeviceRestored: listener => next.onDeviceRestored(listener),
@@ -158,7 +168,7 @@ export function startAppDiagnostics(options: AppDiagnosticsOptions): AppDiagnost
     destroy() {
       if (disposed) return; disposed = true;
       const failures: unknown[] = [];
-      for (const stop of [() => document.removeEventListener("visibilitychange", onVisibility),
+      for (const stop of [() => capture.destroy(), () => document.removeEventListener("visibilitychange", onVisibility),
         () => health?.dispose(),
         () => page.removeEventListener("pagehide", onPageHide), () => page.removeEventListener("pageshow", onPageShow), () => diagnostics.destroy()]) {
         try { stop(); } catch (error) { failures.push(error); }

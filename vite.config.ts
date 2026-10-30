@@ -11,7 +11,7 @@ import { lazyFeatures } from './vite/lazyFeatures.ts'
 import { localSource } from './vite/localSource.ts'
 import { poseSave } from './vite/poseSave.ts'
 import { babylonBarrels, babylonShaderChunks } from '@foss-earth/renderer/vite'
-import { bootTerminal, browserRecovery } from '@foss-earth/ui/vite'
+import { bootTerminal, browserRecovery, testPlans } from '@foss-earth/ui/vite'
 
 // Both local development and the compiled artifact use the landing site's app route.
 const base = '/app/'
@@ -75,5 +75,7 @@ export default defineConfig({
   // The app's own files are kept on the visitor's device by a service worker (docs/app-files.md),
   // and each page says what it is built from, for the About tab. The boot terminal shows from the page's first bytes.
   // With --host the dev server serves https, so a phone's page is secure: it shares memory and uses WebGPU only then.
-  plugins: [crossOriginIsolation(), networkHttps(), bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), lazyFeatures(), appFiles(), builtFrom(), poseSave(), headsetEmulator()],
+  plugins: [crossOriginIsolation(), networkHttps(), bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), lazyFeatures(), appFiles(), builtFrom(), poseSave(), headsetEmulator(),
+    // npm run dev only: /app/test/<name> opens the Test tab with build/test-plans/<name>.json (docs/docs/test-feedback.md).
+    testPlans()],
 })

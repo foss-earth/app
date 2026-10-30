@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { TRAIL_KEY_PREFIX } from "@foss-earth/ui/diagnostics";
+import { createStartupCheckpointStore, TRAIL_KEY_PREFIX } from "@foss-earth/ui/diagnostics";
 import { FOSS_EARTH_PARAMETERS } from "../settings/catalogue";
 import { createSettingsRegistry } from "../settings/registry";
 import { addressWithoutReport, showReportOnly, wantsReportOnly } from "./reportOnly";
@@ -19,7 +19,7 @@ describe("the report-only page", () => {
 
   it("shows how the last visit ended and its steps without starting the app, and leaves its trail for the app's next visit", async () => {
     const key = `${TRAIL_KEY_PREFIX}before`;
-    localStorage.setItem(key, JSON.stringify({
+    window.localStorage.setItem(key, JSON.stringify({
       version: 1, id: "before", startedAt: Date.parse("2026-10-04T15:50:00Z"), app: "Build b, bundle twinCities-C9TYTT-e.js, renderer webgpu.",
       state: "scene umn-twin-cities, revision 4b89d4e2af09, inside the 360 image northrop-mall", steps: [{ ms: 42_000, text: "Inside the 360 image northrop-mall" }], closed: false, hidden: false,
     }));
@@ -31,7 +31,9 @@ describe("the report-only page", () => {
     await settle();
     expect(root.querySelector("h1")?.textContent).toBe("Report");
     expect(root.querySelector(".foss-earth-diagnostics-section p")?.textContent).toMatch(/^The last visit stopped without being closed, 42 s after it opened or later; it was at: scene umn-twin-cities/);
-    const report = root.querySelector("textarea")!.value;
+    const report = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"][data-file]')].map(tab => {
+      tab.click(); return tab.closest(".foss-earth-issue-report")?.querySelector("pre")?.textContent ?? "";
+    }).join("\n");
     expect(report).toContain("Build: 2026-10-04T15:00:00.000Z · source 1a2b3c4d · FOSS Earth 9f8e7d6c5b4a · bundle twinCities-DWWktTbX.js");
     // This test's page carries no build stamp, as a development build.
     expect(report).toContain("Published: This page does not say which build it is");
@@ -40,10 +42,30 @@ describe("the report-only page", () => {
     expect(report).toContain("stopped without being closed, while shown. Build b, bundle twinCities-C9TYTT-e.js, renderer webgpu.");
     expect(report).toContain("  It was at: scene umn-twin-cities, revision 4b89d4e2af09, inside the 360 image northrop-mall");
     // The report is there without a press of the button; this test's browser has no clipboard, so it is left selected.
-    expect(root.querySelector("[role=status]")?.textContent).toMatch(/^The browser did not let the page copy it/);
-    expect(root.querySelector("a")?.getAttribute("href")).toBe(addressWithoutReport(location.href));
+    expect(root.textContent).toContain("Review the report files below.");
+    expect([...root.querySelectorAll("a")].find(link => link.textContent === "Open the app")?.getAttribute("href")).toBe(addressWithoutReport(location.href));
     // Still there: the app's next visit says so too, and this page can be opened again.
-    expect(localStorage.getItem(key)).not.toBeNull();
-    expect([...Array(localStorage.length).keys()].map(index => localStorage.key(index))).toEqual([key]);
+    expect(window.localStorage.getItem(key)).not.toBeNull();
+    expect([...Array(window.localStorage.length).keys()].map(index => window.localStorage.key(index))).toEqual([key]);
   });
+});
+
+it("recovers checkpoint files read-only and identifies the original attempt separately", async () => {
+  const store = createStartupCheckpointStore({ storage: window.localStorage, now: () => 123 }, location.pathname);
+  store.section("loading.txt", "original attempt: renderer and physics running");
+  store.section("environment.txt", "Original build: xbox-build"); store.save();
+  const before = window.localStorage.getItem(`foss-earth.startup.v1 ${location.pathname} current`);
+  const settings = createSettingsRegistry({ storage: null }); settings.register(FOSS_EARTH_PARAMETERS);
+  const root = document.createElement("div"); document.body.append(root);
+  const identity = { build: "recovery-build", source: "abc", bundle: "report.js" };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    showReportOnly(root, { settings, identity }); await settle();
+    const tab = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(button => button.textContent === "latest-loading.txt")!;
+    tab.click();
+    expect(tab.closest(".foss-earth-issue-report")?.querySelector("pre")?.textContent).toContain("renderer and physics running");
+    const metadata = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(button => button.textContent === "latest-checkpoint.txt")!;
+    metadata.click();
+    expect(metadata.closest(".foss-earth-issue-report")?.querySelector("pre")?.textContent).toContain("Termination reason is unknown");
+    expect(window.localStorage.getItem(`foss-earth.startup.v1 ${location.pathname} current`)).toBe(before);
+  }
 });
