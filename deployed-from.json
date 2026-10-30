@@ -3,7 +3,7 @@
   "@foss-earth/about": "6ba3449ca7cc6a52494b48750ae16d3e8dba06a2",
   "@foss-earth/auth": "de0689687a14ea7694be9c9facd27dcf7fe131e1",
   "@foss-earth/dev": "1ff2a89571aa7ee97edea1d15a8470218bfcb35e",
-  "@foss-earth/engine": "54e6797f9a12bdb27254a4b975e152e0f7282ed8",
+  "@foss-earth/engine": "f77da98e85b1a4ae32dd9024b14342817600684f",
   "@foss-earth/images": "6310a262adaa14b7d8c2c1ec2695e67ce44aedb4",
   "@foss-earth/preview-sheets": "ad79fa56fe736bbed8165e5d32c412a61cd7dd45",
   "@foss-earth/rectangle-image": "cfa90d6cb6e39f3e4f58820cc2db448419011171",
@@ -15,6 +15,6 @@
   "@foss-earth/sphere-image": "9452d154ce88696cbe5aecbd6f15f1ded7532b03",
   "@foss-earth/sphere-tiled-cubemap": "61cd96d25ae726cbb97ae5f5ac0575710ce450e7",
   "@foss-earth/toolbar": "1872be5a55df8650fac023ae195738e43ae32883",
-  "@foss-earth/ui": "a5edf83bad0385168c938f962fb1bdce188b8741",
+  "@foss-earth/ui": "6ae46fcf93299cbb3178629bf6c1d43adc9fc95f",
   "@foss-earth/weather": "3878cc3a0d96bce5d972fd252dc8e1ed40015b5c"
 }
