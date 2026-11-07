@@ -11,6 +11,7 @@
 @import "@foss-earth/engine/overview-map.css";
 @import "@foss-earth/engine/map-cache.css";
 @import "@foss-earth/engine/location.css";
+@import "@foss-earth/engine/earth-area.css";
 @import "@foss-earth/engine/input-mode.css";
 @import "@foss-earth/engine/visualization-tuners.css";
 @import "@foss-earth/sky/styles.css";

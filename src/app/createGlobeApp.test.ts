@@ -293,6 +293,10 @@ beforeEach(() => {
     configureOrbitTargetHeight: mockState.configureOrbitTargetHeight,
     getTileMetrics: mockState.runtimeGetTileMetrics,
     requestRender: vi.fn(),
+    surface: { sample: vi.fn(() => null), revision: () => 0 },
+    setMapClickPicker: vi.fn(),
+    groundAtClient: vi.fn(() => null),
+    showEarthAreas: vi.fn(),
     beginContinuous: vi.fn(),
     endContinuous: vi.fn(),
     setPaused: vi.fn(),
@@ -325,6 +329,22 @@ beforeEach(() => {
 });
 
 describe("createGlobeApp smoke behavior", () => {
+  it("selects an area from corners of latitude and longitude", async () => {
+    const { app } = await createAppUnderTest();
+    expect(app.areaTab.querySelector("[data-earth-area=add-corner]")?.getAttribute("aria-label")).toBe("Add corner");
+    const lat = app.areaTab.querySelector<HTMLInputElement>("[data-earth-area=lat]")!;
+    const lon = app.areaTab.querySelector<HTMLInputElement>("[data-earth-area=lon]")!;
+    lat.value = "44.98";
+    lon.value = "-93.26";
+    app.areaTab.querySelector<HTMLButtonElement>("[data-earth-area=add-typed]")!.click();
+    expect(app.earthAreas.snapshot().areas[0]?.points).toEqual([{ latDeg: 44.98, lonDeg: -93.26 }]);
+    expect(app.areaTab.textContent).toContain("44.98000°N");
+    const height = app.areaTab.querySelector<HTMLInputElement>("[data-earth-area=height]")!;
+    height.value = "80";
+    height.dispatchEvent(new Event("change"));
+    expect(app.earthAreas.snapshot().areas[0]?.heightMeters).toBe(80);
+  });
+
   it("resizes the log from one edge, both while centered between two docks, and keeps its preferred width on a phone", async () => {
     await createAppUnderTest();
     const log = document.getElementById("app-log")!;

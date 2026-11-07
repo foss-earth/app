@@ -4,6 +4,7 @@ import { createEarthDevHost, type EarthDevContribution, type EarthDevTab } from 
 import { wantsDev } from "@foss-earth/dev";
 import { createMapSourceHud } from "@foss-earth/engine/panels";
 import { connectMapDetailLog } from "@foss-earth/engine/panels";
+import { createEarthAreaPanel, createEarthAreaStore, type EarthAreaStore } from "@foss-earth/engine/panels";
 import { attachRendererActivity } from "@foss-earth/toolbar/browser";
 import { createBrowserInputSource } from "@felipegalind0/gamepad-tools/browser";
 import { BindingRuntime, createProfileStore, DEFAULT_BINDING_TRANSFORM } from "@felipegalind0/gamepad-tools/core";
@@ -197,6 +198,10 @@ export interface GlobeAppHandle extends GlobeHandle {
   overviewTab: HTMLElement;
   /** The basemap and elevation choice, for the host's Basemap tab. */
   mapTab: HTMLElement;
+  /** Corners and an optional height for areas of the earth, for the host's Select area tab. */
+  areaTab: HTMLElement;
+  /** The areas drawn on the earth and edited in Select area. */
+  earthAreas: EarthAreaStore;
   /** The GPU renderer choice, for the host's Renderer tab. */
   rendererTab: HTMLElement;
   /** Where the Sun is, the atmosphere, the ground under it and exposure, for the host's Sky tab. */
@@ -707,6 +712,35 @@ export async function createGlobeApp(
     } },
   });
   cleanup.push(() => overviewMap.destroy());
+  let areaStorage: { getItem(key: string): string | null; setItem(key: string, value: string): void } | null = null;
+  try { areaStorage = window.localStorage; } catch { areaStorage = null; }
+  const earthAreas = createEarthAreaStore({
+    storage: areaStorage,
+    groundAt: client => runtime.groundAtClient(client),
+  });
+  const areaPanel = createEarthAreaPanel({
+    document, store: earthAreas, anchors: runtime.navigationAnchors ?? null,
+    createIconButton: ui.publicUi.createIconButton, createHelpTooltip: ui.publicUi.createHelpTooltip,
+  });
+  runtime.setMapClickPicker(earthAreas.picker);
+  let areasSampledRevision = -1;
+  let areasSampledAt = 0;
+  const redrawAreas = (): void => {
+    const snap = earthAreas.snapshot();
+    runtime.showEarthAreas(snap.areas.flatMap((area, index) => area.points.length === 0 ? [] : [{
+      area, active: index === snap.active,
+      groundMeters: area.points.map(point => runtime.surface.sample(point.latDeg, point.lonDeg)?.heightMeters ?? 0),
+    }]));
+    areasSampledRevision = runtime.surface.revision?.() ?? areasSampledRevision;
+    areasSampledAt = performance.now();
+  };
+  const stopAreas = earthAreas.subscribe(redrawAreas);
+  redrawAreas();
+  cleanup.push(() => {
+    stopAreas();
+    areaPanel.destroy();
+    runtime.setMapClickPicker(null);
+  });
   // link, the download speed, and a detail rail for Google 3D Tiles.
   const mapSourceSlot = rootElement.querySelector<HTMLElement>("#mapSourceSlot");
   const mapSourceHud = mapSourceSlot
@@ -1365,6 +1399,14 @@ export async function createGlobeApp(
   // trackedPoint state), since poiTracking.isTracking() returns false for
   // external trackers and would reset orbitModeActive to false immediately.
   let lastPoiTrackingActive = false;
+  // Ground heights settle after the corners are chosen. Sample again when the map changes, not every frame.
+  const areaObserver = runtime.scene.onBeforeRenderObservable.add(() => {
+    if (!earthAreas.snapshot().areas.some(area => area.points.length > 0)) return;
+    const revision = runtime.surface.revision?.() ?? 0;
+    if (revision === areasSampledRevision || performance.now() - areasSampledAt < 500) return;
+    redrawAreas();
+  });
+  cleanup.push(() => { runtime.scene.onBeforeRenderObservable.remove(areaObserver); });
   hudObserver = runtime.scene.onBeforeRenderObservable.add(() => {
     const state = runtime.getViewState();
     mapSourceHud?.update(runtime.status);
@@ -1482,6 +1524,8 @@ export async function createGlobeApp(
     onBugReportShow: () => bugReportPanel.show(),
     overviewTab: overviewMap.element,
     mapTab: mapPanel.element,
+    areaTab: areaPanel.element,
+    earthAreas,
     rendererTab: rendererPanel.element,
     skyTab: skyPanel.element,
     timeTab: timePanel.element,
@@ -1506,6 +1550,7 @@ export async function createGlobeApp(
         locationTabOpen = visible;
         syncPositionEditing();
       }
+      if (tabId === "area" && !visible) earthAreas.cancelPlacement();
     },
     whenDevSettled: () => dev.whenSettled(),
     addLayer,

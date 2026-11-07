@@ -8,6 +8,25 @@ import { createSettingsRegistry, TAB_PICKER_ID, UI_PARAMETERS } from "@foss-eart
 import { WindowOverlay } from "./WindowOverlay";
 import type { WindowOverlayHandle } from "./WindowOverlay";
 
+it("opens Select area from the tab list", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div"); document.body.append(host);
+  const root = createRoot(host);
+  const overlayApiRef: { current: WindowOverlayHandle | null } = { current: null };
+  const areaTab = document.createElement("div"); areaTab.textContent = "AREA_CORNERS";
+  try {
+    await act(async () => root.render(<WindowOverlay
+      getViewState={() => null} setViewState={() => {}} storage={null}
+      locationSearchProvider={async () => []} overlayApiRef={overlayApiRef} areaTab={areaTab} />));
+    await act(async () => overlayApiRef.current!.openOrSelectTab("area"));
+    expect(host.textContent).toContain("Select area");
+    expect(host.textContent).toContain("AREA_CORNERS");
+    expect(host.textContent).not.toContain("Save");
+  } finally {
+    await act(async () => root.unmount()); host.remove(); vi.unstubAllGlobals();
+  }
+});
+
 it("opens a custom Test tab once and lets the user switch away while testing", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const host = document.createElement("div"); document.body.append(host);

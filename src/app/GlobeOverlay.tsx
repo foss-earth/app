@@ -55,6 +55,7 @@ export function GlobeOverlay({ app, overlayApi }: { app: GlobeAppHandle; overlay
     wasmSections={app.wasmSections}
     overviewTab={app.overviewTab}
     mapTab={app.mapTab}
+    areaTab={app.areaTab}
     rendererTab={app.rendererTab}
     skyTab={app.skyTab}
     timeTab={app.timeTab}
