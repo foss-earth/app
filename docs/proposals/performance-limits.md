@@ -65,7 +65,7 @@ a frame in 0SFS) also wait on decisions; re-measure them first.
 | [L21](#l21-remember-elevation-that-does-not-exist) | Remember elevation tiles that do not exist. **Done 6 November** (P-108) | Outside Mapterhorn's regional coverage, no failed request for each fine tile | S |
 | [L19](#l19-draw-only-what-changed-while-maps-stream) | Draw only what changed while maps stream | Most of the ~3,600 frames a 60 s cold load draws with a still camera | S–M |
 | [L8](#l8-offer-babylon-only-the-tiles-that-are-shown) | Offer Babylon only the tiles that are shown | Babylon's per-frame walk scales with shown tiles, not with up to ~16,000 retained meshes | S |
-| [L5](#l5-count-google-tile-bytes-and-keep-indices-16-bit) | Count Google tile bytes; keep their indices 16-bit | The cache obeys its 307–410 MiB setting, not 6,000–8,000 tiles; index memory −50% | S |
+| [L5](#l5-count-google-tile-bytes-and-keep-indices-16-bit) | Count Google tile bytes; keep their indices 16-bit. **Held 6 November** (P-109): both change pixels | The cache obeys its 307–410 MiB setting, not 6,000–8,000 tiles; index memory −50% | S |
 | [L24](#l24-draw-opaque-meshes-near-to-far) | Draw opaque meshes near to far | Less overdraw on GPUs without hidden-surface removal | S |
 | [L6](#l6-keep-elevation-compressed-decode-only-what-meshes-read) | Keep elevation compressed; decode only what meshes read | Up to ~200 MiB, and no re-downloads from a cache that overflows | S–M |
 | [L22](#l22-let-the-imagery-atlas-grow) | Let the imagery atlas grow as needed | Most of the 256 MiB of GPU memory it commits at start on a desktop | M |
@@ -380,6 +380,19 @@ pixels live changes.
 - Quantization takes geometry from about 44 to about 22–24 bytes a vertex.
   That figure counts positions, UVs and six 32-bit indices per vertex,
   before Babylon's CPU copies.
+
+**Status.** Held 6 November (P-109), with nothing committed except a note:
+renderer `docs/performance/2026-11-06/google-tile-memory.md`. 16-bit indices
+work and halve index memory. But indices are only 1–2% of a tile's memory:
+about 1 MiB in a 1.5 km view of Minneapolis, against 112 MiB of textures. On
+WebGPU they also change 0.08% of pixels (841 of 1280 × 800, up to 31 levels),
+on one-pixel lines along tile edges. An A/B/A test in one page shows the
+index format alone does it. Babylon's shader and pipeline are the same for
+both widths, and WebGL2 is unchanged. Counting real bytes (380–570 KiB a mesh)
+would make the 307–410 MiB limit bind. A view 250 m up looking at the horizon
+already holds 311 MiB at 1280 × 800 and device pixel ratio 1. In heavier views
+the full cache refuses tiles and the view stays coarser. Both wait for L25 and
+a decision on the byte limits.
 
 ### L9. Update 3d-tiles-renderer to 0.5.4
 
