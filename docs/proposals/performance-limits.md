@@ -944,6 +944,24 @@ GPU.
 **Exactness.** Exact for opaque surfaces, except where two coincide exactly
 in depth. There the draw order picks the winner.
 
+**Status.** Held 7 November (P-113): renderer `d7fbefe` has it behind
+`renderer.opaqueNearToFar`, off. `frontToBackSortCompare` alone does nothing
+for opaque meshes, since Babylon measures distances only for see-through
+ones. So the renderer measures each opaque submesh before the main group
+sorts. The sky dome writes no depth, so its pixels depend on the order: it
+keeps Babylon's place, and the tiles before and after it are sorted
+separately.
+
+- **Pixels.** At Minneapolis, 1280 × 800, Google tiles change 61 (WebGPU) and
+  41 (WebGL2) of 1,024,000 pixels, up to 8 levels, on the nearest ground; the
+  default map changes 5 and 0. A strict-depth check puts all 41 WebGL2 pixels
+  at depth ties, but only 48 of the 61 WebGPU ones.
+- **Cost.** About 0.1 ms a frame of render at 4× CPU, dragging Google tiles.
+- **Gain.** None measurable: Metal removes hidden surfaces, and SwiftShader
+  WebGL2 drew 13.1–13.5 frames/s both ways.
+- **Waiting for.** L25, and a measurement on a GPU without hidden-surface
+  removal.
+
 ### L13. Compress textures on the GPU
 
 **What happens now.**
