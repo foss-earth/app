@@ -60,7 +60,7 @@ a frame in 0SFS) also wait on decisions; re-measure them first.
 
 | Item | Change | Gain (estimate) | Cost |
 | --- | --- | --- | --- |
-| [L23](#l23-open-the-tile-connections-from-the-html) | Open the tile hosts' connections from the HTML (`preconnect`) | About three round trips, ~0.5 s on Fast 4G, off the first tiles of a cold visit | S |
+| [L23](#l23-open-the-tile-connections-from-the-html) | Open the tile hosts' connections from the HTML (`preconnect`). **Done 6 November** (P-107) | About three round trips, ~0.5 s on Fast 4G, off the first tiles of a cold visit | S |
 | [L20](#l20-reuse-a-google-session-for-its-three-hours) | Reuse a Google 3D Tiles session for its three-hour life | A keyed visitor's next visit reads its tiles from the browser cache instead of downloading them again, and makes one billed root request less | S |
 | [L21](#l21-remember-elevation-that-does-not-exist) | Remember elevation tiles that do not exist | Outside Mapterhorn's regional coverage, no failed request for each fine tile | S |
 | [L19](#l19-draw-only-what-changed-while-maps-stream) | Draw only what changed while maps stream | Most of the ~3,600 frames a 60 s cold load draws with a still camera | S–M |
@@ -494,6 +494,15 @@ cold visit. Each then pays DNS, TCP and TLS first: about three round trips,
 **Gain.** About 0.5 s off the first tiles of a cold visit (estimate).
 
 **Cost.** S. **Exactness.** Exact.
+
+**Status.** Done 6 November (P-107): the two hints come first in `<head>`,
+before the inline isolation script, at bytes 83 and 159 of the built page. On
+cold visits under DevTools' Fast 4G, neither host's first tile paid for its
+connection. The control paid 88 ms (median) for USGS, and USGS's first tile
+answered about 90 ms sooner. DevTools throttling does not slow connection
+setup, so the 0.5 s estimate for a real 4G radio is still unmeasured. Google's
+host and other scenes' hosts are not hinted yet.
+[Note](../performance/2026-11-06/preconnect.md).
 
 ### L26. Send cross-origin requests past the service worker
 

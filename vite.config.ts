@@ -10,6 +10,7 @@ import { headsetEmulator } from './vite/headsetEmulator.ts'
 import { lazyFeatures } from './vite/lazyFeatures.ts'
 import { localSource } from './vite/localSource.ts'
 import { poseSave } from './vite/poseSave.ts'
+import { DEFAULT_TILE_URLS, preconnect } from './vite/preconnect.ts'
 import { babylonBarrels, babylonShaderChunks } from '@foss-earth/renderer/vite'
 import { bootTerminal, browserRecovery, testPlans } from '@foss-earth/ui/vite'
 
@@ -77,5 +78,7 @@ export default defineConfig({
   // With --host the dev server serves https, so a phone's page is secure: it shares memory and uses WebGPU only then.
   plugins: [crossOriginIsolation(), networkHttps(), bootTerminal({ title: 'FOSS Earth' }), browserRecovery({ appId: 'foss-earth' }), localSource(), react(), babylonBarrels(), babylonShaderChunks(), lazyFeatures(), appFiles(), builtFrom(), poseSave(), headsetEmulator(),
     // npm run dev only: /app/test/<name> opens the Test tab with build/test-plans/<name>.json (docs/docs/test-feedback.md).
-    testPlans()],
+    testPlans(),
+    // First in <head>: open the default maps' tile connections while the modules download.
+    preconnect(DEFAULT_TILE_URLS)],
 })
