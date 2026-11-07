@@ -333,6 +333,29 @@ and one 1 MiB copy less per decode.
 **Exactness.** Heights stay identical for every reader. Only where the
 pixels live changes.
 
+**Status.** Done in part 7 November (P-114): engine `381f8d5`, app
+`1de4f46`. The census found the cache was not the main cost. It held the
+same grids as the records, and each record's patch held 8 whole 1 MiB
+neighbours, of which a mesh reads one pixel row.
+
+- **What changed.**
+  - A patch keeps, of each neighbour, only a band 1/16 of a tile wide
+    (`map.loader.neighborBandLevels`, 4; 0 keeps whole neighbours).
+  - The cache is bounded by bytes (`map.loader.cacheMiB`, 64).
+  - Downloads are kept to decode again (`map.loader.encodedMiB`, 32).
+  - Every reader takes 68 neighbours. The WebAssembly core was rebuilt, and
+    the TypeScript and Rust neighbour scans try recent neighbours first.
+- **Exact.** Heights and every mesh are bit for bit the same.
+- **Measured.** Default map, WebGPU, settled and after a 40 s tour:
+  - heights 255/308 → 154/212 MiB, plus 26/31 MiB of kept downloads;
+  - no more downloads read (271/343 → 261/313);
+  - decodes 270/342 → 282/423;
+  - a mesh job's patch 9.4 → 1.3 MB.
+- **Left.**
+  - Decoded floats only for shown tiles: hidden records still hold 21–48 MiB.
+  - WebCodecs decode.
+  - Google mode and a phone.
+
 ### L5. Count Google tile bytes, and keep indices 16-bit
 
 **What happens now.**
