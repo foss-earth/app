@@ -37,6 +37,23 @@ describe("terrain decode workers", () => {
   });
 });
 
+describe("elevation loader memory (L6)", () => {
+  it("follows the loader's tile count, and gives the loader bands, a byte bound and kept downloads, read live", () => {
+    const ids = FOSS_EARTH_PARAMETERS.map(spec => spec.id);
+    const at = ids.indexOf("map.loader.cacheEntries");
+    expect(ids.slice(at + 1, at + 4)).toEqual(["map.loader.neighborBandLevels", "map.loader.cacheMiB", "map.loader.encodedMiB"]);
+    const settings = createSettingsRegistry({ storage: null, deviceContext: { hardwareConcurrency: 6, deviceMemoryGiB: 8 } });
+    settings.register(FOSS_EARTH_PARAMETERS);
+    const policy = createEarthBrowserPolicy(settings);
+    const MIB = 1024 * 1024;
+    expect(policy.terrainLoaderLimits?.()).toMatchObject({ neighborBandLevels: 4, cacheBytes: 64 * MIB, encodedBytes: 32 * MIB });
+    settings.set("map.loader.neighborBandLevels", 0);
+    settings.set("map.loader.cacheMiB", 256);
+    settings.set("map.loader.encodedMiB", 0);
+    expect(policy.terrainLoaderLimits?.()).toMatchObject({ neighborBandLevels: 0, cacheBytes: 256 * MIB, encodedBytes: 0 });
+  });
+});
+
 describe("destination terrain", () => {
   const hit = (quality: number) => ({ point: { x: 0, y: 0, z: 0 }, normal: { x: 0, y: 0, z: 1 }, distanceMeters: 0, heightMeters: 250, meshId: "tile", revision: 1, quality });
   it("is ready from the elevation quality it asks for, that many levels lower with coarser elevation", () => {

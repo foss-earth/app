@@ -38,6 +38,38 @@ export const TERRAIN_DECODE_WORKERS_PARAMETER: ParameterSpec = {
   source: "src/app/browserPolicy.ts",
 };
 
+/**
+ * The elevation loader's memory (performance limits audit L6): a patch keeps
+ * only the bands of its neighbours that it reads, the decoded cache is bounded
+ * by bytes as well as tiles, and downloads are kept to be decoded again.
+ */
+export const TERRAIN_LOADER_MEMORY_PARAMETERS: readonly ParameterSpec[] = [
+  {
+    id: "map.loader.neighborBandLevels", label: "Elevation neighbour band levels",
+    description: "Each elevation tile keeps, of each neighbour it reads at its edges, only a band along the shared edge, 1/2^n of a tile wide, and 2 × 2 pixels of each corner neighbour, instead of whole neighbours. 0 keeps whole neighbours. The heights and meshes are the same either way.",
+    kind: "number", unit: "none", default: 4, bounds: () => ({ min: 0, max: 4 }), step: 1,
+    defaultReason: "Bands 1/16 of a tile wide. On the default map's 40 s Minneapolis tour (WebGPU), the shown tiles and their neighbours held 98–109 MiB of heights instead of 233–251 MiB, a mesh job's patch shrank from 9.4 to 1.3 MB, and heights and meshes stayed bit for bit the same (audit L6, P-114).",
+    home: { tab: "map", section: "loading", level: "all" }, appliesLive: true,
+    source: "src/app/browserPolicy.ts",
+  },
+  {
+    id: "map.loader.cacheMiB", label: "Elevation loader cache size",
+    description: "The most memory the elevation loader's decoded tiles may use, as well as the count of tiles; the tiles used longest ago go first. Heights do not change; a tile that went is decoded again when asked for.",
+    kind: "number", unit: "MiB", default: 64, bounds: () => ({ min: 1, max: 100000 }), step: 1,
+    defaultReason: "With neighbour bands, the loader's own whole grids are most of the elevation memory left. On the same tour, 64 MiB with kept downloads held 154–212 MiB of heights instead of 255–308 MiB under the tile count alone, with no more downloads read (261 and 313 against 271 and 343) and 4–24% more decodes (audit L6, P-114).",
+    home: { tab: "map", section: "loading", level: "all" }, appliesLive: true,
+    source: "src/app/browserPolicy.ts",
+  },
+  {
+    id: "map.loader.encodedMiB", label: "Kept elevation downloads",
+    description: "The most memory kept of elevation tiles as they were downloaded, so a tile the cache let go is decoded again without being read from the map cache or the network; 0 keeps none.",
+    kind: "number", unit: "MiB", default: 32, bounds: () => ({ min: 0, max: 100000 }), step: 1,
+    defaultReason: "Keeps the downloads of tiles a 64 MiB cache lets go: on the same tour 22–111 decodes used a kept download instead of the map cache, and a 96 MiB cache without any read downloads 451 times instead of 336 (audit L6, P-114).",
+    home: { tab: "map", section: "loading", level: "all" }, appliesLive: true,
+    source: "src/app/browserPolicy.ts",
+  },
+];
+
 /** Existing inherited defaults are explicit host policy, available in their existing tabs. The decode worker count follows the other elevation loader controls; shared heights belong to Component execution. */
 export const EARTH_BROWSER_POLICY_PARAMETERS: readonly ParameterSpec[] = [
   ["scene.overview.minimumPreparationRadius", "Overview preparation minimum radius", 200, 1, 1000000, "m", "scenes", "motion"],
@@ -59,7 +91,8 @@ export const EARTH_BROWSER_POLICY_PARAMETERS: readonly ParameterSpec[] = [
   defaultReason: "Retains the existing browser runtime's initial policy; no device recommendation is implied.",
   home: { tab: String(tab), section: String(section), level: "all" }, appliesLive: true,
   source: "src/app/browserPolicy.ts",
-})).flatMap(spec => spec.id === "map.loader.timeout" ? [spec, TERRAIN_DECODE_WORKERS_PARAMETER] : [spec]).concat(TERRAIN_SHARED_HEIGHTS_PARAMETER as ParameterSpec);
+})).flatMap(spec => spec.id === "map.loader.timeout" ? [spec, TERRAIN_DECODE_WORKERS_PARAMETER]
+  : spec.id === "map.loader.cacheEntries" ? [spec, ...TERRAIN_LOADER_MEMORY_PARAMETERS] : [spec]).concat(TERRAIN_SHARED_HEIGHTS_PARAMETER as ParameterSpec);
 
 export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<EarthBrowserRuntimeOptions,
   "imageSessionLimits" | "imageTransferLimits" | "imageUploadLimits" | "resourceParameterIds" |
@@ -150,7 +183,8 @@ export function createEarthBrowserPolicy(settings: SettingsRegistry): Pick<Earth
     imageTransferLimits: () => ({ responseBytes: p("responseMiB") * MIB, timeoutMs: p("requestTimeout") * 1000 }),
     imageUploadLimits: () => ({ bytesPerFrame: p("uploadMiBPerFrame") * MIB, outstandingBytes: p("uploadOutstandingMiB") * MIB }),
     resourceParameterIds: ["sourceGpuMiB", "overlapMiB", "decodedMiB", "encodedMiB", "uploadOutstandingMiB", "requests", "decodes", "responseMiB", "requestTimeout", "uploadMiBPerFrame"].map(s => `scene.panorama.${s}`),
-    terrainLoaderLimits: () => ({ maxConcurrent: n("map.loader.requests"), cacheEntries: n("map.loader.cacheEntries"), timeoutMs: n("map.loader.timeout") }),
+    terrainLoaderLimits: () => ({ maxConcurrent: n("map.loader.requests"), cacheEntries: n("map.loader.cacheEntries"), timeoutMs: n("map.loader.timeout"),
+      neighborBandLevels: n("map.loader.neighborBandLevels"), cacheBytes: n("map.loader.cacheMiB") * MIB, encodedBytes: n("map.loader.encodedMiB") * MIB }),
     terrainPreparation,
     readinessPolicy: { get firstCheckIntervalMs() { return n("renderer.readiness.firstCheck"); },
       get maxCheckIntervalMs() { return Math.max(n("renderer.readiness.firstCheck"), n("renderer.readiness.maximumCheck")); },
