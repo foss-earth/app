@@ -48,7 +48,7 @@ subsystem, is in [Performance design](performance-design/README.md).
 | Item | Change | Measured gain | Cost |
 | --- | --- | --- | --- |
 | P-071 | The Still Activity outline as the default. The setting exists. **Done 7 November** (toolbar `d1d76a8`) | About 47 ms/s of style and paint at the phone drag at 4×; 50.5 → 52.7 frames/s | A default |
-| P-074 | Re-measure the loaded-detail readout at the selector's 100 ms cadence, not on every publish | About 45 of its 53.6 ms/s at the phone drag at 4× | S |
+| P-074 | Re-measure the loaded-detail readout at the selector's 100 ms cadence, not on every publish. **Done 7 November** (engine `9708e31`): measured 59.7 → 49.5 ms/s in the app's phone drag at 4×, since most of the readout is the view's region measure, which already ran at that cadence | About 45 of its 53.6 ms/s at the phone drag at 4× | S |
 | P-077 | Skip Google tiles wholly below the horizon, behind a setting | About 15 ms/s at the phone drag at 4× | S |
 | [L1](#l1-elevation-at-the-meshs-own-sampling-rate) | `map.terrain.coarserElevation` follows the mesh: 3 for 64 segments | Elevation −75% on the tour and about −60% on the live app's opening view, whose complete view came 64% sooner. Vertex heights move 0.22 m on average, 1.66 m at the 99th percentile (measured for this report) | A default |
 | [L7](#l7-phone-pixel-defaults) (P-075) | Phone pixel defaults: a device-pixel cap, upscaling, dynamic resolution, an opaque canvas, no MSAA. All built | Fragment work −50–70% on a 2.6× phone (estimate) | Defaults |
