@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { BUILD_STAMP_META, buildStampOf } from "../src/app/buildStamp";
-import { APP_FILES_WORKER, APP_SOURCE_META, appFiles, appFilesWorker, buildStamp, FOSS_EARTH_SOURCE_META, fossEarthSource } from "./appFiles";
+import { APP_FILES_WORKER, APP_SOURCE_META, appFiles, appFilesWorker, buildStamp, FOSS_EARTH_SOURCE_META, fossEarthSource, MAP_TILE_HOSTS } from "./appFiles";
 import type { IsolationMode } from "./crossOriginIsolation";
 import { APP_ISOLATION_PREPARE } from "@foss-earth/ui/vite";
+import { RASTER_BASE_MAP_SOURCES, TERRAIN_SOURCES } from "@foss-earth/engine";
 
 const ORIGIN = "https://tour.test";
 const SCRIPT = "assets/twinCities-SkvAwjjw.js";
@@ -47,6 +48,7 @@ function worker(network: (url: string, init?: RequestInit) => Response = url => 
     skipWaiting: async () => { calls.skipWaiting += 1; },
     clients: { claim: async () => { calls.claim += 1; } },
     registration: { navigationPreload: { enable: async () => { calls.preload += 1; } } },
+    URLPattern: class { readonly init: Record<string, string>; constructor(init: Record<string, string>) { this.init = init; } },
     caches: {
       open: async (name: string) => {
         if (!stores.has(name)) stores.set(name, new MemoryCache(location.href));
@@ -113,6 +115,20 @@ describe("the app files worker", () => {
       w.request(`/${SCRIPT}`, { method: "POST" }),
     ]) expect(await w.dispatch("fetch", { request }), request.url).toBeNull();
     expect(w.fetched).toHaveLength(0);
+  });
+
+  it("sends the maps' tile hosts straight to the network where the browser can, and installs as before where it cannot", async () => {
+    const { dispatch, calls } = worker();
+    const addRoutes = vi.fn<(rules: unknown) => Promise<void>>(async () => {});
+    await dispatch("install", { addRoutes });
+    const rules = addRoutes.mock.calls[0]![0] as { condition: { urlPattern: { init: { hostname: string } } }; source: string }[];
+    expect(rules.map(rule => rule.condition.urlPattern.init.hostname)).toEqual(MAP_TILE_HOSTS);
+    expect(new Set(rules.map(rule => rule.source))).toEqual(new Set(["network"]));
+    expect(calls.skipWaiting).toBe(1);
+    // No addRoutes: a browser without static routing.
+    const bare = worker();
+    await bare.dispatch("install");
+    expect(bare.calls.skipWaiting).toBe(1);
   });
 
   it("does not keep a failed answer", async () => {
@@ -245,6 +261,17 @@ describe("the appFiles Vite plugin", () => {
     }
   });
 
+  it("names every host the engine's maps fetch tiles from, and only map hosts", () => {
+    const templates = [...TERRAIN_SOURCES.map(source => source.urlTemplate),
+      ...RASTER_BASE_MAP_SOURCES.flatMap(source => [source.urlTemplate, ...(source.variants ?? []).map(variant => variant.urlTemplate)])];
+    const engineHosts = new Set(templates.map(template => new URL(template).hostname));
+    // Google's 3D tiles, the overview's aeronautical chart and the sky's night lights are not in those lists.
+    const others = ["tile.googleapis.com", "tiles.arcgis.com", "gibs.earthdata.nasa.gov"];
+    expect(new Set(MAP_TILE_HOSTS)).toEqual(new Set([...engineHosts, ...others]));
+    expect(new Set(MAP_TILE_HOSTS).size).toBe(MAP_TILE_HOSTS.length);
+    expect(appFilesWorker(BUNDLE).manifest.networkHosts).toEqual(MAP_TILE_HOSTS);
+  });
+
   it("writes the worker beside the build's pages, and warns of files it cannot keep", () => {
     const emitted: { type: string; fileName: string; source: string }[] = [];
     const warn = vi.fn();
@@ -253,6 +280,7 @@ describe("the appFiles Vite plugin", () => {
     expect(emitted[0]).toMatchObject({ type: "asset", fileName: APP_FILES_WORKER });
     expect(emitted[0].source).toContain(SCRIPT);
     expect(emitted[0].source).not.toContain("index.html");
+    expect(emitted[0].source).toContain(JSON.stringify(MAP_TILE_HOSTS));
     expect(emitted[1]).toMatchObject({ type: "asset", fileName: APP_ISOLATION_PREPARE });
     expect(emitted[1].source).toContain("void prepareIsolation(document,");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("assets/logo.svg"));

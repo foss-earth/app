@@ -35,9 +35,24 @@ import { deployedIsolation, type IsolationMode } from "./crossOriginIsolation.ts
 
 /** The worker's file, at the build's root beside its pages. */
 export const APP_FILES_WORKER = "foss-earth-sw.js";
+
+/**
+ * The hosts of the maps' tiles: elevation, base maps, the overview's chart,
+ * Google's 3D tiles and the sky's night lights. The worker answers no request
+ * to another host, so where the browser has static routing it sends these
+ * straight to the network without waking the worker for each tile
+ * (docs/proposals/performance-limits.md, L26). appFiles.test.ts checks them
+ * against the engine's sources.
+ */
+export const MAP_TILE_HOSTS: readonly string[] = [
+  "tiles.mapterhorn.com", "s3.amazonaws.com",
+  "basemap.nationalmap.gov", "tile.openstreetmap.org", "basemaps.cartocdn.com", "tile.opentopomap.org",
+  "tiles.arcgis.com", "tile.googleapis.com", "gibs.earthdata.nasa.gov",
+];
+
 /** Earth explicitly retains its original current-only activation policy. */
 export function appFilesWorker(fileNames: readonly string[]) {
-  return sharedAppFilesWorker(fileNames, { retention: "current-only", cacheNamespace: "foss-earth-app-files" });
+  return sharedAppFilesWorker(fileNames, { retention: "current-only", cacheNamespace: "foss-earth-app-files", networkHosts: MAP_TILE_HOSTS });
 }
 
 /** The names of the page's other two stamps: the app's own commit, and FOSS Earth's. */
@@ -81,7 +96,8 @@ export interface AppFilesOptions {
 
 export function appFiles(options: AppFilesOptions = {}): Plugin {
   let fossEarth = "";
-  const producer = sharedAppFiles({ retention: "current-only", cacheNamespace: "foss-earth-app-files", isolation: options.isolation ?? deployedIsolation(),
+  const producer = sharedAppFiles({ retention: "current-only", cacheNamespace: "foss-earth-app-files", networkHosts: MAP_TILE_HOSTS,
+    isolation: options.isolation ?? deployedIsolation(),
     stamps(config, env) {
       const stamp = env.command === "build" ? buildStamp(config.define) : "";
       const own = real(typeof config.root === "string" ? config.root : process.cwd()) === real(FOSS_EARTH_ROOT);
