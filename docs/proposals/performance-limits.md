@@ -612,6 +612,28 @@ night lights'. A browser without static routing installs the worker as before.
 **Exactness.** The frames that remain draw the same pictures; frames that
 would repeat the previous picture are not drawn.
 
+**Status.** Done 7 November (P-112): renderer `adf340f` tells a scheduler's
+work whether its frame presents, engine `fab3b6a` loads the maps in work
+passes and asks for a frame only when what is drawn changed, and app
+`74b3d92` runs those passes. `map.loading.drawOnlyChanges` (Map → Loading,
+on) draws every frame again. Loading goes on with no input: the load holds
+work passes, not frames.
+
+- **Exact.** A differential harness runs one 2D load both ways on the same
+  frames, clock and loader answers. The picture and the requests are the
+  same on every host frame, with the camera still, moved, gliding, and
+  with another elevation source.
+- **M-6.** Chrome 156 on the M5 (Metal), the app's cold load with a still
+  camera under Fast 4G and 4×, six interleaved runs: 3,385–3,398 frames
+  drawn before, 864–874 after. So at least 74% of the old frames repeated
+  the one before. The map showed at the same time both ways (57.5–57.8 s).
+- **Cost over the load.** Render 8.7–9.5 → 2.9–3.0 s, GPU 8.1–8.8 →
+  2.1–2.3 s, all measured sections 19.1–20.0 → 11.9–12.5 s, about
+  120 ms/s at 4×.
+- **Not measured.** A keyed Google load, a phone, and a GPU slower than its
+  display, where the audit expected loading itself to speed up. Here the
+  network paced the load.
+
 ## The moving frame's main thread
 
 In the app's drag at 1× on the M5, a frame costs 4.3 ms of main thread
