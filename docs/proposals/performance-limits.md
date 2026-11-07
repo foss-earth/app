@@ -1275,6 +1275,40 @@ Each estimate above needs a number before its decision. These are cheap:
 - **M-1. The app's opening view by kind.** Done in this environment
   ([Measured for this report](#measured-for-this-report)). Repeat it on the
   M5 under Fast 4G, and on a phone.
+
+  **Done on the M5, 7 November.**
+
+  - **Method.** App `3af84a2` and engine `1aacbfd`, built with `vite build`
+    and served locally.
+    - Headless Chrome on the M5, WebGPU on Metal, 1280 × 800, one device
+      pixel per CSS pixel.
+    - Fast 4G on the page and the service worker: 165 ms latency,
+      8.1 Mbit/s down. Chrome cannot slow a dedicated worker's network. The
+      CPU was not slowed.
+    - A new profile per visit, the opening camera, and settings at their
+      defaults except `coarserElevation`. Levels 0 and 3 were run twice,
+      interleaved; levels 1 and 2 once.
+    - Response bodies as received, with requests the service worker
+      answered counted once.
+
+  | `coarserElevation` | First frame | Complete view (`boot:content`) | Elevation | Imagery (USGS) | App |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | 0 (today) | 2.7 s | 59.7 s, 59.8 s | 488 requests, 42.3 MiB | 448, 12.0 MiB | 133, 1.3 MiB |
+  | 1 | 2.7 s | 37.6 s | 239, 21.4 MiB | 434, 11.6 MiB | 133, 1.3 MiB |
+  | 2 | 2.7 s | 31.8 s | 171, 16.0 MiB | 430, 11.5 MiB | 133, 1.3 MiB |
+  | 3 | 2.7 s | 28.7 s, 28.7 s | 134, 13.2 MiB | 427, 11.4 MiB | 133, 1.3 MiB |
+
+  - Each visit received 0.90–0.93 MiB/s until its complete view, close to
+    the link's 0.97 MiB/s, so the time to it is set by bytes. Repeats agreed
+    to 0.1 s and to the request.
+  - Elevation was 76% of the bytes at level 0 and 51% at level 3. L1 at 3
+    halves the time to the complete view (−52%).
+  - Imagery is the next largest: 11–12 MiB in 427–448 tiles, about 27 KiB
+    each. Its count hardly depends on elevation.
+  - `boot:settled` came within 0.1 s of `boot:content`; each visit ended
+    there.
+
+  A phone is still not measured.
 - **M-2. Memory by owner.** Measure the elevation cache's decoded bytes, the
   Google LRU's tile count after ten minutes of panning, and Babylon's
   retained CPU copies. That checks L5 and L6 against the unattributed
@@ -1293,6 +1327,25 @@ Each estimate above needs a number before its decision. These are cheap:
 - **M-8. GPU memory by owner.** The imagery atlas, Google textures and
   buffers, terrain buffers and render targets, against the 562 MiB
   (L22, L5).
+
+  **Done for the default map, 7 November.** The same build and machine as
+  M-1. Research's `profile.mjs --gpu` counted every live WebGPU texture and
+  buffer after a cold and a warm visit, with the opening view settled:
+
+  | Owner | MiB |
+  | --- | ---: |
+  | Imagery atlas, 7776² with mips (27 × 27 slots, 729 pages) | 307.5 |
+  | Imagery page table, 2048² | 16.0 |
+  | Main colour, 1280 × 800, 4× MSAA | 15.6 |
+  | Main depth and stencil | 15.6 |
+  | Vertex buffers | 19.4 |
+  | Index buffers | 11.2 |
+  | Other textures and uniforms | 0.6 |
+  | **Total** | **385.9** |
+
+  - The atlas is 80% of it. It is planned whole at start, while the
+    opening view used 246 of its 729 pages, and a 40 s tour 612 (L22).
+  - Google mode is not measured here.
 
 ## Checked and not recommended
 
