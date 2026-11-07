@@ -62,7 +62,7 @@ a frame in 0SFS) also wait on decisions; re-measure them first.
 | --- | --- | --- | --- |
 | [L23](#l23-open-the-tile-connections-from-the-html) | Open the tile hosts' connections from the HTML (`preconnect`). **Done 6 November** (P-107) | About three round trips, ~0.5 s on Fast 4G, off the first tiles of a cold visit | S |
 | [L20](#l20-reuse-a-google-session-for-its-three-hours) | Reuse a Google 3D Tiles session for its three-hour life | A keyed visitor's next visit reads its tiles from the browser cache instead of downloading them again, and makes one billed root request less | S |
-| [L21](#l21-remember-elevation-that-does-not-exist) | Remember elevation tiles that do not exist | Outside Mapterhorn's regional coverage, no failed request for each fine tile | S |
+| [L21](#l21-remember-elevation-that-does-not-exist) | Remember elevation tiles that do not exist. **Done 6 November** (P-108) | Outside Mapterhorn's regional coverage, no failed request for each fine tile | S |
 | [L19](#l19-draw-only-what-changed-while-maps-stream) | Draw only what changed while maps stream | Most of the ~3,600 frames a 60 s cold load draws with a still camera | S–M |
 | [L8](#l8-offer-babylon-only-the-tiles-that-are-shown) | Offer Babylon only the tiles that are shown | Babylon's per-frame walk scales with shown tiles, not with up to ~16,000 retained meshes | S |
 | [L5](#l5-count-google-tile-bytes-and-keep-indices-16-bit) | Count Google tile bytes; keep their indices 16-bit | The cache obeys its 307–410 MiB setting, not 6,000–8,000 tiles; index memory −50% | S |
@@ -471,6 +471,16 @@ slots, on a first view outside coverage. Not measured; count them in one
 uncovered view.
 
 **Exactness.** Exact: the same grids are used.
+
+**Status.** Done 6 November (P-108). The loader also checks again when a
+queued tile gets its download slot. 2 km above 0°, 20°E, the first view's
+404s fell from 46 to 30 (median of three pairs). The rest are the first
+wave, sent before any 404 came back, not hundreds. After the camera moved
+5 km, the control made 15 failed requests and the change none. A
+differential harness over 20,193 loader calls gave the same grids, with 51%
+fewer requests and 95% fewer 404s. It rests on Mapterhorn keeping no tile
+without its parent, which held in every probe.
+[Note](https://github.com/foss-earth/engine/blob/main/docs/performance/2026-11-06/missing-elevation.md).
 
 ### L23. Open the tile connections from the HTML
 
