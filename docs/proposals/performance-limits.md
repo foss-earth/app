@@ -64,7 +64,7 @@ a frame in 0SFS) also wait on decisions; re-measure them first.
 | [L20](#l20-reuse-a-google-session-for-its-three-hours) | Reuse a Google 3D Tiles session for its three-hour life | A keyed visitor's next visit reads its tiles from the browser cache instead of downloading them again, and makes one billed root request less | S |
 | [L21](#l21-remember-elevation-that-does-not-exist) | Remember elevation tiles that do not exist. **Done 6 November** (P-108) | Outside Mapterhorn's regional coverage, no failed request for each fine tile | S |
 | [L19](#l19-draw-only-what-changed-while-maps-stream) | Draw only what changed while maps stream | Most of the ~3,600 frames a 60 s cold load draws with a still camera | S–M |
-| [L8](#l8-offer-babylon-only-the-tiles-that-are-shown) | Offer Babylon only the tiles that are shown | Babylon's per-frame walk scales with shown tiles, not with up to ~16,000 retained meshes | S |
+| [L8](#l8-offer-babylon-only-the-tiles-that-are-shown) | Offer Babylon only the tiles that are shown. **Done 7 November** (P-110) | Babylon's per-frame walk scales with shown tiles, not with up to ~16,000 retained meshes | S |
 | [L5](#l5-count-google-tile-bytes-and-keep-indices-16-bit) | Count Google tile bytes; keep their indices 16-bit. **Held 6 November** (P-109): both change pixels | The cache obeys its 307–410 MiB setting, not 6,000–8,000 tiles; index memory −50% | S |
 | [L24](#l24-draw-opaque-meshes-near-to-far) | Draw opaque meshes near to far | Less overdraw on GPUs without hidden-surface removal | S |
 | [L6](#l6-keep-elevation-compressed-decode-only-what-meshes-read) | Keep elevation compressed; decode only what meshes read | Up to ~200 MiB, and no re-downloads from a cache that overflows | S–M |
@@ -745,6 +745,26 @@ retained ones. At the phone drag at 4× it costs 29–32 ms/s; measure the
 share that hidden tiles take.
 
 **Exactness.** Exact: Babylon would have skipped those meshes anyway.
+
+**Status.** Done 7 November (P-110), in the renderer, not the engine. The
+renderer lifecycle already replaces `getActiveMeshCandidates` for the 360
+view, and two replacements would undo each other. So the filter sits beside
+that one. It offers the meshes whose `isEnabled()` holds, in scene order,
+which covers both tiles runtimes without their bookkeeping.
+`renderer.skipDisabledMeshes` turns it off.
+
+- **Pixels.** With the setting on, off, on, off in one page: 0 differing
+  pixels for Google and the default map, on WebGPU and WebGL2.
+- **Time, dragging at 4×.** "render/active meshes" in the frame profiler,
+  six interleaved stretches: 48.6–52.1 → 30.7–33.7 ms/s with Google tiles
+  (836 meshes, about 500 hidden), and 12.6–14.2 → 9.4–10.5 ms/s on the
+  default map (173, about 85 hidden).
+- **Phone drag.** Today's phone drag at 4× gave 18.2 → 16.5 ms/s inclusive in
+  one pair, not the 29–32 above.
+- **What is left.** A list kept up to date as tiles show and hide would save
+  the filter's own walk, about 0.013 ms a frame at 1× with 1,500 meshes.
+
+[Note](https://github.com/foss-earth/renderer/blob/main/docs/performance/2026-11-07/hidden-mesh-candidates.md).
 
 ### L10. One terrain grid, heights in textures
 
