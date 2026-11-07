@@ -38,6 +38,7 @@ function session() {
   const detachProfile = vi.fn(() => { order.push("detachProfile"); });
   const world = {
     prepareFrame: vi.fn(() => { order.push("prepare"); }),
+    prepareWork: vi.fn(() => { order.push("mapWork"); }),
     afterFrame: vi.fn(() => { order.push("after"); }),
     shouldKeepRendering: () => false, minFrameIntervalMs: () => 0, isPreparingFrame: () => false,
     destroy: vi.fn(() => { order.push("world"); }),
@@ -89,7 +90,7 @@ function session() {
       schedulerOptions!.requestFrame(() => schedulerOptions!.tick());
       frame!(timeMs);
     },
-    work(timeMs: number) { schedulerOptions!.work!(timeMs); },
+    work(timeMs: number, frame?: { presenting: boolean }) { schedulerOptions!.work!(timeMs, frame); },
   };
 }
 
@@ -133,6 +134,18 @@ describe("Earth runtime assembly over public owners", () => {
     expect(fixture.prepareResource).toHaveBeenCalledExactlyOnceWith(713);
     expect(fixture.presentation.renderFrame).not.toHaveBeenCalled();
     expect(fixture.scheduler.requestRender).toHaveBeenCalledTimes(1);
+    composed.destroy();
+  });
+
+  it("runs the maps' work after the host's resource work on every scheduler frame, telling them whether it presents (P-112)", () => {
+    const fixture = session(), composed = composeEarthRuntime(fixture.options);
+    expect(fixture.worldPorts.workPasses).toBe(true);
+    fixture.work(714, { presenting: false });
+    fixture.work(731, { presenting: true });
+    expect(fixture.prepareResource.mock.calls).toEqual([[714], [731]]);
+    expect(fixture.world.prepareWork.mock.calls).toEqual([[714, { presenting: false }], [731, { presenting: true }]]);
+    expect(fixture.order).toEqual(["resource", "mapWork", "resource", "mapWork"]);
+    expect(fixture.presentation.renderFrame).not.toHaveBeenCalled();
     composed.destroy();
   });
 

@@ -99,7 +99,10 @@ export function composeEarthRuntime(options: EarthRuntimeCompositionOptions): Ea
     prepareFrame: time => { world?.prepareFrame(time); }, afterFrame: (time, rendered) => { world?.afterFrame(time, rendered); },
     shouldKeepRendering: () => world?.shouldKeepRendering() ?? false,
     minFrameIntervalMs: () => options.presentsEveryFrame?.() ? 0 : world?.minFrameIntervalMs() ?? 0,
-    stopScheduler: () => scheduler?.stop(), onFrameError: options.onFrameError, resourceWork: options.resourceWork,
+    stopScheduler: () => scheduler?.stop(), onFrameError: options.onFrameError,
+    // Every frame the scheduler runs: the host's resource work, then the maps' (P-112), whose
+    // updates draw a frame only when they change what is shown.
+    resourceWork: { prepare(time, frame) { options.resourceWork?.prepare(time); world?.prepareWork(time, frame); } },
     cleanup: [() => world?.destroy(), () => { const stop = detachSky; detachSky = undefined; stop?.(); },
       () => sky?.dispose(), () => presentation?.dispose(),
       () => { const stop = detachProfile; detachProfile = undefined; stop?.(); },
@@ -134,6 +137,8 @@ export function composeEarthRuntime(options: EarthRuntimeCompositionOptions): Ea
     });
     world = createGlobeRuntime(options.canvas, {
       ...options.world,
+      // The closure's resource work above calls prepareWork, and this scheduler has requestWork.
+      workPasses: true,
       platform: {
         ...options.world.platform,
         isHidden: () => options.isHidden(),
