@@ -69,7 +69,7 @@ a frame in 0SFS) also wait on decisions; re-measure them first.
 | [L24](#l24-draw-opaque-meshes-near-to-far) | Draw opaque meshes near to far | Less overdraw on GPUs without hidden-surface removal | S |
 | [L6](#l6-keep-elevation-compressed-decode-only-what-meshes-read) | Keep elevation compressed; decode only what meshes read | Up to ~200 MiB, and no re-downloads from a cache that overflows | S–M |
 | [L22](#l22-let-the-imagery-atlas-grow) | Let the imagery atlas grow as needed | Most of the 256 MiB of GPU memory it commits at start on a desktop | M |
-| [L26](#l26-send-cross-origin-requests-past-the-service-worker) | Send tile requests past the service worker (static routes) | A hop through the worker's thread for each of hundreds of tiles | S |
+| [L26](#l26-send-cross-origin-requests-past-the-service-worker) | Send tile requests past the service worker (static routes). **Done 7 November** (P-111) | A hop through the worker's thread for each of hundreds of tiles | S |
 
 ### 3. Larger changes
 
@@ -552,6 +552,20 @@ tiles.
 Not measured.
 
 **Exactness.** Exact.
+
+**Status.** Done 7 November (P-111): ui `fb69a89` adds the `networkHosts`
+option to the worker template, and app `d9ab634` names nine hosts: the
+engine's terrain and base map hosts, Google's, the overview chart's and the
+night lights'. A browser without static routing installs the worker as before.
+
+- **Requests.** In Chrome 156, over six cities a run and three interleaved
+  runs each way: 6,985 of 6,985 tile requests went through the fetch handler
+  before, and 0 of 6,997 after.
+- **Worker starts.** After DevTools stopped the worker, the next tile load
+  started it again 9 times of 9 before, and 0 of 9 after.
+- **Time.** Not resolved: request times are network-bound and overlap
+  (medians 36.8–40.3 ms). What the hop and the start cost a slower phone is
+  still not measured.
 
 ## Frames while loading
 
