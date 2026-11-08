@@ -61,7 +61,7 @@ a frame in 0SFS) also wait on decisions; re-measure them first.
 | Item | Change | Gain (estimate) | Cost |
 | --- | --- | --- | --- |
 | [L23](#l23-open-the-tile-connections-from-the-html) | Open the tile hosts' connections from the HTML (`preconnect`). **Done 6 November** (P-107) | About three round trips, ~0.5 s on Fast 4G, off the first tiles of a cold visit | S |
-| [L20](#l20-reuse-a-google-session-for-its-three-hours) | Reuse a Google 3D Tiles session for its three-hour life | A keyed visitor's next visit reads its tiles from the browser cache instead of downloading them again, and makes one billed root request less | S |
+| [L20](#l20-reuse-a-google-session-for-its-three-hours) | Reuse a Google 3D Tiles session for its three-hour life. **Already done** (engine `551d10e`, 15 October; P-147) | A keyed visitor's next visit reads its tiles from the browser cache instead of downloading them again, and makes one billed root request less | S |
 | [L21](#l21-remember-elevation-that-does-not-exist) | Remember elevation tiles that do not exist. **Done 6 November** (P-108) | Outside Mapterhorn's regional coverage, no failed request for each fine tile | S |
 | [L19](#l19-draw-only-what-changed-while-maps-stream) | Draw only what changed while maps stream | Most of the ~3,600 frames a 60 s cold load draws with a still camera | S–M |
 | [L8](#l8-offer-babylon-only-the-tiles-that-are-shown) | Offer Babylon only the tiles that are shown. **Done 7 November** (P-110) | Babylon's per-frame walk scales with shown tiles, not with up to ~16,000 retained meshes | S |
@@ -479,6 +479,16 @@ The design behind these is in
 cache, under Google's own cache headers, and saves one billed root request.
 
 **Exactness.** Exact.
+
+**Status.** Already done, found 8 November (P-147). Since engine `551d10e`
+(15 October), models load cache-first and the root is revalidated, which keeps
+its session: "nothing reuses it" above was wrong. M-7, two visits in one
+Chrome profile at Minneapolis, run twice: the second visit used the first
+one's session, 200 of its 201 requests came from the disk cache, and 23 bytes
+came from the network, against 7.85–7.86 MB the first time. The root still
+costs one revalidation a visit, which its `max-age=0, must-revalidate`
+requires.
+[Note](https://github.com/foss-earth/engine/blob/main/docs/performance/2026-11-08/google-session-reuse.md).
 
 ### L21. Remember elevation that does not exist
 
@@ -1324,6 +1334,10 @@ Each estimate above needs a number before its decision. These are cheap:
   something became visible (L19).
 - **M-7. A keyed visitor's second visit.** Bytes from the network within
   three hours of the first, today and with session reuse (L20).
+
+  **Done 8 November.** The second visit's tiles came from the disk cache
+  with the first visit's session: 23 bytes from the network, against
+  7.85–7.86 MB (L20).
 - **M-8. GPU memory by owner.** The imagery atlas, Google textures and
   buffers, terrain buffers and render targets, against the 562 MiB
   (L22, L5).
