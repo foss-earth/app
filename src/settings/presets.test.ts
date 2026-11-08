@@ -50,12 +50,12 @@ describe("built-in presets", () => {
     const back = settings.diffPreset(thisDevice);
     expect(back.changes).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "map.imagery.gpuBudget", from: 512, to: settings.inspect("map.imagery.gpuBudget").defaultValue }),
-      expect.objectContaining({ id: "renderer.frameRateCap", from: 30, to: "off" }),
+      expect.objectContaining({ id: "renderer.frameRateCap", from: 30, to: 60 }),
     ]));
     expect(back.changes.some(change => change.id === "map.source.googleKey")).toBe(false);
     settings.applyPreset(thisDevice);
     expect(settings.inspect("map.imagery.gpuBudget").provenance).toBe("default");
-    expect(settings.get("renderer.frameRateCap")).toBe("off");
+    expect(settings.get("renderer.frameRateCap")).toBe(60);
     expect(settings.get("map.source.googleKey")).toBe("a key the presets never touch");
     expect(settings.matchingPreset()?.id).toBe(thisDevice.id);
   });
