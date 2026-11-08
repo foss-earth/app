@@ -1,7 +1,7 @@
 /** Enough of `crypto` to make an id. `randomUUID` is absent on a page served as plain HTTP. */
 interface IdSource {
   randomUUID?: () => string;
-  getRandomValues(bytes: Uint8Array): Uint8Array;
+  getRandomValues(bytes: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer>;
 }
 
 /**

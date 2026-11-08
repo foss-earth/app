@@ -378,15 +378,20 @@ describe("createGlobeApp smoke behavior", () => {
       expect(diagnostics.querySelector('[name="title"]')).toBeNull();
       expect(diagnostics.textContent).not.toContain("Report bug");
       expect(app.bugReportTab.querySelector('[name="title"]')).not.toBeNull();
-      const report = app.bugReportTab.querySelector<HTMLTextAreaElement>('[name="report"]')!;
-      expect(report.value).toBe("");
+      expect(app.bugReportTab.querySelector(".foss-earth-issue-report")).toBeNull();
+      const description = app.bugReportTab.querySelector<HTMLTextAreaElement>('[name="description"]')!;
+      expect(description.value).toBe("");
       bugButton.click();
       expect(overlay.current.toggleTab).toHaveBeenCalledWith("bug-report");
       app.onBugReportShow();
-      await vi.waitFor(() => expect(report.value).toContain("Renderer: webgl"));
-      report.value = "Reviewed report";
+      await vi.waitFor(() => expect(app.bugReportTab.querySelector('[role="tab"][data-file="renderer.txt"]')).not.toBeNull());
+      app.bugReportTab.querySelector<HTMLButtonElement>('[role="tab"][data-file="renderer.txt"]')!.click();
+      expect(app.bugReportTab.querySelector("pre")?.textContent).toContain("Renderer: webgl");
+      const viewer = app.bugReportTab.querySelector(".foss-earth-issue-report");
+      description.value = "Reviewed report";
       app.onBugReportShow();
-      expect(report.value).toBe("Reviewed report");
+      expect(description.value).toBe("Reviewed report");
+      expect(app.bugReportTab.querySelector(".foss-earth-issue-report")).toBe(viewer);
     } finally { app.destroy(); }
     overlay.current.toggleTab.mockClear();
     bugButton.click();
